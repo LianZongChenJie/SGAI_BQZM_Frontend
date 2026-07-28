@@ -1,0 +1,74 @@
+{
+  "v": "7.2.4-dev1",
+  "p": {
+    "autoAdjustIndex": true,
+    "hierarchicalRendering": true
+  },
+  "a": {
+    "onPostDeserialize": "__ht__function(json, dm, view, datas) {// 扇叶\r\nfunction animFans() {\r\n\tht.Default.startAnim({\r\n\t\tduration: 5000,\r\n\t\teasing: function (t) { return t  },\r\n\t\taction: function (v, t) {\r\n            var num = 0;\r\n           if(dm.getDataByTag('spfjItem').a('qtkz') && dm.getDataByTag('spfjItem').a('qtkz') === '停止') {\r\n                dm.getDataByTag('fan1').a('rotation', 0 );\r\n            } else{\r\n                dm.getDataByTag('fan1').a('rotation', 0 + (Math.PI * 12 - 0) * v);\r\n            }\r\n\t\t},\r\n\t\tfinishFunc: function () {\r\n\t\t\tanimFans();\r\n\t\t}\r\n\t});\r\n}\r\nanimFans();}"
+  },
+  "d": [
+    {
+      "c": "ht.Node",
+      "i": 1960,
+      "p": {
+        "displayName": "fengJi",
+        "tag": "spfjItem",
+        "image": "storage/symbols/jinAnQiao/fengJi.json",
+        "position": {
+          "x": 435.99265,
+          "y": 186.35572
+        }
+      }
+    },
+    {
+      "c": "ht.Node",
+      "i": 1961,
+      "p": {
+        "displayName": "Inverter fan2",
+        "tag": "fan1",
+        "image": "storage/symbols/Building Control Major/HVAC/Inverter fan2.json",
+        "position": {
+          "x": 368.12799,
+          "y": 206.04268
+        },
+        "width": 61.46182,
+        "height": 60.62607,
+        "tall": 20
+      }
+    },
+    {
+      "c": "ht.Node",
+      "i": 1962,
+      "p": {
+        "displayName": "baoJing",
+        "tag": "szd",
+        "image": "storage/symbols/jinAnQiao/baoJing.json",
+        "position": {
+          "x": 490.8481,
+          "y": 179.06329
+        }
+      }
+    },
+    {
+      "c": "ht.Node",
+      "i": 1963,
+      "p": {
+        "displayName": "baoJing",
+        "tag": "qtkz",
+        "image": "storage/symbols/jinAnQiao/baoJing.json",
+        "position": {
+          "x": 490.96203,
+          "y": 206.41772
+        }
+      }
+    }
+  ],
+  "modified": "Mon Jul 06 2026 15:46:46 GMT+0800 (中国标准时间)",
+  "contentRect": {
+    "x": 335.99265,
+    "y": 79.06329,
+    "width": 254.96938,
+    "height": 227.35443
+  }
+}
