@@ -33,11 +33,8 @@
               <a-form-item label="报警条件">
                 <a-select v-model:value="formState.alarmCondition" placeholder="请选择报警条件">
                   <a-select-option value="功率 > 阈值">功率 &gt; 阈值</a-select-option>
-                  <a-select-option value="功率 < 阈值">功率 &lt; 阈值</a-select-option>
-                  <a-select-option value="电压 > 阈值">电压 &gt; 阈值</a-select-option>
                   <a-select-option value="电压 < 阈值">电压 &lt; 阈值</a-select-option>
-                  <a-select-option value="通信超时">通信超时</a-select-option>
-                  <a-select-option value="离线">离线</a-select-option>
+                  <a-select-option value="离线时长 > 阈值">离线时长 &gt; 阈值</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
@@ -108,7 +105,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
-import { getAlarmLevelListApi } from '../alarmManagement.api';
+import { getAlarmLevelListApi, getAlarmCategoryListApi } from '../alarmManagement.api';
 
 const formState = reactive({
   alarmName: '功率超限报警',
@@ -120,6 +117,7 @@ const formState = reactive({
 });
 
 const alarmLevelList = ref<any[]>([]);
+const categoryList = ref<any[]>([]);
 
 const loadAlarmLevels = async () => {
   const res = await getAlarmLevelListApi();
@@ -127,23 +125,33 @@ const loadAlarmLevels = async () => {
   alarmLevelList.value = Array.isArray(list) ? list : [];
 };
 
+const loadCategoryList = async () => {
+  const res = await getAlarmCategoryListApi();
+  const list = res?.result || res || [];
+  categoryList.value = (Array.isArray(list) ? list : []).map((item: any) => ({
+    ...item,
+    colorValue: levelColorMap[item.alarmLevelName] || '#1890ff',
+    color: item.alarmLevelName === '一般' ? '蓝色' : item.alarmLevelName === '紧急' || item.alarmLevelName === '非常紧急' ? '红色' : '橙色',
+  }));
+};
+
 onMounted(() => {
   loadAlarmLevels();
+  loadCategoryList();
 });
 
-const columns = [
-  { title: '类别', dataIndex: 'category', key: 'category' },
-  { title: '等级', dataIndex: 'level', key: 'level' },
-  { title: '颜色', dataIndex: 'color', key: 'color' },
-  { title: '通知方式', dataIndex: 'notifyMethod', key: 'notifyMethod' },
-];
+const levelColorMap: Record<string, string> = {
+  '紧急': '#ff4d4f',
+  '非常紧急': '#ff4d4f',
+  '重要': '#fa8c16',
+  '一般': '#1890ff',
+};
 
-const categoryList = [
-  { id: 1, category: '通信故障', level: '紧急', color: '红色', colorValue: '#ff4d4f', notifyMethod: '短信+平台' },
-  { id: 2, category: '功率异常', level: '重要', color: '橙色', colorValue: '#fa8c16', notifyMethod: '平台+邮件' },
-  { id: 3, category: '电压异常', level: '重要', color: '橙色', colorValue: '#fa8c16', notifyMethod: '平台+邮件' },
-  { id: 4, category: '定时失败', level: '一般', color: '蓝色', colorValue: '#1890ff', notifyMethod: '平台' },
-  { id: 5, category: '离线故障', level: '紧急', color: '红色', colorValue: '#ff4d4f', notifyMethod: '短信+平台' },
+const columns = [
+  { title: '类别', dataIndex: 'alarmCategoryName', key: 'alarmCategoryName' },
+  { title: '等级', dataIndex: 'alarmLevelName', key: 'alarmLevelName' },
+  { title: '颜色', dataIndex: 'color', key: 'color' },
+  { title: '通知方式', dataIndex: 'noticeWay', key: 'noticeWay' },
 ];
 
 const handleSave = () => {
