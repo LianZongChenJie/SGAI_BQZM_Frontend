@@ -78,9 +78,9 @@
           </thead>
           <tbody>
             <tr v-for="row in filteredData" :key="row.id">
-              <td>{{ row.id }}</td>
-              <td>{{ row.name }}</td>
-              <td>{{ row.place }}</td>
+              <td>{{ row.deviceCode }}</td>
+              <td>{{ row.deviceName }}</td>
+              <td>{{ row.spaceId }}</td>
               <td>{{ row.loop }}</td>
               <td>{{ row.vendor }}</td>
               <td>{{ row.model }}</td>
@@ -89,10 +89,10 @@
                 <span
                   class="status-badge"
                   :class="{
-                    online: row.status === '在线',
-                    offline: row.status === '离线',
+                    online: row.runState === '在线',
+                    offline: row.runState === '离线',
                   }"
-                >{{ row.status }}</span>
+                >{{ row.runState }}</span>
               </td>
               <td class="actions">
                 <button class="action-btn" @click="onDetail(row)">详情</button>
@@ -108,61 +108,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { EquipmentListApi } from '@/api/equipment';   // ← replace with the real module
+import { EquipmentListApi, getSpaceTree } from '@/api/equipment';   // ← replace with the real module
 
 /* --------------------- 模拟数据 --------------------- */
-const tableData = ref([
-  {
-    id: 'DEV-A1-001',
-    name: '主照明控制器',
-    place: 'A1-冬奥广场',
-    loop: '01',
-    vendor: '西门子',
-    model: 'S7-1200',
-    date: '2023-05-20',
-    status: '在线',
-  },
-  {
-    id: 'DEV-A1-002',
-    name: '景观灯控制器',
-    place: 'A1-冬奥广场',
-    loop: '02',
-    vendor: '施耐德',
-    model: 'M580',
-    date: '2023-05-20',
-    status: '在线',
-  },
-  {
-    id: 'DEV-A2-003',
-    name: '场馆照明控制器',
-    place: 'A2-服贸会场馆',
-    loop: '03',
-    vendor: 'ABB',
-    model: 'AC500',
-    date: '2023-06-15',
-    status: '在线',
-  },
-  {
-    id: 'DEV-B2-007',
-    name: '步道灯控制器',
-    place: 'B2-滨水绿道',
-    loop: '07',
-    vendor: '华为PLC',
-    model: 'HiPLC-200',
-    date: '2023-08-10',
-    status: '离线',
-  },
-  {
-    id: 'DEV-C1-012',
-    name: '外立面控制器',
-    place: 'C1-科技大厦',
-    loop: '12',
-    vendor: '西门子',
-    model: 'S7-1500',
-    date: '2023-04-01',
-    status: '在线',
-  },
-]);
+const tableData = ref([]);
 
 /* --------------------- 筛选状态 --------------------- */
 const searchKeyword = ref('');
@@ -212,18 +161,30 @@ function onDetail(row: typeof tableData.value[0]) {
 function onEdit(row: typeof tableData.value[0]) {
   console.log('编辑', row);
 }
+// 全部地块--空间位置
+const spaceTreeData = ref([]);
+const getSpaceTreeInit = () => {
+  getSpaceTree().then(res => {
+    console.log('空间位置数据：', res);
+    spaceTreeData.value = res ?? [];
+  })
+}
 // 数据请求
 const loading = ref(false);
 onMounted(async () => {
-  // loading.value = true;
-  // try {
-  //   const data = await EquipmentListApi();
-  //   console.log('设备列表数据：', data);
-  //    tableData.value = Array.isArray(data) ? data : (data?.list ?? []);
-  // } catch (err) {
-  //   console.error('Failed to load equipment list:', err);
-  // } finally {loading.value = false;}
+  loading.value = true;
+  getSpaceTreeInit();
+  try {
+    const data = await EquipmentListApi();
+    console.log('设备列表数据：', data);
+    tableData.value = Array.isArray(data.records) ? data.records : (data?.records ?? []);
+
+  } catch (err) {
+    console.error('Failed to load equipment list:', err);
+  } finally {loading.value = false;}
 })
+
+
 </script>
 
 <style scoped>
@@ -355,7 +316,7 @@ onMounted(async () => {
 }
 
 .search-input {
-  width: 100%;
+  width: 300px;
   height: 36px;
   padding: 0 12px 0 36px;
   background: #ffffff;
@@ -437,7 +398,7 @@ onMounted(async () => {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-width: 48px;
   height: 24px;
   padding: 0 10px;
