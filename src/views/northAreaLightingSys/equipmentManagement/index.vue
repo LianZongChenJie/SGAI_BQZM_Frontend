@@ -61,7 +61,7 @@
       </section>
 
       <!-- 数据表格 -->
-      <section class="table-wrapper">
+      <section class="table-wrapper" v-loading="loading">
         <table class="device-table">
           <thead>
             <tr>
@@ -80,14 +80,14 @@
             <tr v-for="row in filteredData" :key="row.id">
               <td>{{ row.deviceCode }}</td>
               <td>{{ row.deviceName }}</td>
-              <td>{{ row.spaceId }}</td>
-              <td>{{ row.loop }}</td>
-              <td>{{ row.vendor }}</td>
-              <td>{{ row.model }}</td>
-              <td>{{ row.date }}</td>
-              <td>
+              <td>{{ row.spaceName }}</td>
+              <td>{{ row.loopNo }}</td>
+              <td>{{ row.manufacturer }}</td>
+              <td>{{ row.deviceModel }}</td>
+              <td>{{ row.installDate }}</td>
+              <td class="status-cell">
                 <span
-                  class="status-badge"
+                  class="status-badge-table"
                   :class="{
                     online: row.runState === '在线',
                     offline: row.runState === '离线',
@@ -166,7 +166,8 @@ const spaceTreeData = ref([]);
 const getSpaceTreeInit = () => {
   getSpaceTree().then(res => {
     console.log('空间位置数据：', res);
-    spaceTreeData.value = res ?? [];
+    const result = extractParentNodes(res)
+    spaceTreeData.value = result;
   })
 }
 // 数据请求
@@ -183,7 +184,35 @@ onMounted(async () => {
     console.error('Failed to load equipment list:', err);
   } finally {loading.value = false;}
 })
+/**
+ * 从树形结构中提取所有父节点数据
+ * @param {Array} treeData - 输入的树形数组
+ * @returns {Array} 格式化后的父节点数组 [{ value: "...", key: "..." }]
+ */
+const extractParentNodes = (treeData) => {
+  let result = [];
 
+  function traverse(nodes) {
+    if (!nodes) return;
+
+    nodes.forEach(node => {
+      // 判断是否为父节点：children 存在且长度大于 0
+      if (node.children && node.children.length > 0) {
+        // 按照要求重组数据：title -> value, key -> key
+        result.push({
+          value: node.title,
+          key: node.key
+        });
+
+        // 递归处理子节点
+        traverse(node.children);
+      }
+    });
+  }
+
+  traverse(treeData);
+  return result;
+}
 
 </script>
 
@@ -394,25 +423,30 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.03);
 }
 
+/* 状态列强制左对齐 */
+.status-cell {
+  text-align: left !important;
+}
+
 /* 状态 Badge */
-.status-badge {
+.status-badge-table {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   min-width: 48px;
   height: 24px;
-  padding: 0 10px 0 0;
+  padding: 0 10px;
   border-radius: 12px;
   font-size: 12px;
   line-height: 1;
 }
 
-.status-badge.online {
+.status-badge-table.online {
   color: var(--color-online);
   background: rgba(82, 196, 26, 0.2);
 }
 
-.status-badge.offline {
+.status-badge-table.offline {
   color: var(--color-offline);
   background: rgba(255, 77, 79, 0.2);
 }
