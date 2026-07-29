@@ -216,7 +216,7 @@ import {
   FileTextOutlined,
 } from '@ant-design/icons-vue';
 
-const activeKey = ref('fault-info');
+const activeKey = ref('run-time');
 const loading = ref(false);
 const runtimeChartRef = ref(null);
 const trendChartRef = ref(null);
@@ -731,18 +731,31 @@ onUnmounted(() => {
 
 .dark-tabs :deep(.ant-tabs-nav) {
   margin-bottom: 16px;
+  border-bottom: 1px solid #303d50;
+}
+
+.dark-tabs :deep(.ant-tabs-nav::before) {
+  border-bottom: none;
 }
 
 .dark-tabs :deep(.ant-tabs-tab) {
-  color: #94a3b8;
+  color: #a0aabf;
+  font-size: 14px;
+  padding: 8px 0;
+  margin-right: 24px;
+}
+
+.dark-tabs :deep(.ant-tabs-tab:hover) {
+  color: #ffffff;
 }
 
 .dark-tabs :deep(.ant-tabs-tab-active) {
-  color: #38bdf8;
+  color: #00a2e8 !important;
 }
 
 .dark-tabs :deep(.ant-tabs-ink-bar) {
-  background: #38bdf8;
+  background: #00a2e8;
+  height: 2px;
 }
 
 .mb-16 {

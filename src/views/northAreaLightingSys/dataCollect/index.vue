@@ -37,7 +37,7 @@
                   <td>{{ row.address }}</td>
                   <td>{{ row.dataType }}</td>
                   <td>
-                    <span class="status-badge" :class="row.statusClass">{{ row.status }}</span>
+                    <span class="status-badge-table" :class="row.statusClass">{{ row.status }}</span>
                   </td>
                   <td>{{ row.lastSync }}</td>
                   <td class="actions">
@@ -161,10 +161,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import * as echarts from 'echarts';
 
-const activeTab = ref('collect');
+const activeTab = ref('interface');
 const chartRef = ref<HTMLDivElement>();
 
 /* --------------------- 厂商接口数据 --------------------- */
@@ -190,6 +190,9 @@ let chartInstance: echarts.ECharts | null = null;
 
 function initChart() {
   if (!chartRef.value) return;
+  if (chartInstance) {
+    chartInstance.dispose();
+  }
   chartInstance = echarts.init(chartRef.value);
 
   const option: echarts.EChartsOption = {
@@ -259,10 +262,33 @@ function initChart() {
   chartInstance.setOption(option);
 }
 
+/* 监听 tab 切换，延迟 resize 保证图表容器已正确渲染 */
+watch(activeTab, (val) => {
+  if (val === 'collect') {
+    nextTick(() => {
+      setTimeout(() => {
+        chartInstance?.resize();
+      }, 100);
+    });
+  }
+});
+
+/* 窗口大小变化时自动 resize */
+function onWindowResize() {
+  chartInstance?.resize();
+}
+
 onMounted(() => {
+  window.addEventListener('resize', onWindowResize);
   nextTick(() => {
     initChart();
   });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onWindowResize);
+  chartInstance?.dispose();
+  chartInstance = null;
 });
 </script>
 
@@ -394,7 +420,7 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.03);
 }
 
-.status-badge {
+.status-badge-table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -406,17 +432,17 @@ onMounted(() => {
   line-height: 1;
 }
 
-.status-badge.online {
+.status-badge-table.online {
   color: var(--color-green);
   background: rgba(82, 196, 26, 0.15);
 }
 
-.status-badge.delay {
+.status-badge-table.delay {
   color: var(--color-orange);
   background: rgba(245, 158, 11, 0.15);
 }
 
-.status-badge.offline {
+.status-badge-table.offline {
   color: var(--color-red);
   background: rgba(255, 77, 79, 0.15);
 }
