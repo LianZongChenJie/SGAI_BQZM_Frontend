@@ -29,7 +29,7 @@
         <div class="aui-container">
           <div class="form-box">
             <div class="login-title">
-              金&ensp;安&ensp;桥&ensp;智&ensp;慧&ensp;管&ensp;控&ensp;平&ensp;台
+              北&ensp;区&ensp;照&ensp;明&ensp;集&ensp;控&ensp;平&ensp;台
             </div>
             <div class="user-info">
               <div class="user-form">
