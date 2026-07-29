@@ -1,0 +1,269 @@
+<template>
+  <div class="alarm-config">
+    <div class="config-layout">
+      <!-- 左侧：报警条件配置 -->
+      <div class="config-form-card">
+        <div class="card-title">
+          <span class="title-icon">⚠️</span>
+          <span>报警条件配置</span>
+        </div>
+
+        <a-form :model="formState" layout="vertical" class="config-form">
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item label="报警名称">
+                <a-input v-model:value="formState.alarmName" placeholder="请输入报警名称" />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="监测对象">
+                <a-select v-model:value="formState.monitorTarget" placeholder="请选择监测对象">
+                  <a-select-option value="A1地块">A1地块</a-select-option>
+                  <a-select-option value="A2地块">A2地块</a-select-option>
+                  <a-select-option value="B1地块">B1地块</a-select-option>
+                  <a-select-option value="B2地块">B2地块</a-select-option>
+                  <a-select-option value="C1地块">C1地块</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item label="报警条件">
+                <a-select v-model:value="formState.alarmCondition" placeholder="请选择报警条件">
+                  <a-select-option value="功率 > 阈值">功率 &gt; 阈值</a-select-option>
+                  <a-select-option value="功率 < 阈值">功率 &lt; 阈值</a-select-option>
+                  <a-select-option value="电压 > 阈值">电压 &gt; 阈值</a-select-option>
+                  <a-select-option value="电压 < 阈值">电压 &lt; 阈值</a-select-option>
+                  <a-select-option value="通信超时">通信超时</a-select-option>
+                  <a-select-option value="离线">离线</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="阈值">
+                <a-input v-model:value="formState.threshold" placeholder="请输入阈值">
+                  <template #addonAfter>kW</template>
+                </a-input>
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item label="报警等级">
+                <a-select v-model:value="formState.alarmLevel" placeholder="请选择报警等级">
+                  <a-select-option v-for="item in alarmLevelList" :key="item.id" :value="item.alarmLevelName">
+                    {{ item.alarmLevelName }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="通知方式">
+                <a-select v-model:value="formState.notifyMethod" placeholder="请选择通知方式">
+                  <a-select-option value="短信">短信</a-select-option>
+                  <a-select-option value="邮件">邮件</a-select-option>
+                  <a-select-option value="平台">平台</a-select-option>
+                  <a-select-option value="短信+平台">短信+平台</a-select-option>
+                  <a-select-option value="平台+邮件">平台+邮件</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+          </a-row>
+
+          <div class="form-actions">
+            <a-button type="primary" @click="handleSave">保存配置</a-button>
+          </div>
+        </a-form>
+      </div>
+
+      <!-- 右侧：报警类别与等级 -->
+      <div class="config-table-card">
+        <div class="card-title">
+          <span class="title-icon">📋</span>
+          <span>报警类别与等级</span>
+        </div>
+
+        <a-table
+          :columns="columns"
+          :data-source="categoryList"
+          :pagination="false"
+          row-key="id"
+          class="config-table"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.dataIndex === 'color'">
+              <span class="color-dot" :style="{ background: record.colorValue }"></span>
+              {{ record.color }}
+            </template>
+          </template>
+        </a-table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { reactive, ref, onMounted } from 'vue';
+import { message } from 'ant-design-vue';
+import { getAlarmLevelListApi } from '../alarmManagement.api';
+
+const formState = reactive({
+  alarmName: '功率超限报警',
+  monitorTarget: 'A1地块',
+  alarmCondition: '功率 > 阈值',
+  threshold: '6.0',
+  alarmLevel: '重要',
+  notifyMethod: '短信',
+});
+
+const alarmLevelList = ref<any[]>([]);
+
+const loadAlarmLevels = async () => {
+  const res = await getAlarmLevelListApi();
+  const list = res?.result || res || [];
+  alarmLevelList.value = Array.isArray(list) ? list : [];
+};
+
+onMounted(() => {
+  loadAlarmLevels();
+});
+
+const columns = [
+  { title: '类别', dataIndex: 'category', key: 'category' },
+  { title: '等级', dataIndex: 'level', key: 'level' },
+  { title: '颜色', dataIndex: 'color', key: 'color' },
+  { title: '通知方式', dataIndex: 'notifyMethod', key: 'notifyMethod' },
+];
+
+const categoryList = [
+  { id: 1, category: '通信故障', level: '紧急', color: '红色', colorValue: '#ff4d4f', notifyMethod: '短信+平台' },
+  { id: 2, category: '功率异常', level: '重要', color: '橙色', colorValue: '#fa8c16', notifyMethod: '平台+邮件' },
+  { id: 3, category: '电压异常', level: '重要', color: '橙色', colorValue: '#fa8c16', notifyMethod: '平台+邮件' },
+  { id: 4, category: '定时失败', level: '一般', color: '蓝色', colorValue: '#1890ff', notifyMethod: '平台' },
+  { id: 5, category: '离线故障', level: '紧急', color: '红色', colorValue: '#ff4d4f', notifyMethod: '短信+平台' },
+];
+
+const handleSave = () => {
+  message.success('报警配置已保存');
+};
+</script>
+
+<style scoped lang="less">
+.alarm-config {
+  .config-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  .config-form-card,
+  .config-table-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 24px;
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 24px;
+
+      .title-icon {
+        font-size: 20px;
+      }
+    }
+  }
+
+  .config-form {
+    :deep(.ant-form-item-label > label) {
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 14px;
+    }
+
+    :deep(.ant-input),
+    :deep(.ant-select-selector) {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #fff;
+
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+      }
+    }
+
+    :deep(.ant-select-selection-item) {
+      color: #fff !important;
+    }
+
+    :deep(.ant-select-arrow) {
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    :deep(.ant-select-dropdown) {
+      background: #1a1a2e;
+
+      .ant-select-item {
+        color: #fff !important;
+
+        &.ant-select-item-option-selected {
+          background: rgba(24, 144, 255, 0.2) !important;
+        }
+
+        &.ant-select-item-option-active {
+          background: rgba(255, 255, 255, 0.08) !important;
+        }
+      }
+    }
+
+    :deep(.ant-input-group-addon) {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+  }
+
+  .config-table {
+    :deep(.ant-table) {
+      background: transparent;
+      color: #fff;
+
+      .ant-table-thead > tr > th {
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.75);
+        border-bottom-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .ant-table-tbody > tr > td {
+        border-bottom-color: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      .ant-table-tbody > tr:hover > td {
+        background: rgba(255, 255, 255, 0.04);
+      }
+    }
+
+    .color-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+  }
+}
+</style>
