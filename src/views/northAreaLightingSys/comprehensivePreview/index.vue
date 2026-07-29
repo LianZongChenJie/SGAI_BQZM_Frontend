@@ -12,7 +12,7 @@
         <div class="stat-value" style="color: var(--accent2)">{{ stats.onlineDevices }}</div>
         <div class="stat-trend trend-up">↑ {{ stats.onlineRate }} 在线率</div>
       </div>
-      <div class="stat-card orange">
+      <div class="stat-card orange"> 
         <div class="stat-label">今日用电</div>
         <div class="stat-value" style="color: var(--accent3)">{{ stats.todayUsage }}</div>
         <div class="stat-trend trend-up">kWh 较昨日 {{ stats.usageTrend }}</div>

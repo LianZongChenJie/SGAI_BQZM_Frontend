@@ -18,3 +18,4 @@ export const allOnApi = () => defHttp.post({ url: Api.allOn });
 
 /** 全区关灯 */
 export const allOffApi = () => defHttp.post({ url: Api.allOff });
+
