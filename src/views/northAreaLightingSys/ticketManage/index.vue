@@ -16,13 +16,11 @@
           >
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
           </svg>
-          <h1 class="title">设备档案管理</h1>
+          <h1 class="title">工单管理111</h1>
         </div>
 
         <div class="right">
-          <button class="btn btn-primary" @click="onAdd">+ 新增设备</button>
-          <button class="btn btn-secondary" @click="onImport">导入</button>
-          <button class="btn btn-secondary" @click="onExport">导出</button>
+          <button class="btn btn-primary" @click="onAdd">+ 新增工单</button>
         </div>
       </header>
 
@@ -46,17 +44,19 @@
             v-model="searchKeyword"
             type="text"
             class="search-input"
-            placeholder="搜索设备名称、编号、地址..."
+            placeholder="搜索工单编号、标题..."
           />
         </div>
         <select v-model="selectedPlace" class="select">
-          <option value="">全部地块</option>
+          <option value="">全部状态</option>
           <option v-for="p in placeOptions" :key="p" :value="p">{{ p }}</option>
         </select>
         <select v-model="selectedStatus" class="select">
-          <option value="">全部状态</option>
-          <option value="在线">在线</option>
-          <option value="离线">离线</option>
+          <option value="">全部优先级</option>
+          <option value="紧急">紧急</option>
+          <option value="高">高</option>
+          <option value="中">中</option>
+          <option value="低">低</option>
         </select>
       </section>
 
@@ -65,38 +65,50 @@
         <table class="device-table">
           <thead>
             <tr>
-              <th>设备编号</th>
-              <th>设备名称</th>
-              <th>所属地块</th>
-              <th>回路号</th>
-              <th>厂商</th>
-              <th>型号</th>
-              <th>安装日期</th>
+              <th>工单编号</th>
+              <th>标题</th>
+              <th>来源</th>
+              <th>关联设备</th>
+              <th>优先级</th>
               <th>状态</th>
+              <th>创建日期</th>
+              <th>负责人</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in filteredData" :key="row.id">
-              <td>{{ row.deviceCode }}</td>
-              <td>{{ row.deviceName }}</td>
-              <td>{{ row.spaceId }}</td>
+              <td>{{ row.id }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.place }}</td>
               <td>{{ row.loop }}</td>
-              <td>{{ row.vendor }}</td>
-              <td>{{ row.model }}</td>
-              <td>{{ row.date }}</td>
               <td>
                 <span
                   class="status-badge"
                   :class="{
-                    online: row.runState === '在线',
-                    offline: row.runState === '离线',
+                    high: row.status === '高',
+                    center: row.status === '中',
+                    low: row.status === '低',
+                    offline: row.status === '紧急',
                   }"
-                >{{ row.runState }}</span>
+                >{{ row.status }}</span>
               </td>
+              <td>
+              <span
+                  class="status-badge"
+                  :class="{
+                    high: row.vendor === '处理中',
+                    pending: row.vendor === '待处理',
+                    low: row.vendor === '已完成',
+                  }"
+                >{{ row.vendor }}</span>
+                </td>
+                <td>{{ row.date }}</td>
+              <td>{{ row.model }}</td>
+              
+              
               <td class="actions">
-                <button class="action-btn" @click="onDetail(row)">详情</button>
-                <button class="action-btn" @click="onEdit(row)">编辑</button>
+                <button class="action-btn" @click="onEdit(row)">处理</button>
               </td>
             </tr>
           </tbody>
@@ -108,10 +120,51 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { EquipmentListApi, getSpaceTree } from '@/api/equipment';   // ← replace with the real module
+import { EquipmentListApi } from '@/api/equipment';   // ← replace with the real module
 
 /* --------------------- 模拟数据 --------------------- */
-const tableData = ref([]);
+const tableData = ref([
+  {
+    id: 'WO-20260622-001',
+    name: 'B2-滨水绿道回路07通信故障',
+    place: '报警转工单',
+    loop: 'DEV-B2-007',
+    vendor: '待处理',
+    model: '张工',
+    date: '2023-05-20',
+    status: '紧急',
+  },
+  {
+    id: 'WO-20260622-002',
+    name: 'A2-服贸会场馆功率异常排查',
+    place: '报警转工单',
+    loop: 'DEV-B2-007',
+    vendor: '已完成',
+    model: '张工',
+    date: '2023-05-20',
+    status: '高',
+  },
+  {
+    id: 'WO-20260622-003',
+    name: 'C1-科技大厦回路22离线修复',
+    place: '报警转工单',
+    loop: 'DEV-B2-007',
+    vendor: '处理中',
+    model: '张工',
+    date: '2023-06-15',
+    status: '中',
+  },
+  {
+    id: 'WO-20260622-004',
+    name: '全区照明设备巡检',
+    place: '计划任务',
+    loop: '全部',
+    vendor: '处理中',
+    model: '张工',
+    date: '2023-08-10',
+    status: '低',
+  },
+]);
 
 /* --------------------- 筛选状态 --------------------- */
 const searchKeyword = ref('');
@@ -121,7 +174,7 @@ const selectedStatus = ref('');
 /* 计算出所有地块选项（去重） */
 const placeOptions = computed(() => {
   const set = new Set<string>();
-  tableData.value.forEach((d) => set.add(d.place));
+  tableData.value.forEach((d) => set.add(d.status));
   return Array.from(set);
 });
 
@@ -161,30 +214,18 @@ function onDetail(row: typeof tableData.value[0]) {
 function onEdit(row: typeof tableData.value[0]) {
   console.log('编辑', row);
 }
-// 全部地块--空间位置
-const spaceTreeData = ref([]);
-const getSpaceTreeInit = () => {
-  getSpaceTree().then(res => {
-    console.log('空间位置数据：', res);
-    spaceTreeData.value = res ?? [];
-  })
-}
 // 数据请求
 const loading = ref(false);
 onMounted(async () => {
-  loading.value = true;
-  getSpaceTreeInit();
-  try {
-    const data = await EquipmentListApi();
-    console.log('设备列表数据：', data);
-    tableData.value = Array.isArray(data.records) ? data.records : (data?.records ?? []);
-
-  } catch (err) {
-    console.error('Failed to load equipment list:', err);
-  } finally {loading.value = false;}
+  // loading.value = true;
+  // try {
+  //   const data = await EquipmentListApi();
+  //   console.log('设备列表数据：', data);
+  //    tableData.value = Array.isArray(data) ? data : (data?.list ?? []);
+  // } catch (err) {
+  //   console.error('Failed to load equipment list:', err);
+  // } finally {loading.value = false;}
 })
-
-
 </script>
 
 <style scoped>
@@ -197,8 +238,11 @@ onMounted(async () => {
   --color-primary: #00a2e8;
   --color-primary-hover: #0090cf;
   --color-border: #303d50;
-  --color-online: #52c41a;
+  --color-high: #F59E0B;
+  --color-center: #94A3B8;
+  --color-low: #52c41a;
   --color-offline: #ff4d4f;
+  --color-pending: #0090cf;
 
   box-sizing: border-box;
   min-height: 100%;
@@ -316,7 +360,7 @@ onMounted(async () => {
 }
 
 .search-input {
-  width: 300px;
+  width: 100%;
   height: 36px;
   padding: 0 12px 0 36px;
   background: #ffffff;
@@ -398,24 +442,40 @@ onMounted(async () => {
 .status-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   min-width: 48px;
   height: 24px;
-  padding: 0 10px 0 0;
+  padding: 0 10px;
   border-radius: 12px;
   font-size: 12px;
   line-height: 1;
 }
 
-.status-badge.online {
-  color: var(--color-online);
-  background: rgba(82, 196, 26, 0.2);
+.status-badge.high {
+  color: var(--color-high);
+  background: rgba(68, 65, 57, 0.2);
+}
+
+.status-badge.center {
+  color: var(--color-center);
+  background: rgba(48, 59, 77, 0.2);
+}
+
+.status-badge.low {
+  color: var(--color-low);
+  background: rgba(68, 65, 57, 0.2);
 }
 
 .status-badge.offline {
   color: var(--color-offline);
   background: rgba(255, 77, 79, 0.2);
 }
+
+.status-badge.pending {
+  color: var(--color-pending);
+  background: rgba(28, 60, 85, 0.2);
+}
+
 
 /* 操作按钮 */
 .actions {
