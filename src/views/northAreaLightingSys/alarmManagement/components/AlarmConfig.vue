@@ -18,11 +18,9 @@
             <a-col :span="12">
               <a-form-item label="监测对象">
                 <a-select v-model:value="formState.monitorTarget" placeholder="请选择监测对象">
-                  <a-select-option value="A1地块">A1地块</a-select-option>
-                  <a-select-option value="A2地块">A2地块</a-select-option>
-                  <a-select-option value="B1地块">B1地块</a-select-option>
-                  <a-select-option value="B2地块">B2地块</a-select-option>
-                  <a-select-option value="C1地块">C1地块</a-select-option>
+                  <a-select-option v-for="item in circuitList" :key="item.circuitCode" :value="item.circuitCode">
+                    {{item.circuitName}}
+                  </a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
@@ -105,7 +103,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue';
 import { message } from 'ant-design-vue';
-import { getAlarmLevelListApi, getAlarmCategoryListApi } from '../alarmManagement.api';
+import { getAlarmLevelListApi, getAlarmCategoryListApi, getCircuitListApi, saveAlarmConfigApi } from '../alarmManagement.api';
 
 const formState = reactive({
   alarmName: '功率超限报警',
@@ -118,6 +116,7 @@ const formState = reactive({
 
 const alarmLevelList = ref<any[]>([]);
 const categoryList = ref<any[]>([]);
+const circuitList = ref<any[]>([]);
 
 const loadAlarmLevels = async () => {
   const res = await getAlarmLevelListApi();
@@ -135,9 +134,17 @@ const loadCategoryList = async () => {
   }));
 };
 
+const loadCircuitList = async () => {
+  const res = await getCircuitListApi({ pageNo: 1, pageSize: 999 });
+  const list = res?.records || res?.result?.records || res?.result || res || [];
+  circuitList.value = Array.isArray(list) ? list : [];
+  console.log(circuitList.value, 444);
+};
+
 onMounted(() => {
   loadAlarmLevels();
   loadCategoryList();
+  loadCircuitList();
 });
 
 const levelColorMap: Record<string, string> = {
@@ -154,7 +161,38 @@ const columns = [
   { title: '通知方式', dataIndex: 'noticeWay', key: 'noticeWay' },
 ];
 
-const handleSave = () => {
+const handleSave = async () => {
+  // 从报警条件中提取操作符
+  const operatorMap: Record<string, string> = { '功率 > 阈值': '>', '电压 < 阈值': '<', '离线时长 > 阈值': '>' };
+  const operator = operatorMap[formState.alarmCondition] || '>';
+
+  // 查找报警等级对应的ID
+  const levelItem = alarmLevelList.value.find((l) => l.alarmLevelName === formState.alarmLevel);
+
+  // 从circuitList构建points
+  const points = circuitList.value.map((item: any) => ({
+    deviceId: item.deviceId || item.id,
+    deviceName: item.circuitName || item.deviceName || item.name,
+    pointId: item.pointId || null,
+    pointName: item.pointName || item.name || '',
+    timeGranularity: item.timeGranularity || '',
+    operator,
+    conditionValue: formState.threshold,
+  }));
+
+  const params = {
+    ruleName: formState.alarmName,
+    alarmLevelId: levelItem?.id,
+    alarmLevelName: formState.alarmLevel,
+    noticeWay: formState.notifyMethod,
+    pointType: 'instant',
+    frequency: 5,
+    frequencyUnit: 'm',
+    noticeUser: 'admin',
+    points,
+  };
+
+  await saveAlarmConfigApi(params);
   message.success('报警配置已保存');
 };
 </script>

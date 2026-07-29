@@ -10,6 +10,7 @@ enum Api {
   alarmConfigSave = '/sgai-bqzm//bems/alarm/rule/add',
   alarmCategoryList = '/sgai-bqzm//bems/alarm/rules/list',
   alarmLevelList = '/sgai-bqzm/bems/alarm/level/list',
+  crcuitListApi = '/sgai-bqzm/bems/lighting/circuit/listPage',
 }
 
 /** 获取报警记录列表 */
@@ -36,3 +37,5 @@ export const getAlarmCategoryListApi = () => defHttp.get({ url: Api.alarmCategor
 
 /** 获取所有报警等级 */
 export const getAlarmLevelListApi = () => defHttp.get({ url: Api.alarmLevelList });
+/** 获取电路列表 */
+export const getCircuitListApi = (params?) => defHttp.get({ url: Api.crcuitListApi, params });
