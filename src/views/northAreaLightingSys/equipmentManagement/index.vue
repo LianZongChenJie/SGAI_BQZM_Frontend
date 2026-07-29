@@ -215,14 +215,14 @@ function onEdit(row: typeof tableData.value[0]) {
 // 数据请求
 const loading = ref(false);
 onMounted(async () => {
-  loading.value = true;
-  try {
-    const data = await EquipmentListApi();
-    console.log('设备列表数据：', data);
-     tableData.value = Array.isArray(data) ? data : (data?.list ?? []);
-  } catch (err) {
-    console.error('Failed to load equipment list:', err);
-  } finally {loading.value = false;}
+  // loading.value = true;
+  // try {
+  //   const data = await EquipmentListApi();
+  //   console.log('设备列表数据：', data);
+  //    tableData.value = Array.isArray(data) ? data : (data?.list ?? []);
+  // } catch (err) {
+  //   console.error('Failed to load equipment list:', err);
+  // } finally {loading.value = false;}
 })
 </script>
 
