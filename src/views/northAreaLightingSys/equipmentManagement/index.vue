@@ -16,13 +16,13 @@
           >
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
           </svg>
-          <h1 class="title">设备档案管理</h1>
+          <h1 class="title">地块档案管理</h1>
         </div>
 
         <div class="right">
-          <button class="btn btn-primary" @click="onAdd">+ 新增设备</button>
-          <button class="btn btn-secondary" @click="onImport">导入</button>
-          <button class="btn btn-secondary" @click="onExport">导出</button>
+          <button class="btn btn-primary" @click="onAdd">+ 新增地块</button>
+          <!-- <button class="btn btn-secondary" @click="onImport">导入</button>
+          <button class="btn btn-secondary" @click="onExport">导出</button> -->
         </div>
       </header>
 
@@ -46,7 +46,7 @@
             v-model="searchKeyword"
             type="text"
             class="search-input"
-            placeholder="搜索设备名称、编号、地址..."
+            placeholder="搜索地块名称、建设单位、型号..."
           />
         </div>
         <select v-model="selectedPlace" class="select">
@@ -65,23 +65,17 @@
         <table class="device-table">
           <thead>
             <tr>
-              <th>设备编号</th>
-              <th>设备名称</th>
-              <th>所属地块</th>
-              <th>回路号</th>
-              <th>厂商</th>
+              <th>地块名称</th>
+              <th>建设单位</th>
               <th>型号</th>
-              <th>安装日期</th>
+              <th>竣工日期</th>
               <th>状态</th>
               <th>操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in filteredData" :key="row.id">
-              <td>{{ row.deviceCode }}</td>
-              <td>{{ row.deviceName }}</td>
               <td>{{ row.spaceName }}</td>
-              <td>{{ row.loopNo }}</td>
               <td>{{ row.manufacturer }}</td>
               <td>{{ row.deviceModel }}</td>
               <td>{{ row.installDate }}</td>
@@ -121,7 +115,7 @@ const selectedStatus = ref('');
 /* 计算出所有地块选项（去重） */
 const placeOptions = computed(() => {
   const set = new Set<string>();
-  tableData.value.forEach((d) => set.add(d.place));
+  tableData.value.forEach((d) => set.add(d.spaceName));
   return Array.from(set);
 });
 
@@ -136,10 +130,10 @@ const filteredData = computed(() => {
         .includes(searchKeyword.value.toLowerCase());
 
     const matchesPlace =
-      !selectedPlace.value || row.place === selectedPlace.value;
+      !selectedPlace.value || row.spaceName === selectedPlace.value;
 
     const matchesStatus =
-      !selectedStatus.value || row.status === selectedStatus.value;
+      !selectedStatus.value || row.runState === selectedStatus.value;
 
     return matchesKeyword && matchesPlace && matchesStatus;
   });
@@ -174,12 +168,11 @@ const getSpaceTreeInit = () => {
 const loading = ref(false);
 onMounted(async () => {
   loading.value = true;
-  getSpaceTreeInit();
   try {
     const data = await EquipmentListApi();
     console.log('设备列表数据：', data);
     tableData.value = Array.isArray(data.records) ? data.records : (data?.records ?? []);
-
+    getSpaceTreeInit(tableData.value);
   } catch (err) {
     console.error('Failed to load equipment list:', err);
   } finally {loading.value = false;}
@@ -189,28 +182,10 @@ onMounted(async () => {
  * @param {Array} treeData - 输入的树形数组
  * @returns {Array} 格式化后的父节点数组 [{ value: "...", key: "..." }]
  */
-const extractParentNodes = (treeData) => {
+const extractParentNodes = (treeData: any[]) => {
   let result = [];
 
-  function traverse(nodes) {
-    if (!nodes) return;
-
-    nodes.forEach(node => {
-      // 判断是否为父节点：children 存在且长度大于 0
-      if (node.children && node.children.length > 0) {
-        // 按照要求重组数据：title -> value, key -> key
-        result.push({
-          value: node.title,
-          key: node.key
-        });
-
-        // 递归处理子节点
-        traverse(node.children);
-      }
-    });
-  }
-
-  traverse(treeData);
+  
   return result;
 }
 
@@ -393,7 +368,6 @@ const extractParentNodes = (treeData) => {
 .device-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
 }
 
 .device-table th,
@@ -408,6 +382,37 @@ const extractParentNodes = (treeData) => {
   color: var(--color-muted);
   font-weight: 500;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* 列宽比例分配（占满父容器）：地块名称 & 建设单位 占比最大，其余自适应 */
+.device-table th:nth-child(1),
+.device-table td:nth-child(1) {
+  width: 24%;
+}
+
+.device-table th:nth-child(2),
+.device-table td:nth-child(2) {
+  width: 24%;
+}
+
+.device-table th:nth-child(3),
+.device-table td:nth-child(3) {
+  width: 16%;
+}
+
+.device-table th:nth-child(4),
+.device-table td:nth-child(4) {
+  width: 16%;
+}
+
+.device-table th:nth-child(5),
+.device-table td:nth-child(5) {
+  width: 10%;
+}
+
+.device-table th:nth-child(6),
+.device-table td:nth-child(6) {
+  width: 10%;
 }
 
 .device-table tbody td {

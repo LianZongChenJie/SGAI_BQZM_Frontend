@@ -14,7 +14,7 @@
               <h1 class="title">厂商接口对接状态</h1>
             </div>
             <div class="right">
-              <button class="btn btn-primary">+ 新增接口</button>
+              <button class="btn btn-primary" @click="onOpenAddModal">+ 新增接口</button>
             </div>
           </header>
           <div class="table-wrapper">
@@ -24,6 +24,7 @@
                   <th>厂商</th>
                   <th>协议类型</th>
                   <th>接口地址</th>
+                  <th>所属地块</th>
                   <th>数据类型</th>
                   <th>状态</th>
                   <th>最后同步</th>
@@ -35,12 +36,14 @@
                   <td>{{ row.vendor }}</td>
                   <td>{{ row.protocol }}</td>
                   <td>{{ row.address }}</td>
-                  <td>{{ row.dataType }}</td>
+              <td>{{ row.plot }}</td>
+              <td>{{ row.dataType }}</td>
                   <td>
                     <span class="status-badge-table" :class="row.statusClass">{{ row.status }}</span>
                   </td>
                   <td>{{ row.lastSync }}</td>
                   <td class="actions">
+                    <button class="action-btn" @click="onOpenEditModal(row)">编辑</button>
                     <button class="action-btn">测试</button>
                     <button class="action-btn">配置</button>
                   </td>
@@ -158,22 +161,26 @@
       </a-tab-pane>
     </a-tabs>
   </section>
+
+  <!-- 新增/编辑弹框 -->
+  <AddModal ref="addModalRef" @success="onModalSuccess" />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
 import * as echarts from 'echarts';
+import AddModal from './compoments/addModal.vue';
 
 const activeTab = ref('interface');
 const chartRef = ref<HTMLDivElement>();
 
 /* --------------------- 厂商接口数据 --------------------- */
 const interfaceData = ref([
-  { id: '1', vendor: '西门子', protocol: 'OPC UA', address: 'opc.tcp://192.168.1.10:4840', dataType: '实时数据/开关量', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
-  { id: '2', vendor: '施耐德', protocol: 'Modbus TCP', address: '192.168.1.20:502', dataType: '实时数据/触发类', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
-  { id: '3', vendor: 'ABB', protocol: 'MQTT', address: 'mqtt://192.168.1.30:1883', dataType: '实时数据', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
-  { id: '4', vendor: '华为PLC', protocol: 'HTTP API', address: 'http://192.168.1.40/api', dataType: '开关量/触发类', status: '延迟', statusClass: 'delay', lastSync: '2026-06-22 13:55:00' },
-  { id: '5', vendor: '海康威视', protocol: 'SDK', address: '本地SDK接入', dataType: '视频/触发类', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
+  { id: '1', vendor: '西门子', protocol: 'OPC UA', address: 'opc.tcp://192.168.1.10:4840', plot: 'A1', dataType: '实时数据/开关量', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
+  { id: '2', vendor: '施耐德', protocol: 'Modbus TCP', address: '192.168.1.20:502', plot: 'B1', dataType: '实时数据/触发类', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
+  { id: '3', vendor: 'ABB', protocol: 'MQTT', address: 'mqtt://192.168.1.30:1883', plot: 'B2', dataType: '实时数据', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
+  { id: '4', vendor: '华为PLC', protocol: 'HTTP API', address: 'http://192.168.1.40/api', plot: 'C1', dataType: '开关量/触发类', status: '延迟', statusClass: 'delay', lastSync: '2026-06-22 13:55:00' },
+  { id: '5', vendor: '海康威视', protocol: 'SDK', address: '本地SDK接入', plot: 'C2', dataType: '视频/触发类', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
 ]);
 
 /* --------------------- 实时数据流 --------------------- */
@@ -187,6 +194,22 @@ const streamData = ref([
 
 /* --------------------- ECharts 初始化 --------------------- */
 let chartInstance: echarts.ECharts | null = null;
+
+/* --------------------- Modal 操作 --------------------- */
+const addModalRef = ref<InstanceType<typeof AddModal>>();
+
+function onOpenAddModal() {
+  addModalRef.value?.showModal('add');
+}
+
+function onOpenEditModal(row: Record<string, any>) {
+  addModalRef.value?.showModal('edit', row);
+}
+
+function onModalSuccess() {
+  // TODO: 刷新表格数据
+  console.log('接口数据已更新，刷新列表');
+}
 
 function initChart() {
   if (!chartRef.value) return;
@@ -390,7 +413,6 @@ onBeforeUnmount(() => {
 .device-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
 }
 
 .device-table th,
@@ -419,6 +441,24 @@ onBeforeUnmount(() => {
 .device-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.03);
 }
+
+/* 列宽比例 — 最后同步(时间列)占比最大 */
+.device-table th:nth-child(1),
+.device-table td:nth-child(1) { width: 12%; }
+.device-table th:nth-child(2),
+.device-table td:nth-child(2) { width: 10%; }
+.device-table th:nth-child(3),
+.device-table td:nth-child(3) { width: 18%; }
+.device-table th:nth-child(4),
+.device-table td:nth-child(4) { width: 15%; }
+.device-table th:nth-child(5),
+.device-table td:nth-child(5) { width: 12%; }
+.device-table th:nth-child(6),
+.device-table td:nth-child(6) { width: 8%; }
+.device-table th:nth-child(7),
+.device-table td:nth-child(7) { width: 12%; }
+.device-table th:nth-child(8),
+.device-table td:nth-child(8) { width: 10%; }
 
 .status-badge-table {
   display: inline-flex;
@@ -619,7 +659,6 @@ onBeforeUnmount(() => {
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 700px;
 }
 
 .data-table th,
@@ -648,6 +687,20 @@ onBeforeUnmount(() => {
 .data-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.03);
 }
+
+/* 列宽比例 — 时间戳(时间列)占比最大 */
+.data-table th:nth-child(1),
+.data-table td:nth-child(1) { width: 20%; }
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) { width: 18%; }
+.data-table th:nth-child(3),
+.data-table td:nth-child(3) { width: 25%; }
+.data-table th:nth-child(4),
+.data-table td:nth-child(4) { width: 20%; }
+.data-table th:nth-child(5),
+.data-table td:nth-child(5) { width: 5%; }
+.data-table th:nth-child(6),
+.data-table td:nth-child(6) { width: 10%; }
 
 .type-tag {
   display: inline-flex;

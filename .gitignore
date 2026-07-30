@@ -34,3 +34,9 @@ os_del.cmd
 /.vscode/
 /.history/
 /svn clear.bat
+
+# Freebuff AI assistant files
+.freebuff/
+
+# Temporary files
+_temp_check_dir.ps1
