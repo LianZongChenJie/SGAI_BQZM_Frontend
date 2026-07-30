@@ -8,19 +8,19 @@
           <span>报警条件配置</span>
         </div>
 
-        <a-form :model="formState" layout="vertical" class="config-form">
+        <a-form ref="formRef" :model="formState" :rules="formRules" layout="vertical" class="config-form">
           <a-row :gutter="24">
             <a-col :span="12">
-              <a-form-item label="报警名称">
-                <a-input v-model:value="formState.alarmName" placeholder="请输入报警名称" />
+              <a-form-item label="报警名称" name="ruleName">
+                <a-input v-model:value="formState.ruleName" placeholder="请输入报警名称" />
               </a-form-item>
             </a-col>
             <a-col :span="12">
-              <a-form-item label="监测对象">
-                <a-select v-model:value="formState.monitorTarget" placeholder="请选择监测对象">
-                  <a-select-option v-for="item in circuitList" :key="item.circuitCode" :value="item.circuitCode">
-                    {{item.circuitName}}
-                  </a-select-option>
+              <a-form-item label="监测对象" name="circuitCode">
+                <a-select v-model:value="formState.circuitCode" placeholder="请选择监测对象">
+                    <a-select-option value="all">全部回路</a-select-option>
+                    <a-select-option value="A1">A1地块</a-select-option>
+                    <a-select-option value="A2">A2地块</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
@@ -28,7 +28,7 @@
 
           <a-row :gutter="24">
             <a-col :span="12">
-              <a-form-item label="报警条件">
+              <a-form-item label="报警条件" name="alarmCondition">
                 <a-select v-model:value="formState.alarmCondition" placeholder="请选择报警条件">
                   <a-select-option value="功率 > 阈值">功率 &gt; 阈值</a-select-option>
                   <a-select-option value="电压 < 阈值">电压 &lt; 阈值</a-select-option>
@@ -37,7 +37,7 @@
               </a-form-item>
             </a-col>
             <a-col :span="12">
-              <a-form-item label="阈值">
+              <a-form-item label="阈值" name="threshold">
                 <a-input v-model:value="formState.threshold" placeholder="请输入阈值">
                   <template #addonAfter>kW</template>
                 </a-input>
@@ -47,7 +47,7 @@
 
           <a-row :gutter="24">
             <a-col :span="12">
-              <a-form-item label="报警等级">
+              <a-form-item label="报警等级" name="alarmLevel">
                 <a-select v-model:value="formState.alarmLevel" placeholder="请选择报警等级">
                   <a-select-option v-for="item in alarmLevelList" :key="item.id" :value="item.alarmLevelName">
                     {{ item.alarmLevelName }}
@@ -56,13 +56,11 @@
               </a-form-item>
             </a-col>
             <a-col :span="12">
-              <a-form-item label="通知方式">
-                <a-select v-model:value="formState.notifyMethod" placeholder="请选择通知方式">
+              <a-form-item label="通知方式" name="notifyWay">
+                <a-select v-model:value="formState.notifyWay" placeholder="请选择通知方式">
+                  <a-select-option value="平台消息">平台消息</a-select-option>
                   <a-select-option value="短信">短信</a-select-option>
                   <a-select-option value="邮件">邮件</a-select-option>
-                  <a-select-option value="平台">平台</a-select-option>
-                  <a-select-option value="短信+平台">短信+平台</a-select-option>
-                  <a-select-option value="平台+邮件">平台+邮件</a-select-option>
                 </a-select>
               </a-form-item>
             </a-col>
@@ -102,8 +100,11 @@
 
 <script setup lang="ts">
 import { reactive, ref, onMounted } from 'vue';
+import type { FormInstance, Rule } from 'ant-design-vue/es/form';
 import { message } from 'ant-design-vue';
 import { getAlarmLevelListApi, getAlarmCategoryListApi, getCircuitListApi, saveAlarmConfigApi } from '../alarmManagement.api';
+
+const formRef = ref<FormInstance>();
 
 const formState = reactive({
   alarmName: '功率超限报警',
@@ -113,6 +114,15 @@ const formState = reactive({
   alarmLevel: '重要',
   notifyMethod: '短信',
 });
+
+const formRules: Record<string, Rule[]> = {
+  ruleName: [{ required: true, message: '请输入报警名称', trigger: 'blur' }],
+  circuitCode: [{ required: true, message: '请选择监测对象', trigger: 'change' }],
+  alarmCondition: [{ required: true, message: '请选择报警条件', trigger: 'change' }],
+  threshold: [{ required: true, message: '请输入阈值', trigger: 'blur' }],
+  alarmLevel: [{ required: true, message: '请选择报警等级', trigger: 'change' }],
+  notifyWay: [{ required: true, message: '请选择通知方式', trigger: 'change' }],
+};
 
 const alarmLevelList = ref<any[]>([]);
 const categoryList = ref<any[]>([]);
@@ -162,6 +172,12 @@ const columns = [
 ];
 
 const handleSave = async () => {
+  try {
+    await formRef.value?.validateFields();
+  } catch {
+    return;
+  }
+
   // 从报警条件中提取操作符
   const operatorMap: Record<string, string> = { '功率 > 阈值': '>', '电压 < 阈值': '<', '离线时长 > 阈值': '>' };
   const operator = operatorMap[formState.alarmCondition] || '>';
@@ -169,22 +185,30 @@ const handleSave = async () => {
   // 查找报警等级对应的ID
   const levelItem = alarmLevelList.value.find((l) => l.alarmLevelName === formState.alarmLevel);
 
-  // 从circuitList构建points
-  const points = circuitList.value.map((item: any) => ({
-    deviceId: item.deviceId || item.id,
-    deviceName: item.circuitName || item.deviceName || item.name,
-    pointId: item.pointId || null,
-    pointName: item.pointName || item.name || '',
-    timeGranularity: item.timeGranularity || '',
-    operator,
-    conditionValue: formState.threshold,
-  }));
+  // 因为没有数据暂时写死points
+  const points =  [
+        {
+            "deviceId": 1,
+            "deviceName": "北区照明电表001",
+            "pointId": 1,
+            "pointName": "电流",
+            "timeGranularity": "hour",
+            "operator": ">",
+            "conditionValue": "100"
+        }
+    ]
+
+  // 生成ruleCode: RA + yyyyMMddHHmmss
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const ruleCode = `RA${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 
   const params = {
-    ruleName: formState.alarmName,
+    ruleCode,  
+    ruleName: formState.ruleName,
     alarmLevelId: levelItem?.id,
     alarmLevelName: formState.alarmLevel,
-    noticeWay: formState.notifyMethod,
+    noticeWay: formState.noticeWay,
     pointType: 'instant',
     frequency: 5,
     frequencyUnit: 'm',
@@ -192,8 +216,12 @@ const handleSave = async () => {
     points,
   };
 
-  await saveAlarmConfigApi(params);
-  message.success('报警配置已保存');
+  try {
+    await saveAlarmConfigApi(params);
+    message.success('报警配置保存成功');
+  } catch (error: any) {
+    message.error(error?.message || '保存失败，请稍后重试');
+  }
 };
 </script>
 
@@ -287,13 +315,20 @@ const handleSave = async () => {
       color: #fff;
 
       .ant-table-thead > tr > th {
-        background: rgba(255, 255, 255, 0.06);
-        color: rgba(255, 255, 255, 0.75);
-        border-bottom-color: rgba(255, 255, 255, 0.1);
+        background: transparent;
+        color: rgba(255, 255, 255, 0.85);
+        font-weight: 700;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        border-right: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 12px 16px;
+
+        &:last-child {
+          border-right: none;
+        }
       }
 
       .ant-table-tbody > tr > td {
-        border-bottom-color: rgba(255, 255, 255, 0.06);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         color: rgba(255, 255, 255, 0.85);
       }
 
