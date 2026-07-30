@@ -4,23 +4,23 @@
     <div class="grid grid-4" style="margin-bottom: 20px">
       <div class="stat-card">
         <div class="stat-label">照明地块</div>
-        <div class="stat-value" style="color: var(--accent)">{{ stats.blockCount }}</div>
-        <div class="stat-trend trend-up">↑ {{ stats.blockCoverage }} 覆盖</div>
+        <div class="stat-value" style="color: var(--accent)">{{ allSpaceList.length }}</div>
+        <div class="stat-trend trend-up">{{ stats.blockCoverage }} 覆盖</div>
       </div>
       <div class="stat-card green">
-        <div class="stat-label">在线设备</div>
-        <div class="stat-value" style="color: var(--accent2)">{{ stats.onlineDevices }}</div>
-        <div class="stat-trend trend-up">↑ {{ stats.onlineRate }} 在线率</div>
+        <div class="stat-label">回路数</div>
+        <div class="stat-value" style="color: var(--accent2)">{{ circuitCount }}</div>
+        <div class="stat-trend trend-up"></div>
       </div>
       <div class="stat-card orange"> 
-        <div class="stat-label">今日用电</div>
-        <div class="stat-value" style="color: var(--accent3)">{{ stats.todayUsage }}</div>
-        <div class="stat-trend trend-up">kWh 较昨日 {{ stats.usageTrend }}</div>
+        <div class="stat-label">在线数</div>
+        <div class="stat-value" style="color: var(--accent3)">{{ onlineCount }}</div>
+        <div class="stat-trend trend-up">{{ onlineRate }} 在线率</div>
       </div>
       <div class="stat-card red">
         <div class="stat-label">待处理报警</div>
-        <div class="stat-value" style="color: var(--danger)">{{ stats.alarmCount }}</div>
-        <div class="stat-trend trend-down">需立即处理</div>
+        <div class="stat-value">0</div>
+        <div class="stat-trend trend-down"></div>
       </div>
     </div>
 
@@ -46,8 +46,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in blockList" :key="item.name">
-              <td>{{ item.name }}</td>
+            <tr v-for="item in spaceTableData" :key="item.spaceName">
+              <td>{{ item.spaceName }}</td>
               <td>{{ item.circuits }}</td>
               <td>{{ item.online }}</td>
               <td>
@@ -86,9 +86,9 @@
 </template>
 
 <script lang="ts" setup>
-  import { ref, onMounted } from 'vue';
+  import { ref, computed, onMounted } from 'vue';
   import MapView from './MapView.vue';
-  import { getOverviewStatsApi, getBlockListApi, allOnApi, allOffApi } from './comprehensivePreview.api';
+  import { getOverviewStatsApi, allOnApi, allOffApi, getAllSpaceApi, getAllCircuitApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api';
   import { useMessage } from '/@/hooks/web/useMessage';
 
   const { createMessage } = useMessage();
@@ -111,8 +111,37 @@
     offline: 0,
   });
 
-  /** 地块列表 */
-  const blockList = ref<any[]>([]);
+  /** 所有地块数据 */
+  const allSpaceList = ref<{ spaceId: string; spaceName: string }[]>([]);
+
+  /** 回路总数 */
+  const circuitCount = ref(0);
+
+  /** 在线数（comstat === "在线"） */
+  const onlineCount = ref(0);
+
+  /** 在线率 */
+  const onlineRate = ref('0%');
+
+  /** 所有回路原始数据 */
+  const circuitList = ref<any[]>([]);
+
+  /** 按地块聚合的表格数据 */
+  const spaceTableData = computed(() =>
+    allSpaceList.value.map((space) => {
+      const circuits = circuitList.value.filter((c: any) => c.spaceName === space.spaceName);
+      const onlineCircuits = circuits.filter((c: any) => c.comstat === '在线');
+      const todayEnergy = circuits.reduce((sum: number, c: any) => sum + (c.todayEnergy ?? 0), 0);
+      return {
+        spaceId: space.spaceId,
+        spaceName: space.spaceName,
+        circuits: circuits.length,
+        online: onlineCircuits.length,
+        status: '运行中',
+        todayUsage: todayEnergy,
+      };
+    })
+  );
 
   /** 加载总览数据 */
   async function loadStats() {
@@ -147,20 +176,33 @@
     }
   }
 
-  /** 加载地块列表 */
-  async function loadBlockList() {
+  /** 加载所有地块 */
+  async function loadAllSpace() {
     try {
-      const res = await getBlockListApi();
-      blockList.value = res;
+      const res = await getAllSpaceApi();
+      allSpaceList.value = res ?? [];
     } catch {
-      // 接口未通时使用默认数据
-      blockList.value = [
-        { name: 'A1-冬奥广场', circuits: 24, online: 24, status: '运行中', todayUsage: 420 },
-        { name: 'A2-服贸会场馆', circuits: 36, online: 35, status: '运行中', todayUsage: 680 },
-        { name: 'B1-工业遗址公园', circuits: 18, online: 18, status: '运行中', todayUsage: 310 },
-        { name: 'B2-滨水绿道', circuits: 42, online: 40, status: '部分故障', todayUsage: 520 },
-        { name: 'C1-科技大厦', circuits: 56, online: 56, status: '运行中', todayUsage: 915 },
-      ];
+      allSpaceList.value = [];
+    }
+  }
+
+  /** 查询所有回路数 */
+  async function loadAllCircuit() {
+    try {
+      const res = await getAllCircuitApi();
+      const list = Array.isArray(res) ? res : [];
+      circuitList.value = list;
+      circuitCount.value = list.length;
+      const online = list.filter((item: any) => item.comstat === '在线');
+      onlineCount.value = online.length;
+      onlineRate.value = list.length > 0
+        ? (online.length / list.length * 100).toFixed(1) + '%'
+        : '0%';
+    } catch {
+      circuitCount.value = 0;
+      onlineCount.value = 0;
+      onlineRate.value = '0%';
+      circuitList.value = [];
     }
   }
 
@@ -185,13 +227,19 @@
   }
 
   /** 地块控制 */
-  function handleControl(item: any) {
-    createMessage.info(`正在控制: ${item.name}`);
+  async function handleControl(item: any) {
+    try {
+      await openAreaApi(item.spaceId);
+      createMessage.success(`${item.spaceName} 开灯指令已下发`);
+    } catch {
+      createMessage.error('操作失败');
+    }
   }
 
   onMounted(() => {
     loadStats();
-    loadBlockList();
+    loadAllSpace();
+    loadAllCircuit();
   });
 </script>
 
