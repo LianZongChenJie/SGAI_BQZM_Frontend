@@ -27,16 +27,7 @@
     <!-- 地图模式 -->
     <div class="card">
       <div class="card-title">🗺️ 地图模式 - 北区照明地块分布</div>
-      <div class="map-placeholder">
-        <div style="font-size: 48px; margin-bottom: 10px">🗺️</div>
-        <div style="font-size: 16px; margin-bottom: 8px">地图组件区域（集成园区GIS地图）</div>
-        <div style="font-size: 12px">显示{{ stats.blockCount }}个地块的开关灯状态、设备运行状态，支持一键开关灯</div>
-        <div style="display: flex; gap: 10px; margin-top: 10px">
-          <span class="tag tag-green"><span class="status-dot online"></span>正常 {{ mapStatus.normal }}</span>
-          <span class="tag tag-orange"><span class="status-dot warning"></span>告警 {{ mapStatus.warning }}</span>
-          <span class="tag tag-red"><span class="status-dot offline"></span>离线 {{ mapStatus.offline }}</span>
-        </div>
-      </div>
+      <MapView />
     </div>
 
     <!-- 底部两栏 -->
@@ -96,6 +87,7 @@
 
 <script lang="ts" setup>
   import { ref, onMounted } from 'vue';
+  import MapView from './MapView.vue';
   import { getOverviewStatsApi, getBlockListApi, allOnApi, allOffApi } from './comprehensivePreview.api';
   import { useMessage } from '/@/hooks/web/useMessage';
 

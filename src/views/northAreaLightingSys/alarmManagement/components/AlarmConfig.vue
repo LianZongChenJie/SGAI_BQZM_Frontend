@@ -75,7 +75,7 @@
       <!-- 右侧：报警类别与等级 -->
       <div class="config-table-card">
         <div class="card-title">
-          <span class="title-icon">📋</span>
+          <span class="title-icon title-icon-blue">📋</span>
           <span>报警类别与等级</span>
         </div>
 
@@ -235,10 +235,10 @@ const handleSave = async () => {
 
   .config-form-card,
   .config-table-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
-    padding: 24px;
+    background: rgba(7, 15, 24, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 20px 20px;
 
     .card-title {
       display: flex;
@@ -250,7 +250,14 @@ const handleSave = async () => {
       margin-bottom: 24px;
 
       .title-icon {
-        font-size: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        color: #2b2b2b;
+        font-size: 16px;
       }
     }
   }
@@ -313,14 +320,14 @@ const handleSave = async () => {
     :deep(.ant-table) {
       background: transparent;
       color: #fff;
-
       .ant-table-thead > tr > th {
         background: transparent;
-        color: rgba(255, 255, 255, 0.85);
+        color: rgba(255, 255, 255, 0.88);
         font-weight: 700;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-        border-right: 1px solid rgba(255, 255, 255, 0.15);
-        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 14px 18px;
+        text-align: left;
 
         &:last-child {
           border-right: none;
@@ -328,22 +335,25 @@ const handleSave = async () => {
       }
 
       .ant-table-tbody > tr > td {
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        color: rgba(255, 255, 255, 0.85);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        color: rgba(255, 255, 255, 0.88);
+        padding: 16px 18px;
+        vertical-align: middle;
       }
 
       .ant-table-tbody > tr:hover > td {
-        background: rgba(255, 255, 255, 0.04);
+        background: rgba(255, 255, 255, 0.02);
       }
     }
 
     .color-dot {
       display: inline-block;
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
-      margin-right: 6px;
+      margin-right: 8px;
       vertical-align: middle;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.15) inset;
     }
   }
 }

@@ -6,7 +6,7 @@ enum Api {
   alarmBatchDispose = '/sgai-bqzm/bems/alarm/record/eliminations',
   alarmTransferWorkOrder = '/sgai-bqzm/bems/alarm/record/transferEvent ',
   alarmClose = '/sgai-bqzm/bems/alarm/record/elimination',
-  alarmRetry = '/northAreaLighting/alarm/retry',
+  alarmRetry = '/sgai-bqzm/bems/alarm/record/test',
   alarmConfigSave = '/sgai-bqzm//bems/alarm/rule/add',
   alarmCategoryList = '/sgai-bqzm//bems/alarm/rules/list',
   alarmLevelList = '/sgai-bqzm/bems/alarm/level/list',
@@ -27,7 +27,7 @@ export const transferWorkOrderApi = (data) => defHttp.post({ url: Api.alarmTrans
 export const closeAlarmApi = (id) => defHttp.post({ url: `${Api.alarmClose}?id=${id}` });
 
 /** 重试报警 */
-export const retryAlarmApi = (data) => defHttp.post({ url: Api.alarmRetry, data });
+export const retryAlarmApi = (data) => defHttp.get({ url: Api.alarmRetry, data });
 
 /** 保存报警配置 */
 export const saveAlarmConfigApi = (data) => defHttp.post({ url: Api.alarmConfigSave, data });
