@@ -29,35 +29,35 @@
         class="dark-form"
       >
         <!-- 厂商 -->
-        <a-form-item label="厂商" name="vendor" :rules="[{ required: true, message: '请输入厂商名称' }]">
+        <a-form-item label="厂商" name="manufacturer" :rules="[{ required: true, message: '请输入厂商名称' }]">
           <a-input
-            v-model:value="formState.vendor"
+            v-model:value="formState.manufacturer"
             placeholder="请输入厂商名称，如：西门子、施耐德"
             allowClear
           />
         </a-form-item>
 
         <!-- 协议类型 -->
-        <a-form-item label="协议类型" name="protocol" :rules="[{ required: true, message: '请选择协议类型' }]">
+        <a-form-item label="协议类型" name="protocolType" :rules="[{ required: true, message: '请选择协议类型' }]">
           <a-select
-            v-model:value="formState.protocol"
+            v-model:value="formState.protocolType"
             placeholder="请选择协议类型"
-            :options="protocolOptions"
+            :options="protocolTypeOptions"
             allowClear
           />
         </a-form-item>
 
         <!-- 接口地址 -->
-        <a-form-item label="接口地址" name="address" :rules="[{ required: true, message: '请输入接口地址' }]">
+        <a-form-item label="接口地址" name="interfaceAddress" :rules="[{ required: true, message: '请输入接口地址' }]">
           <a-input
-            v-model:value="formState.address"
+            v-model:value="formState.interfaceAddress"
             placeholder="请输入接口地址，如：opc.tcp://192.168.1.10:4840"
             allowClear
           />
         </a-form-item>
 
         <!-- 所属地块 -->
-        <a-form-item label="所属地块" name="plot" :rules="[{ required: true, message: '请选择所属地块' }]">
+        <!-- <a-form-item label="所属地块" name="plot" :rules="[{ required: true, message: '请选择所属地块' }]">
           <a-select
             v-model:value="formState.plot"
             placeholder="请选择所属地块"
@@ -65,14 +65,22 @@
             allowClear
             showSearch
           />
-        </a-form-item>
+        </a-form-item> -->
 
         <!-- 数据类型 -->
-        <a-form-item label="数据类型" name="dataType" :rules="[{ required: true, message: '请选择数据类型' }]">
+        <!-- <a-form-item label="数据类型" name="dataType" :rules="[{ required: true, message: '请选择数据类型' }]">
           <a-select
             v-model:value="formState.dataType"
             placeholder="请选择数据类型"
             mode="multiple"
+            :options="dataTypeOptions"
+            allowClear
+          />
+        </a-form-item> -->
+        <a-form-item label="数据类型" name="dataType" :rules="[{ required: true, message: '请选择数据类型' }]">
+          <a-select
+            v-model:value="formState.dataType"
+            placeholder="请选择数据类型"
             :options="dataTypeOptions"
             allowClear
           />
@@ -93,7 +101,7 @@
       <div class="modal-footer">
         <a-button class="btn-cancel" @click="closeModal">取消</a-button>
         <a-button v-if="type === 'add'" class="btn-reset" @click="onReset">重置</a-button>
-        <a-button class="btn-confirm" type="primary" @click="onSubmit">确定</a-button>
+        <a-button class="btn-confirm" type="primary" :loading="loading" @click="onSubmit">确定</a-button>
       </div>
     </a-modal>
   </div>
@@ -103,6 +111,7 @@
 import { ref, computed, nextTick } from 'vue';
 import { message } from 'ant-design-vue';
 import type { FormInstance } from 'ant-design-vue';
+import { dataCollectAddApi, dataCollectEditApi } from '@/api/dataCollect';
 
 const emit = defineEmits<{
   success: [];
@@ -112,32 +121,33 @@ const emit = defineEmits<{
 const open = ref(false);
 const type = ref<'add' | 'edit'>('add');
 const formRef = ref<FormInstance>();
+const loading = ref(false);
 
 /* ==================== 表单字段定义 ==================== */
 interface InterfaceForm {
   id: string;
-  vendor: string;
-  protocol: string;
-  address: string;
-  plot: string;
-  dataType: string[];
+  manufacturer: string;
+  protocolType: string;
+  interfaceAddress: string;
+  // plot: string;
+  dataType: string;
   status: string;
 }
 
 const defaultForm: InterfaceForm = {
   id: '',
-  vendor: '',
-  protocol: '',
-  address: '',
-  plot: '',
-  dataType: [],
+  manufacturer: '',
+  protocolType: '',
+  interfaceAddress: '',
+  // plot: '',
+  dataType: '',
   status: '正常',
 };
 
 const formState = ref<InterfaceForm>({ ...defaultForm });
 
 /* ==================== 下拉选项 ==================== */
-const protocolOptions = [
+const protocolTypeOptions = [
   { label: 'OPC UA', value: 'OPC UA' },
   { label: 'Modbus TCP', value: 'Modbus TCP' },
   { label: 'MQTT', value: 'MQTT' },
@@ -155,15 +165,15 @@ const plotOptions = [
 ];
 
 const dataTypeOptions = [
-  { label: '实时数据', value: '实时数据' },
-  { label: '开关量', value: '开关量' },
-  { label: '触发类', value: '触发类' },
-  { label: '视频', value: '视频' },
+  { label: '实时数据/开关量', value: '实时数据/开关量' },
+  { label: '实时数据/模拟量', value: '实时数据/模拟量' },
+  { label: '开关量/模拟量', value: '开关量/模拟量' },
+  { label: '视频/监控', value: '视频/监控' },
 ];
 
 const statusOptions = [
   { label: '正常', value: '正常' },
-  { label: '延迟', value: '延迟' },
+  { label: '异常', value: '异常' },
   { label: '离线', value: '离线' },
 ];
 
@@ -173,11 +183,12 @@ const modalTitle = computed(() => (type.value === 'add' ? '新增接口' : '编�
 /* ==================== 暴露给父组件的方法 ==================== */
 interface InterfaceRow {
   id?: string;
-  vendor?: string;
-  protocol?: string;
-  address?: string;
-  plot?: string;
-  dataType?: string | string[];
+  manufacturer?: string;
+  protocolType?: string;
+  interfaceAddress?: string;
+  // plot?: string;
+  // dataType?: string | string[];
+  dataType?: string;
   status?: string;
 }
 
@@ -188,15 +199,16 @@ function showModal(mode: 'add' | 'edit', record?: InterfaceRow) {
   } else if (mode === 'edit' && record) {
     formState.value = {
       id: record.id || '',
-      vendor: record.vendor || '',
-      protocol: record.protocol || '',
-      address: record.address || '',
-      plot: record.plot || '',
-      dataType: Array.isArray(record.dataType)
-        ? record.dataType
-        : record.dataType
-          ? record.dataType.split('/')
-          : [],
+      manufacturer: record.manufacturer || '',
+      protocolType: record.protocolType || '',
+      interfaceAddress: record.interfaceAddress || '',
+      // plot: record.plot || '',
+      dataType: record.dataType || '',
+      // dataType: Array.isArray(record.dataType)
+      //   ? record.dataType
+      //   : record.dataType
+      //     ? record.dataType.split('/')
+      //     : [],
       status: record.status || '正常',
     };
   }
@@ -223,26 +235,28 @@ async function onSubmit() {
   try {
     await formRef.value!.validate();
 
-    // 将 dataType 数组转为字符串（如 '实时数据/开关量'）
-    const submitData = {
-      ...formState.value,
-      dataType: formState.value.dataType.join('/'),
-    };
+    loading.value = true;
+    const submitData = { ...formState.value };
 
-    if (type.value === 'add') {
-      // TODO: 调用新增 API
-      console.log('新增接口数据:', submitData);
-      message.success('新增接口成功！');
+    // 根据类型调用对应 API
+    const api = type.value === 'add' ? dataCollectAddApi : dataCollectEditApi;
+    const res = await api(submitData);
+    console.log('接口返回');
+    console.log('res', res);
+    // 判断接口返回：code=200 且 result 包含"成功"
+    if (res.code === 200 && String(res.result || res.msg || '').includes('成功')) {
+      message.success(type.value === 'add' ? '新增接口成功！' : '编辑接口成功！');
+      closeModal();
+      emit('success');
     } else {
-      // TODO: 调用编辑 API
-      console.log('编辑接口数据:', submitData);
-      message.success('编辑接口成功！');
+      message.error(res.message || res.msg || '操作失败，请重试');
     }
-
-    closeModal();
-    emit('success');
-  } catch (err) {
-    console.log('表单校验失败:', err);
+  } catch (err: any) {
+    // 表单校验失败由 antd 自带提示，不作额外处理
+    if (err?.errorFields) return;
+    message.error(err?.message || err?.msg || '请求异常，请检查网络');
+  } finally {
+    loading.value = false;
   }
 }
 

@@ -160,8 +160,12 @@ const spaceTreeData = ref([]);
 const getSpaceTreeInit = () => {
   getSpaceTree().then(res => {
     console.log('空间位置数据：', res);
-    const result = extractParentNodes(res)
-    spaceTreeData.value = result;
+    if (Array.isArray(res) && res.length > 0) {
+      const result = extractParentNodes(res)
+      spaceTreeData.value = result;
+    } else {
+      spaceTreeData.value = [];
+    }
   })
 }
 // 数据请求
@@ -171,11 +175,17 @@ onMounted(async () => {
   try {
     const data = await EquipmentListApi();
     console.log('设备列表数据：', data);
-    tableData.value = Array.isArray(data.records) ? data.records : (data?.records ?? []);
-    getSpaceTreeInit(tableData.value);
+    // 判断 records 是否为有效数组，非数组或空数组时赋默认值
+    if (data && Array.isArray(data.records) && data.records.length > 0) {
+      tableData.value = data.records;
+    } else {
+      tableData.value = [];
+    }
   } catch (err) {
     console.error('Failed to load equipment list:', err);
   } finally {loading.value = false;}
+  // 等 tableData 赋值完成后再获取空间树
+  getSpaceTreeInit();
 })
 /**
  * 从树形结构中提取所有父节点数据

@@ -17,40 +17,42 @@
               <button class="btn btn-primary" @click="onOpenAddModal">+ 新增接口</button>
             </div>
           </header>
-          <div class="table-wrapper">
-            <table class="device-table">
-              <thead>
-                <tr>
-                  <th>厂商</th>
-                  <th>协议类型</th>
-                  <th>接口地址</th>
-                  <th>所属地块</th>
-                  <th>数据类型</th>
-                  <th>状态</th>
-                  <th>最后同步</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="row in interfaceData" :key="row.id">
-                  <td>{{ row.vendor }}</td>
-                  <td>{{ row.protocol }}</td>
-                  <td>{{ row.address }}</td>
-              <td>{{ row.plot }}</td>
-              <td>{{ row.dataType }}</td>
-                  <td>
-                    <span class="status-badge-table" :class="row.statusClass">{{ row.status }}</span>
-                  </td>
-                  <td>{{ row.lastSync }}</td>
-                  <td class="actions">
-                    <button class="action-btn" @click="onOpenEditModal(row)">编辑</button>
-                    <button class="action-btn">测试</button>
-                    <button class="action-btn">配置</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <a-spin :spinning="tableLoading" tip="加载中...">
+            <div class="table-wrapper">
+              <table class="device-table">
+                <thead>
+                  <tr>
+                    <th>厂商</th>
+                    <th>协议类型</th>
+                    <th>接口地址</th>
+                    <th>所属地块</th>
+                    <th>数据类型</th>
+                    <th>状态</th>
+                    <th>最后同步</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in interfaceData" :key="row.id">
+                    <td>{{ row.manufacturer }}</td>
+                    <td>{{ row.protocolType }}</td>
+                    <td>{{ row.interfaceAddress }}</td>
+                    <td>{{ row.spaceName }}</td>
+                    <td>{{ row.dataType }}</td>
+                    <td>
+                      <span class="status-badge-table" :class="row.statusClass">{{ row.status }}</span>
+                    </td>
+                    <td>{{ row.lastSyncTime }}</td>
+                    <td class="actions">
+                      <!-- <button class="action-btn" @click="onOpenEditModal(row)">编辑</button> -->
+                      <button class="action-btn">测试</button>
+                      <button class="action-btn" @click="onOpenEditModal(row)">配置</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </a-spin>
         </div>
       </a-tab-pane>
 
@@ -168,20 +170,58 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue';
+import { message } from 'ant-design-vue';
 import * as echarts from 'echarts';
 import AddModal from './compoments/addModal.vue';
+import { dataCollectListApi } from '@/api/dataCollect';
 
 const activeTab = ref('interface');
 const chartRef = ref<HTMLDivElement>();
 
 /* --------------------- 厂商接口数据 --------------------- */
-const interfaceData = ref([
-  { id: '1', vendor: '西门子', protocol: 'OPC UA', address: 'opc.tcp://192.168.1.10:4840', plot: 'A1', dataType: '实时数据/开关量', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
-  { id: '2', vendor: '施耐德', protocol: 'Modbus TCP', address: '192.168.1.20:502', plot: 'B1', dataType: '实时数据/触发类', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
-  { id: '3', vendor: 'ABB', protocol: 'MQTT', address: 'mqtt://192.168.1.30:1883', plot: 'B2', dataType: '实时数据', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
-  { id: '4', vendor: '华为PLC', protocol: 'HTTP API', address: 'http://192.168.1.40/api', plot: 'C1', dataType: '开关量/触发类', status: '延迟', statusClass: 'delay', lastSync: '2026-06-22 13:55:00' },
-  { id: '5', vendor: '海康威视', protocol: 'SDK', address: '本地SDK接入', plot: 'C2', dataType: '视频/触发类', status: '正常', statusClass: 'online', lastSync: '2026-06-22 14:00:00' },
-]);
+const interfaceData = ref<any[]>([]);
+const tableLoading = ref(false);
+
+interface InterfaceRow {
+  id: string;
+  manufacturer: string;
+  protocolType: string;
+  interfaceAddress: string;
+  spaceName: string;
+  dataType: string;
+  status: string;
+  statusClass: string;
+  lastSyncTime: string;
+}
+
+/** 获取列表数据 */
+async function fetchList() {
+  tableLoading.value = true;
+  try {
+    const res = await dataCollectListApi({});
+    console.log('res', res);
+    if (res.records && Array.isArray(res.records) && res.records.length > 0) {
+      const list: InterfaceRow[] = (res.records || []).map((item: any) => ({
+        id: item.id || '',
+        manufacturer: item.manufacturer || item.manufacturer || '',
+        protocolType: item.protocolTypeType || item.protocolType || '',
+        interfaceAddress: item.interfaceinterfaceAddress || item.interfaceAddress || '',
+        spaceName: item.spaceName || '',
+        dataType: item.dataType || '',
+        status: item.status || '正常',
+        statusClass: item.status === '异常' ? 'delay' : item.status === '离线' ? 'offline' : 'online',
+        lastSyncTime: item.lastSyncTime || item.updateTime || '--',
+      }));
+      interfaceData.value = list;
+    } else {
+      message.error(res.message || res.msg || '获取列表数据失败');
+    }
+  } catch (err: any) {
+    message.error(err?.message || err?.msg || '请求异常，请检查网络');
+  } finally {
+    tableLoading.value = false;
+  }
+}
 
 /* --------------------- 实时数据流 --------------------- */
 const streamData = ref([
@@ -207,8 +247,7 @@ function onOpenEditModal(row: Record<string, any>) {
 }
 
 function onModalSuccess() {
-  // TODO: 刷新表格数据
-  console.log('接口数据已更新，刷新列表');
+  fetchList();
 }
 
 function initChart() {
@@ -303,6 +342,7 @@ function onWindowResize() {
 
 onMounted(() => {
   window.addEventListener('resize', onWindowResize);
+  fetchList();
   nextTick(() => {
     initChart();
   });
@@ -651,6 +691,15 @@ onBeforeUnmount(() => {
   text-align: right;
 }
 
+/* ------------------- Spin Loading 暗色适配 ------------------- */
+:deep(.ant-spin-container) {
+  min-height: 200px;
+}
+
+:deep(.ant-spin-text) {
+  color: var(--color-muted);
+}
+
 /* ------------------- Table ------------------- */
 .table-wrapper {
   overflow-x: auto;
@@ -690,17 +739,17 @@ onBeforeUnmount(() => {
 
 /* 列宽比例 — 时间戳(时间列)占比最大 */
 .data-table th:nth-child(1),
-.data-table td:nth-child(1) { width: 20%; }
+.data-table td:nth-child(1) { width: 15%; }
 .data-table th:nth-child(2),
-.data-table td:nth-child(2) { width: 18%; }
+.data-table td:nth-child(2) { width: 20%; }
 .data-table th:nth-child(3),
-.data-table td:nth-child(3) { width: 25%; }
+.data-table td:nth-child(3) { width: 20%; }
 .data-table th:nth-child(4),
 .data-table td:nth-child(4) { width: 20%; }
 .data-table th:nth-child(5),
-.data-table td:nth-child(5) { width: 5%; }
+.data-table td:nth-child(5) { width: 15%; }
 .data-table th:nth-child(6),
-.data-table td:nth-child(6) { width: 10%; }
+.data-table td:nth-child(6) { width: 15%; }
 
 .type-tag {
   display: inline-flex;
