@@ -8,49 +8,52 @@
     :maskClosable="false"
     @cancel="onCancel"
   >
-    <!-- ==================== 表单区域 ==================== -->
-    <a-form
-      ref="formRef"
-      :model="formData"
-      :rules="formRules"
-      class="dark-form"
-      :label-col="{ style: { width: '80px' } }"
-    >
-      <div class="form-row">
-        <a-form-item label="控制类型" name="relType">
-          <a-select
-            v-model:value="formData.relType"
-            placeholder="请选择控制类型"
-            :options="relTypeOptions"
-            allowClear
-            @change="handleChangeRelType"
-          />
-        </a-form-item>
-        <a-form-item label="名称" name="planName">
-          <a-input
-            v-model:value="formData.planName"
-            placeholder="请输入名称"
-            allowClear
-          />
-        </a-form-item>
-        <a-form-item label="操控类型" name="operationType">
-          <a-select
-            v-model:value="formData.operationType"
-            placeholder="请选择操控类型"
-            :options="operationTypeOptions"
-            allowClear
-          />
-        </a-form-item>
-      </div>
-    </a-form>
+    <!-- ==================== 表单 + 表格 统一 Loading 容器 ==================== -->
+    <div v-loading="tableLoading" class="modal-body-content">
+      <!-- ==================== 表单区域 ==================== -->
+      <a-form
+        ref="formRef"
+        :model="formData"
+        :rules="formRules"
+        class="dark-form"
+        :label-col="{ style: { width: '80px' } }"
+        :disabled="isDetail"
+      >
+        <div class="form-row">
+          <a-form-item label="控制类型" name="relType">
+            <a-select
+              v-model:value="formData.relType"
+              placeholder="请选择控制类型"
+              :options="relTypeOptions"
+              allowClear
+              @change="handleChangeRelType"
+            />
+          </a-form-item>
+          <a-form-item label="名称" name="planName">
+            <a-input
+              v-model:value="formData.planName"
+              placeholder="请输入名称"
+              allowClear
+            />
+          </a-form-item>
+          <a-form-item label="操控类型" name="operationType">
+            <a-select
+              v-model:value="formData.operationType"
+              placeholder="请选择操控类型"
+              :options="operationTypeOptions"
+              allowClear
+            />
+          </a-form-item>
+        </div>
+      </a-form>
 
-    <!-- ==================== 表格区域 ==================== -->
-    <section class="table-section">
+      <!-- ==================== 表格区域 ==================== -->
+      <section class="table-section">
       <div class="table-scroll">
         <table class="device-table">
           <thead>
             <tr>
-              <th class="col-checkbox">
+              <th class="col-checkbox" v-show="!isDetail">
                 <input
                   type="checkbox"
                   :checked="isAllSelected"
@@ -61,12 +64,12 @@
               <th>序号</th>
               <th>区域</th>
               <th>名称</th>
-              <th>回路名称</th>
+              <th v-show="formData.relType === '回路'">回路名称</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(row, idx) in tableData" :key="row.id">
-              <td class="col-checkbox">
+              <td class="col-checkbox" v-show="!isDetail">
                 <input
                   type="checkbox"
                   :checked="selectedRowKeys.includes(row.id)"
@@ -76,17 +79,18 @@
               <td>{{ idx + 1 }}</td>
               <td>{{ row.spaceName }}</td>
               <td>{{ row.areaName }}</td>
-              <td>{{ row.circuitName }}</td>
+              <td v-show="formData.relType === '回路'">{{ row.circuitName }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
+    </div>
 
     <!-- ==================== 底部按钮 ==================== -->
     <div class="modal-footer">
       <button class="btn btn-cancel" @click="onCancel">取消</button>
-      <button class="btn btn-submit" :loading="submitLoading" @click="onSubmit">确认创建</button>
+      <button v-if="mode == 'add'" class="btn btn-submit" :loading="submitLoading" @click="onSubmit">确认创建</button>
     </div>
   </a-modal>
 </template>
@@ -94,23 +98,24 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
-import { getAreaListAll, getCircuitListAll } from '@/api/equipmentMonitoring'
+import { message } from 'ant-design-vue';
+import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPi, planDetailApi } from '@/api/equipmentMonitoring'
 
 // 对应src\views\bems\lightingControl\components\TimingControlModal.vue
 // ==================== Emits ====================
 const emit = defineEmits<{
-  (e: 'submit', data: { relType: string; operationType: string; planName: string; selectedIds: string[]; mode: string; record?: any }): void;
+  success: [];
 }>();
 
 // ==================== 状态 ====================
 const visible = ref(false);
 const submitLoading = ref(false);
-const mode = ref<'add' | 'edit'>('add');
+const mode = ref<'add' | 'edit' | 'detail'>('add');
 const editRecord = ref<any>(null);
 const formRef = ref<FormInstance>();
 
-const title = computed(() => (mode.value === 'add' ? '创建新场景' : '编辑场景'));
-
+const title = computed(() => (mode.value === 'add' ? '创建新场景' : '场景详情'));
+const isDetail = computed(() => mode.value === 'detail');
 // 表单数据
 const formData = reactive({
   relType: '',
@@ -205,15 +210,15 @@ async function onSubmit() {
       // 如果没有选中行，提交时仅传空数组
     }
     submitLoading.value = true;
-    emit('submit', {
-      relType: formData.relType,
-      operationType: formData.operationType,
-      planName: formData.planName.trim(),
-      selectedIds: [...selectedRowKeys.value],
-      mode: mode.value,
-      record: editRecord.value,
-    });
+     const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(',')};
+     // 根据类型调用对应 API
+    const api = mode.value === 'add' ? addLightingPlanAPi : editLightingPlanAPi;
+    const res = await api(submitData);
+    console.log('接口返回');
+    console.log('res', res);
+    message.success(mode.value === 'add' ? '新建场景成功！' : '编辑场景成功！');
     closeModal();
+    emit('success');
   } catch (err: any) {
     // 表单校验失败由 antd 自带提示，不作额外处理
     if (err?.errorFields) return;
@@ -223,25 +228,45 @@ async function onSubmit() {
 }
 
 /** 打开弹框 */
-function showModal(type: 'add' | 'edit', record?: any) {
+async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
   mode.value = type;
   formRef.value?.resetFields();
   if (type === 'add') {
     Object.assign(formData, { ...defaultForm });
     selectedRowKeys.value = [];
     editRecord.value = null;
-  } else if (type === 'edit' && record) {
+    // 默认回路
+    formData.relType = '回路';
+    // 表单 + 表格一起进入 loading
+    tableLoading.value = true;
+    try {
+      await loadCircuitData();
+    } finally {
+      await nextTick();
+      setTimeout(() => {
+        tableLoading.value = false;
+      }, 200);
+    }
+  } else if (type === 'detail' && record) {
+    console.log('record', record);
     editRecord.value = record;
     formData.relType = record.relType || '';
     formData.operationType = record.operationType || '';
     formData.planName = record.planName || '';
-    selectedRowKeys.value = record.selectedIds ? [...record.selectedIds] : [];
+    selectedRowKeys.value = record.relIds ? [...record.relIds] : [];
+    // 表单 + 表格一起进入 loading
+    tableLoading.value = true;
+    try {
+      await getDetailInit();
+    } finally {
+      await nextTick();
+      setTimeout(() => {
+        tableLoading.value = false;
+      }, 200);
+    }
   }
-  // 默认回路
- formData.relType = '回路'
-  // 查询
-  loadCircuitData()
   visible.value = true;
+  
   // 清除校验残留
   nextTick(() => {
     formRef.value?.clearValidate();
@@ -254,24 +279,34 @@ function closeModal() {
   formRef.value?.resetFields();
 }
 
+/** 切换控制类型 */
 const handleChangeRelType = async () => {
+  // 表单 + 表格一起进入 loading
+  tableLoading.value = true;
   // 切换类型时清空选择（因为数据结构不同）
   clearSelection();
-  if (formData.relType === '回路') {
-    await loadCircuitData();
-} else {
-    await loadAreaData();
-}
+  try {
+    if (formData.relType === '回路') {
+      await loadCircuitData();
+    } else {
+      await loadAreaData();
+    }
+  } finally {
+    // 接口返回后延迟关闭 loading，确保表格 DOM 渲染完成
+    await nextTick();
+    setTimeout(() => {
+      tableLoading.value = false;
+    }, 200);
+  }
 };
+
 // 加载loading标识
 const tableLoading = ref(false);
 
-/** 获取列表数据 */
+/** 获取回路列表数据（纯数据获取，不管理 loading） */
 async function loadCircuitData() {
-  tableLoading.value = true;
   try {
-    const params = {
-    };
+    const params = {};
     const data = await getCircuitListAll(params);
     console.log('获取数据：', data);
     if (data) {
@@ -279,22 +314,40 @@ async function loadCircuitData() {
     }
   } catch (err) {
     console.error('Failed to load equipment list:', err);
-  } finally {tableLoading.value = false;}
+  }
 }
-/** 获取列表数据 */
+
+/** 获取区域列表数据（纯数据获取，不管理 loading） */
 async function loadAreaData() {
-  tableLoading.value = true;
   try {
-    const params = {
-    };
+    const params = {};
     const data = await getAreaListAll(params);
     console.log('获取数据：', data);
     if (data) {
-      tableData.value = Array.isArray(data.records) ? data.records : [];
+      tableData.value = Array.isArray(data) ? data : [];
     }
   } catch (err) {
     console.error('Failed to load equipment list:', err);
-  } finally {tableLoading.value = false;}
+  }
+}
+// 获取详情
+const getDetailInit = async () => {
+  try {
+    const params = {
+      id: editRecord.value.id
+    };
+    const data = await planDetailApi(params);
+    console.log('获取数据：', data);
+    if (data) {
+      if(editRecord.value.relType === '区域') {
+        tableData.value = Array.isArray(data.areaList) ? data.areaList : [];
+      } else if(editRecord.value.relType === '回路') {
+        tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load equipment list:', err);
+  }
 }
 
 defineExpose({ showModal, closeModal });
@@ -314,11 +367,13 @@ defineExpose({ showModal, closeModal });
 
 /* ==================== 表格区域 ==================== */
 .table-section {
+  position: relative;
   margin-bottom: 20px;
 }
 
 .table-scroll {
-  max-height: 320px;
+  min-height: 200px;
+  max-height: 520px;
   overflow-y: auto;
   overflow-x: auto;
 }
@@ -663,6 +718,36 @@ defineExpose({ showModal, closeModal });
     .ant-form-item-has-error .ant-select-selector {
       border-color: #ff4d4f !important;
     }
+  }
+}
+
+/* ==================== Disabled 状态深色覆盖（扁平非嵌套，最高优先级） ==================== */
+body .dark-tech-modal {
+  .ant-input-affix-wrapper-disabled,
+  .ant-input-affix-wrapper-disabled .ant-input,
+  .ant-input-disabled,
+  .ant-input[disabled] {
+    background: #1b2533 !important;
+    color: #ffffff !important;
+    border-color: #303d50 !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+  }
+
+  .ant-select-disabled .ant-select-selector {
+    background: #1b2533 !important;
+    color: #ffffff !important;
+    border-color: #303d50 !important;
+    opacity: 1 !important;
+    cursor: not-allowed !important;
+  }
+
+  .ant-select-disabled .ant-select-selection-item,
+  .ant-select-disabled .ant-select-selection-placeholder {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    opacity: 1 !important;
   }
 }
 

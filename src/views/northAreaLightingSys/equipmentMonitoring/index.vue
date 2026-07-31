@@ -7,13 +7,13 @@
         :key="tab.key"
         class="tab-item"
         :class="{ active: activeTab === tab.key }"
-        @click="activeTab = tab.key"
+        @click="handleTabChange(tab.key)"
       >
         {{ tab.label }}
       </button>
     </nav>
 
-    <div class="page-content">
+    <div class="page-content" v-loading="pageLoading">
       <!-- ========== 设备监控 ========== -->
       <template v-if="activeTab === 'monitor'">
         <!-- 实时设备监控 -->
@@ -105,8 +105,8 @@
 
       <!-- ========== 场景配置 ========== -->
       <template v-if="activeTab === 'scene'">
-        <section class="panel">
-          <header class="panel-header">
+        <section class="panel panel-scene">
+          <header class="panel-header panel-header--fixed">
             <div class="left">
               <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
@@ -132,17 +132,17 @@
             >
               <div class="scene-header">
                 <div class="scene-title-row">
-                  <span class="scene-icon">{{ s.icon }}</span>
+                  <!-- <span class="scene-icon">{{ s.icon }}</span> -->
                   <span class="scene-name">{{ s.name }}</span>
                 </div>
                 <!-- <span v-if="s.isDefault" class="scene-default-tag">默认</span> -->
               </div>
-              <p class="scene-circuits">包含 {{ s.circuitCount }} 个回路</p>
+              <p class="scene-circuits">包含 {{ s.circuitCount }} 个{{ s.relType }}</p>
               <p class="scene-desc">{{ s.desc }}</p>
               <div class="scene-actions">
-                <button class="btn btn-primary" @click="onExecute(s)">执行</button>
-                <button class="btn btn-secondary" @click="onEditScene(s)">编辑</button>
-                <button class="btn btn-danger" @click="onDeleteScene(s)">删除</button>
+                <button class="btn btn-primary" @click="onExecute(s)">开启</button>
+                <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
+                <button class="btn btn-secondary" @click="onEditScene(s)">详情</button>
               </div>
             </div>
           </div>
@@ -169,26 +169,59 @@
             </button>
           </header>
 
-          <div class="table-wrapper">
+          <!-- 搜索栏 -->
+          <section class="filter-bar">
+            <div class="filter-left">
+              <a-select
+                v-model:value="timerFilters.relType"
+                placeholder="控制类型"
+                :options="relTypeFilterOptions"
+                allowClear
+                style="width: 140px"
+              />
+              <a-time-picker
+                v-model:value="timerFilters.startTime"
+                placeholder="开始时间"
+                format="HH:mm:ss"
+                style="width: 160px"
+              />
+              <span class="filter-separator">—</span>
+              <a-time-picker
+                v-model:value="timerFilters.endTime"
+                placeholder="结束时间"
+                format="HH:mm:ss"
+                style="width: 160px"
+              />
+              <button class="btn btn-primary" @click="onTimerSearch">查询</button>
+              <button class="btn btn-outline" @click="onTimerReset">重置</button>
+            </div>
+          </section>
+
+          <!-- 表格 -->
+          <div class="table-wrapper" v-loading="timerLoading">
             <table class="timer-table">
               <thead>
                 <tr>
-                  <th>任务名称</th>
-                  <th>执行对象</th>
+                  <th>序号</th>
                   <th>类型</th>
-                  <th>执行时间</th>
-                  <th>重复</th>
+                  <th>名称</th>
+                  <th>时间</th>
+                  <th>时间范围</th>
+                  <th>周期</th>
+                  <th>控制指令</th>
                   <th>状态</th>
                   <th>操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in timerList" :key="row.id">
-                  <td>{{ row.name }}</td>
-                  <td>{{ row.target }}</td>
-                  <td>{{ row.type }}</td>
-                  <td>{{ row.time }}</td>
-                  <td>{{ row.repeat }}</td>
+                <tr v-for="(row, idx) in timerList" :key="row.id">
+                  <td>{{ (timerCurrentPage - 1) * timerPageSize + idx + 1 }}</td>
+                  <td>{{ row.relType }}</td>
+                  <td>{{ row.planName }}</td>
+                  <td>{{ row.executionLocalTime || row.executionTime }}</td>
+                  <td>{{ row.date }}</td>
+                  <td>{{ row.weeks }}</td>
+                  <td>{{ row.operationType }}</td>
                   <td>
                     <span
                       class="timer-status-badge"
@@ -211,6 +244,22 @@
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- 分页 -->
+          <div class="pagination-bar">
+            <span class="pagination-info">共 {{ timerTotal }} 条</span>
+            <button
+              class="pagination-btn"
+              :disabled="timerCurrentPage <= 1"
+              @click="onTimerPageChange(timerCurrentPage - 1)"
+            >上一页</button>
+            <span class="pagination-current">{{ timerCurrentPage }} / {{ Math.ceil(timerTotal / timerPageSize) || 1 }}</span>
+            <button
+              class="pagination-btn"
+              :disabled="timerCurrentPage >= Math.ceil(timerTotal / timerPageSize)"
+              @click="onTimerPageChange(timerCurrentPage + 1)"
+            >下一页</button>
           </div>
         </section>
       </template>
@@ -262,14 +311,21 @@
       </template>
     </div>
   </section>
-  <createNewSceneModal ref="createNewSceneModalRef"></createNewSceneModal>
+  <createNewSceneModal ref="createNewSceneModalRef" @success="createNewSceneModalSuccess"></createNewSceneModal>
+  <sceneConfirmModal ref="sceneConfirmModalRef" @success="onSceneConfirmSuccess"></sceneConfirmModal>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
+import type { Dayjs } from 'dayjs';
 import createNewSceneModal from './components/createNewSceneModal.vue';
+import sceneConfirmModal from './components/sceneConfirmModal.vue';
+import { getLightingPlanAPi } from '@/api/equipmentMonitoring';
+
+// 定时任务 src\views\bems\lightingControl\components\TimingControl.vue
 
 const createNewSceneModalRef = ref<InstanceType<typeof createNewSceneModal>>();
+const sceneConfirmModalRef = ref<InstanceType<typeof sceneConfirmModal>>();
 
 /* --------------------- Tab 导航 --------------------- */
 const tabs = [
@@ -331,42 +387,89 @@ const circuitList = ref([
 ]);
 
 /* --------------------- 场景数据 --------------------- */
-const sceneList = ref([
-  {
-    id: 's1',
-    name: '夜间模式',
-    icon: '🌙',
-    circuitCount: 12,
-    desc: 'A1/A2/B1 全部开启，B2/C1 降低亮度',
-    isDefault: true,
-  },
-  {
-    id: 's2',
-    name: '日间模式',
-    icon: '☀️',
-    circuitCount: 8,
-    desc: '全部关闭，仅保留应急照明',
-    isDefault: false,
-  },
-  {
-    id: 's3',
-    name: '节日模式',
-    icon: '✨',
-    circuitCount: 24,
-    desc: '全部开启，景观灯切换动态效果',
-    isDefault: false,
-  },
-  {
-    id: 's4',
-    name: '维护模式',
-    icon: '🔧',
-    circuitCount: 4,
-    desc: '仅开启维修区域照明',
-    isDefault: false,
-  },
-]);
+const sceneList = ref<any[]>([]);
+
+/* --------------------- Loading --------------------- */
+const pageLoading = ref(false);
 
 /* --------------------- 事件 --------------------- */
+/** Tab 切换事件 */
+async function handleTabChange(key: string) {
+  if (activeTab.value === key) return;
+  activeTab.value = key;
+
+  if (key === 'scene') {
+    pageLoading.value = true;
+    try {
+      await fetchSceneList();
+    } finally {
+      await nextTick();
+      setTimeout(() => {
+        pageLoading.value = false;
+      }, 200);
+    }
+  } else if (key === 'timer') {
+    await fetchTimerList();
+  }
+  // TODO: 其他 tab 的接口请求
+}
+
+/* ---------- 场景配置事件 ---------- */
+function onAddScene() {
+  console.log('新建场景');
+  createNewSceneModalRef.value?.showModal('add');
+}
+function onEditScene(s) {
+  createNewSceneModalRef.value?.showModal('detail', s);
+}
+// 新建场景--回调
+const createNewSceneModalSuccess = async () =>{
+  // 刷新场景列表
+  pageLoading.value = true;
+  try {
+    await fetchSceneList();
+    // TODO: 其他 tab 的接口请求
+  } finally {
+    await nextTick();
+    setTimeout(() => {
+      pageLoading.value = false;
+    }, 200);
+  }
+}
+
+/** 获取场景配置列表 */
+async function fetchSceneList() {
+  try {
+    const params = {
+      pageNo: 1,
+      pageSize: 999
+    };
+    const data = await getLightingPlanAPi(params);
+    console.log('场景配置列表：', data);
+    if (data?.records) {
+      sceneList.value = (data.records as any[]).map((item) => {
+        const relCount = item.relIds ? item.relIds.split(',').length : 0;
+        const iconMap: Record<string, string> = {
+          开启: '💡',
+          关闭: '🔌',
+        };
+        return {
+          ...item,
+          id: item.id,
+          name: item.planName || '',
+          icon: iconMap[item.operationType] || '⚙️',
+          circuitCount: relCount,
+          desc: `控制类型 · ${item.relType || '-'}`,
+          isDefault: item.sort === 1,
+          relType: item.relType,
+        };
+      });
+    }
+  } catch (err) {
+    console.error('获取场景配置列表失败：', err);
+  }
+}
+
 function onRefreshVideo() {
   console.log('刷新视频');
 }
@@ -384,72 +487,97 @@ function onDiagnose(c: typeof circuitList.value[0]) {
   console.log('故障诊断', c.name);
 }
 
-/* ---------- 场景配置事件 ---------- */
-function onAddScene() {
-  console.log('新建场景');
-  createNewSceneModalRef.value?.showModal('add');
-}
-
 function onExecute(s: typeof sceneList.value[0]) {
-  console.log('执行场景', s.name);
-}
-
-function onEditScene(s: typeof sceneList.value[0]) {
-  console.log('编辑场景', s.name);
+  sceneConfirmModalRef.value?.showModal('execute', s);
 }
 
 function onDeleteScene(s: typeof sceneList.value[0]) {
-  console.log('删除场景', s.name);
+  sceneConfirmModalRef.value?.showModal('delete', s);
+}
+
+
+/** 二次确认回调 */
+function onSceneConfirmSuccess(payload: { type: string; scene: any }) {
+  console.log('场景确认回调：', payload.type, payload.scene);
+  if (payload.type === 'execute') {
+    // TODO: 调用执行场景接口
+  } else if (payload.type === 'delete') {
+    // TODO: 调用关闭场景接口
+  }
 }
 
 /* --------------------- 定时任务数据 --------------------- */
-const timerList = ref([
-  {
-    id: 't1',
-    name: '晚间自动开灯',
-    target: '夜间模式',
-    type: '场景',
-    time: '19:00',
-    repeat: '每天',
-    status: '启用',
-  },
-  {
-    id: 't2',
-    name: '凌晨自动关灯',
-    target: '全区照明',
-    type: '全部',
-    time: '02:00',
-    repeat: '每天',
-    status: '启用',
-  },
-  {
-    id: 't3',
-    name: '周末节日模式',
-    target: '节日模式',
-    type: '场景',
-    time: '18:30',
-    repeat: '周五、六',
-    status: '启用',
-  },
-  {
-    id: 't4',
-    name: '工作日节能',
-    target: '日间模式',
-    type: '场景',
-    time: '07:00',
-    repeat: '工作日',
-    status: '启用',
-  },
-  {
-    id: 't5',
-    name: '应急照明保持',
-    target: 'B1-回路全',
-    type: '回路',
-    time: '全天',
-    repeat: '每天',
-    status: '停用',
-  },
-]);
+const timerList = ref<any[]>([]);
+const timerLoading = ref(false);
+const timerCurrentPage = ref(1);
+const timerPageSize = ref(10);
+const timerTotal = ref(0);
+
+const timerFilters = ref({
+  relType: undefined as string | undefined,
+  startTime: null as Dayjs | null,
+  endTime: null as Dayjs | null,
+});
+
+const relTypeFilterOptions = [
+  { label: '回路', value: '回路' },
+  { label: '区域', value: '区域' },
+];
+
+const weekDayMap: Record<string, string> = {
+  '1': '周一', '2': '周二', '3': '周三', '4': '周四',
+  '5': '周五', '6': '周六', '7': '周日',
+};
+
+/** 获取定时控制列表 */
+async function fetchTimerList() {
+  timerLoading.value = true;
+  try {
+    const params: Record<string, any> = {
+      pageNo: timerCurrentPage.value,
+      pageSize: timerPageSize.value,
+    };
+    if (timerFilters.value.relType) params.relType = timerFilters.value.relType;
+    if (timerFilters.value.startTime) params.startTime = timerFilters.value.startTime.format('HH:mm:ss');
+    if (timerFilters.value.endTime) params.endTime = timerFilters.value.endTime.format('HH:mm:ss');
+
+    const data = await getLightingPlanAPi(params);
+    console.log('定时控制列表：', data);
+    if (data?.records) {
+      timerList.value = (data.records as any[]).map((item) => ({
+        id: item.id,
+        planName: item.planName || '',
+        relType: item.relType || '',
+        executionTime: item.executionTime || '',
+        executionLocalTime: item.executionLocalTime || '',
+        operationType: item.operationType || '',
+        status: item.status || '',
+        date: item.executionInfo
+          ? `${item.executionInfo.startDate || ''} ~ ${item.executionInfo.endDate || ''}`
+          : '',
+        weeks: item.executionInfo?.enabledWeek
+          ? item.executionInfo.enabledWeek
+              .split(',')
+              .map((d: string) => weekDayMap[d.trim()] || d.trim())
+              .join('、')
+          : '',
+      }));
+      timerTotal.value = data.total ?? data.records.length;
+    } else {
+      timerList.value = [];
+      timerTotal.value = 0;
+    }
+  } catch (err) {
+    console.error('获取定时控制列表失败：', err);
+    timerList.value = [];
+    timerTotal.value = 0;
+  } finally {
+    await nextTick();
+    setTimeout(() => {
+      timerLoading.value = false;
+    }, 200);
+  }
+}
 
 /* ---------- 定时任务事件 ---------- */
 function onAddTimer() {
@@ -457,12 +585,31 @@ function onAddTimer() {
 }
 
 function onEditTimer(row: typeof timerList.value[0]) {
-  console.log('编辑定时任务', row.name);
+  console.log('编辑定时任务', row.planName);
 }
 
 function onToggleTimer(row: typeof timerList.value[0]) {
-  row.status = row.status === '启用' ? '停用' : '启用';
-  console.log('切换定时任务状态', row.name, row.status);
+  console.log('切换定时任务状态', row.planName, row.status);
+}
+
+function onTimerSearch() {
+  timerCurrentPage.value = 1;
+  fetchTimerList();
+}
+
+function onTimerReset() {
+  timerFilters.value = {
+    relType: undefined,
+    startTime: null,
+    endTime: null,
+  };
+  timerCurrentPage.value = 1;
+  fetchTimerList();
+}
+
+function onTimerPageChange(page: number) {
+  timerCurrentPage.value = page;
+  fetchTimerList();
 }
 
 /* --------------------- 控制日历 --------------------- */
@@ -574,9 +721,12 @@ function goToToday() {
   --color-danger-hover: #e64446;
   --color-border: #303d50;
 
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
-  min-height: 100%;
+  height: calc(100vh - 60px);
   padding: 16px;
+  overflow: hidden;
   background: var(--bg-page);
   color: var(--color-text);
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
@@ -591,6 +741,7 @@ function goToToday() {
 /* ------------------- Tab 导航 ------------------- */
 .tab-nav {
   display: flex;
+  flex-shrink: 0;
   gap: 0;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--color-border);
@@ -628,9 +779,11 @@ function goToToday() {
 
 /* ------------------- 页面内容 ------------------- */
 .page-content {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  overflow: hidden;
 }
 
 /* ------------------- Panel ------------------- */
@@ -841,10 +994,31 @@ function goToToday() {
 }
 
 /* ------------------- 场景配置 ------------------- */
+/* 场景面板：撑满 page-content，内部 flex 列布局 */
+.panel-scene {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 固定 panel-header 不跟随滚动 */
+.panel-header--fixed {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
 .scene-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  align-content: start;
 }
 
 .scene-card {
@@ -931,6 +1105,109 @@ function goToToday() {
   margin: 0;
   font-size: 14px;
   color: var(--color-muted);
+}
+
+/* ------------------- 定时任务搜索栏 ------------------- */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-separator {
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+/* 搜索栏时间选择器深色适配 */
+.filter-bar :deep(.ant-picker) {
+  background: var(--bg-card) !important;
+  border-color: var(--color-border) !important;
+}
+
+.filter-bar :deep(.ant-picker-input > input) {
+  color: var(--color-text) !important;
+}
+
+.filter-bar :deep(.ant-picker-input > input::placeholder) {
+  color: var(--color-muted) !important;
+}
+
+.filter-bar :deep(.ant-picker-suffix) {
+  color: var(--color-muted) !important;
+}
+
+.filter-bar :deep(.ant-picker-clear) {
+  background: var(--bg-card) !important;
+  color: var(--color-muted) !important;
+}
+
+/* 搜索栏 a-select 深色适配 */
+.filter-bar :deep(.ant-select-selector) {
+  background: var(--bg-card) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.filter-bar :deep(.ant-select-selection-placeholder) {
+  color: var(--color-muted) !important;
+}
+
+.filter-bar :deep(.ant-select-arrow) {
+  color: var(--color-muted) !important;
+}
+
+/* ------------------- 分页 ------------------- */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 0 4px;
+  user-select: none;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin-right: 8px;
+}
+
+.pagination-btn {
+  padding: 4px 12px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-current {
+  font-size: 13px;
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 /* ------------------- 定时任务表格 ------------------- */
