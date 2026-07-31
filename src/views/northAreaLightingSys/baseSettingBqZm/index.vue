@@ -200,6 +200,8 @@ async function fetchPlaceOptions() {
   }
 }
 
+// 加载loading标识
+const tableLoading = ref(false);
 /** 获取列表数据 */
 async function fetchList() {
   tableLoading.value = true;
@@ -382,8 +384,6 @@ function onPageChange(page: number) {
 }
 
 
-// 数据请求
-const tableLoading = ref(false);
 onMounted(() => {
   fetchList();
   fetchRelNameOptions();
@@ -424,7 +424,7 @@ onMounted(() => {
 .page-panel {
   background: var(--bg-panel);
   border-radius: 8px;
-  padding: 20px 24px 16px;
+  padding: 15px 24px 16px;
 }
 
 /* ------------------- Header ------------------- */
