@@ -1,5 +1,5 @@
 <template>
-  <div ref="mapContainer" class="map-container"></div>
+  <div id="mapContainer" class="map-container"></div>
 
   <!-- POI 详情弹窗 -->
   <el-dialog
@@ -49,134 +49,62 @@
   </el-dialog>
 </template>
 
-<script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { VideoCamera } from '@element-plus/icons-vue'
-import { loadAMap } from '../utils/map-loader.js'
-import { getLightPoints } from '../api/lightService.js'
+<script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+import { loadMapScripts } from '/@/components/map/loadMapScripts'
 
-const mapContainer = ref(null)
-let map = null
-let markers = []
 
-// 弹窗控制
-const dialogVisible = ref(false)
-const currentLight = ref(null)
-
-const statusTagType = computed(() => {
-  const map = { '正常': 'success', '故障': 'danger', '离线': 'info' }
-  return map[currentLight.value?.status] || 'info'
-})
-
-/** 根据状态返回对应颜色 */
-function getStatusColor(status) {
-  const colorMap = {
-    '正常': '#67C23A',
-    '故障': '#F56C6C',
-    '离线': '#909399'
-  }
-  return colorMap[status] || '#409EFF'
-}
-
-/** 根据类型返回图标大小 */
-function getIconSize(type) {
-  const sizeMap = {
-    '路灯': 10,
-    '景观灯': 8,
-    '高杆灯': 14,
-    '建筑照明': 12,
-    '庭院灯': 7,
-    '投光灯': 11
-  }
-  return sizeMap[type] || 9
-}
-
-async function initMap() {
+let map = ref(null);
+const buildingInfo = ref<unknown[]>([]);
+let marker = ref(null);
+let flid = null;
+const windowWidth = window.outerWidth;
+let zoomNum =
+  1200 < windowWidth && windowWidth < 1440
+    ? 14
+    : windowWidth > 1439
+      ? 14.6
+      : 15.5;
+// 配置参数
+const buildingID = "B000A11DMD";
+const token = "572d6c0c869b3e2ce85a63ab2a1d5a0a";
+const mapConfig = {
+  token: token,
+  appName: "HelloWorld", //开发者应用名称
+  projectPath: "",
+  baseMapPath: "/map/",
+  spriteUrl: `${window.location.origin}/map/assets/images/default_markers`,
+  scenePath: "/data/",
+  buildingId: buildingID,
+  defaultCenter: { lon: 116.15551, lat: 39.916878 },
+  defaultZoomLevel: zoomNum,
+  showOutDoorMap: false,
+  mapDataPath: "/data/572d6c0c869b3e2ce85a63ab2a1d5a0a/{{bdid}}/",
+};
+// 初始化地图
+const initMap = async () => {
   try {
-    const AMap = await loadAMap()
-
-    // 初始化地图，定位到首钢园
-    map = new AMap.Map(mapContainer.value, {
-      zoom: 16,
-      center: [116.164, 39.909],
-      viewMode: '2D',
-      resizeEnable: true,
-      mapStyle: 'amap://styles/light'
-    })
-
-    // 加载灯光点位
-    const lights = await getLightPoints()
-    addLightMarkers(AMap, lights)
-
-    // 自适应视野
-    if (lights.length > 0) {
-      map.setFitView(null, false, [30, 30, 30, 30])
-    }
+    map.value = await new DaxiMap.Map("mapContainer", mapConfig);
+    map.value.on("loadComplete", () => {
+      console.log("地图加载完成");
+      map.value.setZoomLevelRange(zoomNum, 23);
+      buildingInfo.value = map.value.getBuildingInfo(buildingID);
+    });
+    console.log("地图初始化成功");
   } catch (error) {
-    console.error('地图加载失败:', error.message)
-    ElMessage.error('地图加载失败：' + error.message)
+    console.error("地图初始化失败:", error);
   }
-}
+};
 
-function addLightMarkers(AMap, lights) {
-  lights.forEach(light => {
-    const color = getStatusColor(light.status)
-    const size = getIconSize(light.type)
 
-    // 创建圆形标记
-    const markerContent = document.createElement('div')
-    markerContent.style.cssText = `
-      width: ${size * 2}px;
-      height: ${size * 2}px;
-      background: ${color};
-      border: 2px solid #fff;
-      border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      cursor: pointer;
-      transition: transform 0.2s;
-    `
-    markerContent.title = light.name
-
-    const marker = new AMap.Marker({
-      position: [light.lng, light.lat],
-      content: markerContent,
-      offset: new AMap.Pixel(-size, -size)
-    })
-
-    // 点击弹出 Element Plus Dialog
-    marker.on('click', () => {
-      currentLight.value = light
-      dialogVisible.value = true
-    })
-
-    // hover 放大效果
-    marker.on('mouseover', () => {
-      markerContent.style.transform = 'scale(1.3)'
-    })
-    marker.on('mouseout', () => {
-      markerContent.style.transform = 'scale(1)'
-    })
-
-    map.add(marker)
-    markers.push(marker)
-  })
-}
-
-function clearMarkers() {
-  markers.forEach(m => map.remove(m))
-  markers = []
-}
-
-onMounted(() => {
+onMounted(async () => {
+  await loadMapScripts()
   initMap()
 })
 
 onUnmounted(() => {
-  clearMarkers()
-  if (map) {
-    map.destroy()
-    map = null
+  if (map.value) {
+    map.value = null
   }
 })
 </script>
