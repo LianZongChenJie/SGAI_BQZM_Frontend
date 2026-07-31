@@ -6,17 +6,30 @@
         <span>报警记录</span>
       </div>
       <div class="record-actions">
-        <a-button class="btn-batch" @click="handleBatchDispose">批量处置</a-button>
+        <template v-if="batchMode">
+          <a-button class="btn-batch" :disabled="selectedIds.size === 0" @click="handleBatchClose">
+            {{ selectedIds.size > 0 ? '批量关闭' : '批量处置' }}{{ selectedIds.size > 0 ? `(${selectedIds.size})` : '' }}
+          </a-button>
+          <a-button class="btn-cancel" @click="handleCancelBatch">取消</a-button>
+        </template>
+        <a-button v-else class="btn-batch" @click="handleEnterBatch">批量处置</a-button>
       </div>
     </div>
 
-    <div class="record-list">
+    <div class="record-list" ref="listRef" @scroll="handleScroll">
       <div
         v-for="item in alarmList"
         :key="item.id"
         class="record-item"
-        :class="`level-${item.level}`"
+        :class="[`level-${item.level}`, { selected: selectedIds.has(item.id) }]"
       >
+        <a-checkbox
+          v-if="batchMode"
+          class="item-checkbox"
+          :checked="selectedIds.has(item.id)"
+          :disabled="item.alarmStatus === '3'"
+          @change="() => toggleSelect(item.id)"
+        />
         <div class="item-left">
           <span class="level-dot" :class="`dot-${item.level}`"></span>
           <div class="item-content">
@@ -30,23 +43,30 @@
           </div>
         </div>
         <div class="item-actions">
-          <template v-if="item.level !== '一般'">
-            <a-button size="small" class="btn-cyan" @click="handleTransfer(item)">转工单</a-button>
+          <template v-if="item.alarmStatus === '1'">
+            <template v-if="item.level !== '一般'">
+              <a-button size="small" class="btn-cyan" @click="handleTransfer(item)">转工单</a-button>
+            </template>
+            <template v-else>
+              <a-button size="small" class="btn-cyan" @click="handleRetry(item)">重试</a-button>
+            </template>
+            <a-button size="small" class="btn-close" @click="handleClose(item)">关闭</a-button>
           </template>
-          <template v-else>
-            <a-button size="small" class="btn-cyan" @click="handleRetry(item)">重试</a-button>
+          <template v-else-if="item.alarmStatus === '3'">
+            <a-button size="small" class="btn-cyan" disabled>转单中</a-button>
           </template>
-          <a-button size="small" class="btn-close" @click="handleClose(item)">关闭</a-button>
         </div>
       </div>
+      <div v-if="loading" class="load-more">加载中...</div>
+      <div v-else-if="noMore && alarmList.length > 0" class="load-more">没有更多了</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { message, Modal } from 'ant-design-vue';
-import { getAlarmListApi, batchDisposeApi, transferWorkOrderApi, closeAlarmApi } from '../alarmManagement.api';
+import { getAlarmListApi, batchDisposeApi, transferWorkOrderApi, closeAlarmApi, retryAlarmApi } from '../alarmManagement.api';
 
 interface AlarmItem {
   id: number;
@@ -57,44 +77,138 @@ interface AlarmItem {
   type: string;
   time: string;
   description: string;
+  alarmStatus: string;
 }
 
 const alarmList = ref<AlarmItem[]>([]);
+const selectedIds = ref<Set<number>>(new Set());
+const batchMode = ref(false);
+const listRef = ref<HTMLElement>();
+const currentPage = ref(1);
+const pageSize = 10;
+const total = ref(0);
+const loading = ref(false);
+const noMore = computed(() => alarmList.value.length >= total.value && total.value > 0);
 
-const loadAlarmList = async () => {
-  const res = await getAlarmListApi();
-  const records = res?.result?.records || res?.records || [];
-  alarmList.value = records.map((item: any) => ({
-    id: item.id,
-    level: item.alarmLevelName,
-    levelText: item.alarmLevelName,
-    location: item.spaceName || '',
-    circuit: item.deviceName || '',
-    type: item.alarmCategoryName || '',
-    time: item.alarmTime,
-    description: item.alarmContent,
-  }));
+const loadAlarmList = async (append = false) => {
+  if (loading.value) return;
+  loading.value = true;
+  try {
+    const res = await getAlarmListApi({ pageNo: currentPage.value, pageSize });
+    const records = res?.result?.records || res?.records || [];
+    total.value = res?.result?.total ?? res?.total ?? 0;
+    const mapped = records.map((item: any) => ({
+      id: item.id,
+      level: item.alarmLevelName,
+      levelText: item.alarmLevelName,
+      location: item.spaceName || '',
+      circuit: item.deviceName || '',
+      type: item.alarmCategoryName || '',
+      time: item.alarmTime,
+      description: item.alarmContent,
+      alarmStatus: String(item.alarmStatus ?? '1'),
+    }));
+    alarmList.value = append ? [...alarmList.value, ...mapped] : mapped;
+    if (!append) {
+      selectedIds.value = new Set();
+    }
+    if (records.length > 0) {
+      currentPage.value++;
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleScroll = (e: Event) => {
+  const el = e.target as HTMLElement;
+  const { scrollTop, scrollHeight, clientHeight } = el;
+  if (scrollHeight - scrollTop - clientHeight < 60 && !loading.value && !noMore.value) {
+    loadAlarmList(true);
+  }
+};
+
+const resetAndLoad = () => {
+  currentPage.value = 1;
+  alarmList.value = [];
+  stopPolling();
+  loadAlarmList().then(() => {
+    if (currentPage.value <= 1) {
+      startPolling();
+    }
+  });
+};
+
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+const startPolling = () => {
+  stopPolling();
+  pollTimer = setInterval(() => {
+    if (currentPage.value <= 1) {
+      currentPage.value = 1;
+      alarmList.value = [];
+      loadAlarmList();
+    }
+  }, 60000);
+};
+
+const stopPolling = () => {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 };
 
 onMounted(() => {
-  loadAlarmList();
+  loadAlarmList().then(() => {
+    if (currentPage.value <= 1) {
+      startPolling();
+    }
+  });
+});
+
+onUnmounted(() => {
+  stopPolling();
 });
 
 const handleMarkAllRead = () => {
   message.success('已全部标记为已读');
 };
 
-const handleBatchDispose = () => {
+const handleEnterBatch = () => {
+  batchMode.value = true;
+  selectedIds.value = new Set();
+};
+
+const handleCancelBatch = () => {
+  batchMode.value = false;
+  selectedIds.value = new Set();
+};
+
+const toggleSelect = (id: number) => {
+  const next = new Set(selectedIds.value);
+  if (next.has(id)) {
+    next.delete(id);
+  } else {
+    next.add(id);
+  }
+  selectedIds.value = next;
+};
+
+const handleBatchClose = () => {
+  if (selectedIds.value.size === 0) return;
   Modal.confirm({
     title: '确认操作',
-    content: '确认要全部关闭么？',
+    content: `确认要关闭选中的 ${selectedIds.value.size} 条报警记录吗？`,
     okText: '确定',
     cancelText: '取消',
     onOk: async () => {
-      const ids = alarmList.value.map((item) => item.id);
+      const ids = Array.from(selectedIds.value);
       await batchDisposeApi(ids);
-      message.success('批量处置成功');
-      loadAlarmList();
+      message.success('批量关闭成功');
+      batchMode.value = false;
+      selectedIds.value = new Set();
+      resetAndLoad();
     },
   });
 };
@@ -102,17 +216,19 @@ const handleBatchDispose = () => {
 const handleTransfer = async (item: AlarmItem) => {
   await transferWorkOrderApi({ recordId: item.id });
   message.success(`已将【${item.type}】报警转为工单`);
-  loadAlarmList();
+  resetAndLoad();
 };
 
-const handleRetry = (item: AlarmItem) => {
-  message.info(`正在重试【${item.location} ${item.circuit}】`);
+const handleRetry = async (item: AlarmItem) => {
+  await retryAlarmApi({ id: item.id });
+  message.success(`已重试【${item.location} ${item.circuit}】`);
+  resetAndLoad();
 };
 
 const handleClose = async (item: AlarmItem) => {
   await closeAlarmApi(item.id);
   message.success('报警已关闭');
-  loadAlarmList();
+  resetAndLoad();
 };
 </script>
 
@@ -156,6 +272,25 @@ const handleClose = async (item: AlarmItem) => {
           border-color: #ff7875 !important;
           color: #fff !important;
         }
+
+        &:disabled {
+          background: rgba(255, 77, 79, 0.3) !important;
+          border-color: rgba(255, 77, 79, 0.3) !important;
+          color: rgba(255, 255, 255, 0.45) !important;
+          cursor: not-allowed;
+        }
+      }
+
+      .btn-cancel {
+        background: rgba(255, 255, 255, 0.08) !important;
+        border-color: rgba(255, 255, 255, 0.2) !important;
+        color: rgba(255, 255, 255, 0.85) !important;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.15) !important;
+          border-color: rgba(255, 255, 255, 0.35) !important;
+          color: #fff !important;
+        }
       }
     }
   }
@@ -164,6 +299,25 @@ const handleClose = async (item: AlarmItem) => {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    max-height: 520px;
+    overflow-y: auto;
+    padding-right: 4px;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+    }
+
+    .load-more {
+      text-align: center;
+      padding: 12px 0;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 13px;
+    }
 
     .record-item {
       display: flex;
@@ -174,9 +328,14 @@ const handleClose = async (item: AlarmItem) => {
       border-left: 4px solid transparent;
       background: rgba(255, 255, 255, 0.03);
       transition: background 0.3s;
+      gap: 12px;
 
       &:hover {
         background: rgba(255, 255, 255, 0.06);
+      }
+
+      &.selected {
+        background: rgba(24, 144, 255, 0.08);
       }
 
       &.level-紧急 {
@@ -192,6 +351,34 @@ const handleClose = async (item: AlarmItem) => {
       &.level-一般 {
         border-left-color: #1890ff;
         background: rgba(24, 144, 255, 0.06);
+      }
+
+      .item-checkbox {
+        flex-shrink: 0;
+
+        :deep(.ant-checkbox-inner) {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.25);
+        }
+
+        :deep(.ant-checkbox-checked .ant-checkbox-inner) {
+          background: #1890ff;
+          border-color: #1890ff;
+        }
+
+        :deep(.ant-checkbox-wrapper) {
+          color: rgba(255, 255, 255, 0.85);
+        }
+
+        :deep(.ant-checkbox-disabled .ant-checkbox-inner) {
+          background: rgba(255, 255, 255, 0.03) !important;
+          border-color: rgba(255, 255, 255, 0.1) !important;
+          cursor: not-allowed;
+        }
+
+        :deep(.ant-checkbox-disabled .ant-checkbox-inner::after) {
+          display: none;
+        }
       }
 
       .item-left {
