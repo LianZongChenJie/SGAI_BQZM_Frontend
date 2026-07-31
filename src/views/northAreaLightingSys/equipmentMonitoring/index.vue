@@ -67,7 +67,7 @@
                 <line x1="1" y1="9" x2="4" y2="9"/>
                 <line x1="1" y1="14" x2="4" y2="14"/>
               </svg>
-              <h2 class="panel-title">回路控制面板</h2>
+              <h2 class="panel-title">场景控制面板</h2>
             </div>
           </header>
 
@@ -83,19 +83,19 @@
                 </span>
               </div>
               <p class="circuit-location">{{ c.location }}</p>
-              <p class="circuit-info">{{ c.info }}</p>
+              <!-- <p class="circuit-info">{{ c.info }}</p> -->
               <div class="circuit-actions">
                 <template v-if="c.status === '开启'">
+                  <button class="btn btn-success" @click="onToggle(c)">开启</button>
                   <button class="btn btn-danger" @click="onToggle(c)">关闭</button>
-                  <button class="btn btn-primary" @click="onTimer(c)">定时</button>
                 </template>
                 <template v-else-if="c.status === '关闭' && c.isFault">
-                  <button class="btn btn-success" @click="onToggle(c)">开启</button>
-                  <button class="btn btn-primary" @click="onDiagnose(c)">诊断</button>
+                 <button class="btn btn-success" @click="onToggle(c)">开启</button>
+                  <button class="btn btn-danger" @click="onToggle(c)">关闭</button>
                 </template>
                 <template v-else>
                   <button class="btn btn-success" @click="onToggle(c)">开启</button>
-                  <button class="btn btn-primary" @click="onTimer(c)">定时</button>
+                  <button class="btn btn-danger" @click="onToggle(c)">关闭</button>
                 </template>
               </div>
             </div>
@@ -129,14 +129,13 @@
               v-for="s in sceneList"
               :key="s.id"
               class="scene-card"
-              :class="{ 'scene-default': s.isDefault }"
             >
               <div class="scene-header">
                 <div class="scene-title-row">
                   <span class="scene-icon">{{ s.icon }}</span>
                   <span class="scene-name">{{ s.name }}</span>
                 </div>
-                <span v-if="s.isDefault" class="scene-default-tag">默认</span>
+                <!-- <span v-if="s.isDefault" class="scene-default-tag">默认</span> -->
               </div>
               <p class="scene-circuits">包含 {{ s.circuitCount }} 个回路</p>
               <p class="scene-desc">{{ s.desc }}</p>
@@ -263,10 +262,14 @@
       </template>
     </div>
   </section>
+  <createNewSceneModal ref="createNewSceneModalRef"></createNewSceneModal>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import createNewSceneModal from './components/createNewSceneModal.vue';
+
+const createNewSceneModalRef = ref<InstanceType<typeof createNewSceneModal>>();
 
 /* --------------------- Tab 导航 --------------------- */
 const tabs = [
@@ -384,6 +387,7 @@ function onDiagnose(c: typeof circuitList.value[0]) {
 /* ---------- 场景配置事件 ---------- */
 function onAddScene() {
   console.log('新建场景');
+  createNewSceneModalRef.value?.showModal('add');
 }
 
 function onExecute(s: typeof sceneList.value[0]) {
