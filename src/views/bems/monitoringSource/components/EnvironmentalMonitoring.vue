@@ -231,6 +231,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
+import { loadMapScripts } from '/@/components/map/loadMapScripts';
 
 import start from '@/assets/img/start.png';
 import end from '@/assets/img/end.png';
@@ -469,7 +470,7 @@ const tongxStatusText = computed(() => {
 onMounted(async () => {
   await getSpaceLayerList();
   await getRegionData();
-  //await findSpaceCode();
+  await loadMapScripts();
   await initMap();
   //await getActiveVal(0);
 });
