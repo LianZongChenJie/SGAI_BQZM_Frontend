@@ -20,7 +20,7 @@
         </div>
 
         <div class="right">
-          <button class="btn btn-primary" @click="onAdd">+ 新增地块</button>
+          <button class="btn btn-primary" @click="onOpenAddModal">+ 新增地块</button>
           <!-- <button class="btn btn-secondary" @click="onImport">导入</button>
           <button class="btn btn-secondary" @click="onExport">导出</button> -->
         </div>
@@ -61,7 +61,7 @@
       </section>
 
       <!-- 数据表格 -->
-      <section class="table-wrapper" v-loading="loading">
+      <section class="table-wrapper" v-loading="tableLoading">
         <table class="device-table">
           <thead>
             <tr>
@@ -90,7 +90,7 @@
               </td>
               <td class="actions">
                 <button class="action-btn" @click="onDetail(row)">详情</button>
-                <button class="action-btn" @click="onEdit(row)">编辑</button>
+                <button class="action-btn" @click="onOpenEditModal(row)">编辑</button>
               </td>
             </tr>
           </tbody>
@@ -102,7 +102,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { EquipmentListApi, getSpaceTree } from '@/api/equipment';   // ← replace with the real module
+import { EquipmentListApi } from '@/api/equipment';   // ← replace with the real module
 
 /* --------------------- 模拟数据 --------------------- */
 const tableData = ref([]);
@@ -138,40 +138,9 @@ const filteredData = computed(() => {
     return matchesKeyword && matchesPlace && matchesStatus;
   });
 });
-
-/* --------------------- 按钮事件（示例） --------------------- */
-function onAdd() {
-  console.log('点击新增设备');
-}
-function onImport() {
-  console.log('点击导入');
-}
-function onExport() {
-  console.log('点击导出');
-}
-function onDetail(row: typeof tableData.value[0]) {
-  console.log('查看详情', row);
-}
-function onEdit(row: typeof tableData.value[0]) {
-  console.log('编辑', row);
-}
-// 全部地块--空间位置
-const spaceTreeData = ref([]);
-const getSpaceTreeInit = () => {
-  getSpaceTree().then(res => {
-    console.log('空间位置数据：', res);
-    if (Array.isArray(res) && res.length > 0) {
-      const result = extractParentNodes(res)
-      spaceTreeData.value = result;
-    } else {
-      spaceTreeData.value = [];
-    }
-  })
-}
-// 数据请求
-const loading = ref(false);
-onMounted(async () => {
-  loading.value = true;
+/** 获取列表数据 */
+async function fetchList() {
+  tableLoading.value = true;
   try {
     const data = await EquipmentListApi();
     console.log('设备列表数据：', data);
@@ -183,21 +152,35 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('Failed to load equipment list:', err);
-  } finally {loading.value = false;}
-  // 等 tableData 赋值完成后再获取空间树
-  getSpaceTreeInit();
-})
-/**
- * 从树形结构中提取所有父节点数据
- * @param {Array} treeData - 输入的树形数组
- * @returns {Array} 格式化后的父节点数组 [{ value: "...", key: "..." }]
- */
-const extractParentNodes = (treeData: any[]) => {
-  let result = [];
-
-  
-  return result;
+  } finally {tableLoading.value = false;}
 }
+/* --------------------- 按钮事件（示例） --------------------- */
+/* --------------------- Modal 操作 --------------------- */
+const addModalRef = ref<InstanceType<typeof AddModal>>();
+
+function onOpenAddModal() {
+  console.log('点击新增设备');
+  addModalRef.value?.showModal('add');
+}
+
+function onOpenEditModal(row: Record<string, any>) {
+  addModalRef.value?.showModal('edit', row);
+}
+
+function onDetail(row: typeof tableData.value[0]) {
+  console.log('查看详情', row);
+}
+
+function onModalSuccess() {
+  fetchList();
+}
+
+// 数据请求
+const tableLoading = ref(false);
+onMounted(async () => {
+  fetchList()
+})
+
 
 </script>
 
