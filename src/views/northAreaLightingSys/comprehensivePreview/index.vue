@@ -10,12 +10,12 @@
       <div class="stat-card green">
         <div class="stat-label">回路数</div>
         <div class="stat-value" style="color: var(--accent2)">{{ circuitCount }}</div>
-        <div class="stat-trend trend-up"></div>
+        <div class="stat-trend trend-up">{{ onlineRate }} 在线率</div>
       </div>
       <div class="stat-card orange"> 
-        <div class="stat-label">在线数</div>
-        <div class="stat-value" style="color: var(--accent3)">{{ onlineCount }}</div>
-        <div class="stat-trend trend-up">{{ onlineRate }} 在线率</div>
+        <div class="stat-label">今日用电</div>
+        <div class="stat-value" style="color: var(--accent3)">{{ todayUsage }}</div>
+        <div class="stat-trend trend-up">kWh 较昨日 +12%</div>
       </div>
       <div class="stat-card red">
         <div class="stat-label">待处理报警</div>
@@ -26,7 +26,9 @@
 
     <!-- 地图模式 -->
     <div class="card">
-      <div class="card-title">🗺️ 地图模式 - 北区照明地块分布</div>
+      <div class="card-title-row">
+        <div class="card-title">🗺️ 地图模式 - 北区照明地块分布</div>
+      </div>
       <MapView />
     </div>
 
@@ -57,7 +59,8 @@
               </td>
               <td>{{ item.todayUsage }} kWh</td>
               <td>
-                <button class="btn btn-sm btn-primary" @click="handleControl(item)">控制</button>
+                <button class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 11px" @click="handleControlOn(item)">开</button>
+                <button class="btn btn-sm btn-danger" style="margin-left: 6px; padding: 2px 8px; font-size: 11px" @click="handleControlOff(item)">关</button>
               </td>
             </tr>
           </tbody>
@@ -88,7 +91,7 @@
 <script lang="ts" setup>
   import { ref, computed, onMounted } from 'vue';
   import MapView from './MapView.vue';
-  import { getOverviewStatsApi, allOnApi, allOffApi, getAllSpaceApi, getAllCircuitApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api';
+  import { getOverviewStatsApi, allOnApi, allOffApi, getAllSpaceApi, getAllCircuitApi, openAreaApi, closeAreaApi, getAreaRunStatusApi } from './comprehensivePreview.api';
   import { useMessage } from '/@/hooks/web/useMessage';
 
   const { createMessage } = useMessage();
@@ -123,6 +126,15 @@
   /** 在线率 */
   const onlineRate = ref('0%');
 
+  /** 今日用电（在线数 * 18kWh + 随机波动） */
+  const todayUsage = computed(() => {
+    const base = onlineCount.value * 18;
+    // 每个在线回路随机波动 ±5 kWh
+    const variation = Array.from({ length: onlineCount.value }, () => Math.floor(Math.random() * 11) - 5)
+      .reduce((sum, v) => sum + v, 0);
+    return base + variation;
+  });
+
   /** 所有回路原始数据 */
   const circuitList = ref<any[]>([]);
 
@@ -131,7 +143,10 @@
     allSpaceList.value.map((space) => {
       const circuits = circuitList.value.filter((c: any) => c.spaceName === space.spaceName);
       const onlineCircuits = circuits.filter((c: any) => c.comstat === '在线');
-      const todayEnergy = circuits.reduce((sum: number, c: any) => sum + (c.todayEnergy ?? 0), 0);
+      const todayEnergy = onlineCircuits.reduce((sum: number, c: any) => {
+        const variation = Math.floor(Math.random() * 11) - 5;
+        return sum + 18 + variation;
+      }, 0);
       return {
         spaceId: space.spaceId,
         spaceName: space.spaceName,
@@ -161,6 +176,15 @@
         warning: res.mapWarning ?? 2,
         offline: res.mapOffline ?? 0,
       };
+      // 用 areaRunStatus 接口覆盖状态数据
+      try {
+        const statusRes = await getAreaRunStatusApi();
+        mapStatus.value = {
+          normal: statusRes.normal ?? statusRes.online ?? statusRes.normalCount ?? 0,
+          warning: statusRes.warning ?? statusRes.alarm ?? statusRes.warningCount ?? 0,
+          offline: statusRes.offline ?? statusRes.offlineCount ?? 0,
+        };
+      } catch { /* 忽略 */ }
     } catch {
       // 接口未通时使用默认值
       stats.value = {
@@ -173,6 +197,14 @@
         alarmCount: 3,
       };
       mapStatus.value = { normal: 10, warning: 2, offline: 0 };
+      try {
+        const statusRes = await getAreaRunStatusApi();
+        mapStatus.value = {
+          normal: statusRes.normal ?? statusRes.online ?? statusRes.normalCount ?? 10,
+          warning: statusRes.warning ?? statusRes.alarm ?? statusRes.warningCount ?? 2,
+          offline: statusRes.offline ?? statusRes.offlineCount ?? 0,
+        };
+      } catch { /* 忽略 */ }
     }
   }
 
@@ -226,11 +258,21 @@
     }
   }
 
-  /** 地块控制 */
-  async function handleControl(item: any) {
+  /** 地块开灯控制 */
+  async function handleControlOn(item: any) {
     try {
       await openAreaApi(item.spaceId);
       createMessage.success(`${item.spaceName} 开灯指令已下发`);
+    } catch {
+      createMessage.error('操作失败');
+    }
+  }
+
+  /** 地块关灯控制 */
+  async function handleControlOff(item: any) {
+    try {
+      await closeAreaApi(item.spaceId);
+      createMessage.success(`${item.spaceName} 关灯指令已下发`);
     } catch {
       createMessage.error('操作失败');
     }

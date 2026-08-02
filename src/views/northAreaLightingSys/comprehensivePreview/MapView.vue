@@ -30,14 +30,10 @@
         <!-- 设备信息 -->
         <el-descriptions :column="2" border size="small" class="info-table">
           <el-descriptions-item label="设备ID" :span="2">{{ currentLight.id }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ currentLight.typeName || currentLight.type }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="statusTagType" size="small" effect="dark">
-              {{ currentLight.status }}
-            </el-tag>
+          <el-descriptions-item label="地块名称">{{ currentLight.spaceName }}</el-descriptions-item>
+          <el-descriptions-item label="区域名称">
+              {{ currentLight.areaName }}
           </el-descriptions-item>
-          <el-descriptions-item label="功率">{{ currentLight.power }}W</el-descriptions-item>
-          <el-descriptions-item label="灯杆高度">{{ currentLight.height }}m</el-descriptions-item>
           <el-descriptions-item label="经度" :span="2">{{ currentLight.lng }}</el-descriptions-item>
           <el-descriptions-item label="纬度" :span="2">{{ currentLight.lat }}</el-descriptions-item>
         </el-descriptions>
@@ -59,6 +55,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { loadMapScripts } from '/@/components/map/loadMapScripts'
+import { getAllAreaApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api'
+import { VideoCamera } from '@element-plus/icons-vue'
 import lightOnImg from '/@/assets/images/lightOn.png'
 import lightOffImg from '/@/assets/images/lightOff.png'
 
@@ -99,7 +97,11 @@ const initMap = async () => {
       buildingInfo.value = map.value.getBuildingInfo(buildingID);
       // 获取当前楼层ID（标点需绑定楼层场景，flid 为空会导致 SDK addToMap 报错）
       await initFloorId();
-      AddLightingMarker();
+      // 等待地图瓦片渲染完成后再添加标点，避免标点先于地图出现
+      setTimeout(async () => {
+        await loadLightingData();
+        AddLightingMarker();
+      }, 800);
     });
     console.log("地图初始化成功");
   } catch (error) {
@@ -141,71 +143,17 @@ async function initFloorId(retryCount = 0) {
 }
 
 // ==================== 灯光标点 ====================
-const lightingData = ref<any[]>([
-  {
-    "id": 14,
-    "space": "1",
-    "spaceName": "金安桥",
-    "areaName": "D2区高杆灯",
-    "areaCode": "90",
-    "status": "关闭",
-    "lastOperationTime": null,
-    "lastOperationBy": null,
-    "type": "2",
-    "location": "116.16144959548319,39.92051918705476",
-    "monitorAdr": "0096142642943133010293b98d3214a64af5b516d49cfbb97160",
-    "remark": null,
-    "allDuration": 7997116,
-    "startTime": null,
-    "closingTime": null,
-    "openCode": "9",
-    "closeCode": "4",
-    "relName": "室外高杆路灯",
-    "sort": 14
-},
-{
-    "id": 15,
-    "space": "1",
-    "spaceName": "金安桥",
-    "areaName": "C1区高杆灯",
-    "areaCode": "91",
-    "status": "关闭",
-    "lastOperationTime": null,
-    "lastOperationBy": null,
-    "type": "2",
-    "location": "116.15718948659276,39.92302185563205",
-    "monitorAdr": "0096142642914834010193b98d3214a64af5b516d49cfbb97160",
-    "remark": null,
-    "allDuration": 8001466,
-    "startTime": null,
-    "closingTime": null,
-    "openCode": "9",
-    "closeCode": "4",
-    "relName": "室外高杆路灯",
-    "sort": 15
-},
-{
-    "id": 51,
-    "space": "4",
-    "spaceName": "制氧北",
-    "areaName": "A楼普通照明六层",
-    "areaCode": "106",
-    "status": "关闭",
-    "lastOperationTime": null,
-    "lastOperationBy": null,
-    "type": "2",
-    "location": null,
-    "monitorAdr": null,
-    "remark": null,
-    "allDuration": 0,
-    "startTime": null,
-    "closingTime": null,
-    "openCode": "9",
-    "closeCode": "12",
-    "relName": "楼梯景观",
-    "sort": 112
+const lightingData = ref<any[]>([]);
+
+/** 加载标点数据 */
+async function loadLightingData() {
+  try {
+    const res = await getAllAreaApi();
+    lightingData.value = Array.isArray(res) ? res : [];
+  } catch {
+    lightingData.value = [];
+  }
 }
-]);
 const lightingMarkerArr = ref<any[]>([]);
 const dialogVisible = ref(false);
 const currentLight = ref<any>(null);
@@ -294,6 +242,25 @@ const clearMarker = (marker: any) => {
 };
 
 /**
+ * 根据单个设备数据生成对应的标记 DOM
+ */
+function buildMarkerDom(item: any): string {
+  let lightIcon: string;
+  if (item.status === '关闭') {
+    lightIcon = item.type == 1 ? lightOff : areaLightOff;
+  } else {
+    lightIcon = item.type == 1 ? lightOn : areaLightOn;
+  }
+  return `<div class="light-marker" id="light-${item.type}-${item.id}" style="
+    width: 50px;
+    height: 100px;
+    background-image: url('${lightIcon}');
+    background-size: contain;
+    background-repeat: no-repeat;
+  "></div>`;
+}
+
+/**
  * 在地图上标记所有灯光点位
  */
 async function AddLightingMarker() {
@@ -305,41 +272,57 @@ async function AddLightingMarker() {
   lightingMarkerArr.value = [];
 
   // 2. 遍历数据，为有经纬度的点位生成标记
+  let hasLocation = 0, noLocation = 0, markerFail = 0;
+  const idSet = new Set();
   lightingData.value.forEach((item) => {
-    if (!item.location) return;
+    if (!item.location) { noLocation++; return; }
     const [lng, lat] = item.location.split(',');
-    if (!lng || !lat || isNaN(parseFloat(lng)) || isNaN(parseFloat(lat))) return;
+    if (!lng || !lat || isNaN(parseFloat(lng)) || isNaN(parseFloat(lat))) { noLocation++; return; }
+    hasLocation++;
 
-    // 3. 根据状态和类型选择对应图标
+    // 检查 DOM ID 是否重复
+    const domId = `light-${item.type}-${item.id}`;
+    if (idSet.has(domId)) {
+      console.warn('标点ID重复，跳过:', domId, item.areaName);
+      return;
+    }
+    idSet.add(domId);
+
+    const elDom = buildMarkerDom(item);
+    const marker = customizeMarker(elDom, lat, lng, item.areaName || '泛光照明', item);
+    if (!marker) {
+      markerFail++;
+      console.warn('标点创建失败:', item.areaName, '坐标:', lng, lat);
+    }
+    lightingMarkerArr.value.push(marker);
+  });
+  console.log(`标点统计: 总数据${lightingData.value.length}条, 有坐标${hasLocation}条, 无坐标${noLocation}条, 创建失败${markerFail}条, 最终标记${lightingMarkerArr.value.filter(Boolean).length}条`);
+}
+
+/**
+ * 只更新单个设备的标记图标（直接修改 DOM 背景图，不删除重建标点，避免漂移）
+ */
+function updateSingleMarker(item: any) {
+  // 直接通过 DOM 修改标记的背景图片，不触发 SDK 的 remove/add 流程
+  const el = document.getElementById(`light-${item.type}-${item.id}`);
+  if (el) {
     let lightIcon: string;
     if (item.status === '关闭') {
       lightIcon = item.type == 1 ? lightOff : areaLightOff;
     } else {
       lightIcon = item.type == 1 ? lightOn : areaLightOn;
     }
-
-    const elDom = `<div class="light-marker" id="light-${item.type}-${item.id}" style="
-      width: 50px;
-      height: 100px;
-      background-image: url('${lightIcon}');
-      background-size: contain;
-      background-repeat: no-repeat;
-    "></div>`;
-
-    lightingMarkerArr.value.push(
-      customizeMarker(elDom, lat, lng, item.areaName || '泛光照明', item)
-    );
-  });
+    el.style.backgroundImage = `url('${lightIcon}')`;
+  }
 }
 
 /**
- * 打开灯光详情弹窗（同时缩放并聚焦地图）
+ * 打开灯光详情弹窗
  */
 const openLightDetail = (item: any) => {
-  currentLight.value = { ...item };
+  const [lng, lat] = (item.location || '').split(',');
+  currentLight.value = { ...item, lng: lng || '', lat: lat || '' };
   dialogVisible.value = true;
-  setMapZoom(); // 点击后控制地图缩放
-  focusMapTo(item); // 点击后控制地图聚焦
 };
 
 /**
@@ -350,17 +333,20 @@ const toggleLight = async () => {
   const target = currentLight.value.status === '打开' ? '关闭' : '打开';
   lightingLoading.value = true;
   try {
-    // TODO: 对接真实点位控制接口（如 /northAreaLighting/control/light）
-    // await controlLightApi(currentLight.value.id, target === '打开' ? 1 : 0);
-    await new Promise((resolve) => setTimeout(resolve, 200)); // mock 延迟
+    const item = currentLight.value;
+    if (item.status === '打开') {
+      await closeAreaApi(item.id);
+    } else {
+      await openAreaApi(item.id);
+    }
 
     // 更新弹窗状态
     currentLight.value.status = target;
     // 同步 lightingData 数据
-    const item = lightingData.value.find((i) => i.id === currentLight.value.id);
-    if (item) item.status = target;
-    // 刷新地图标记图标
-    AddLightingMarker();
+    const dataItem = lightingData.value.find((i) => i.id === currentLight.value.id);
+    if (dataItem) dataItem.status = target;
+    // 只更新变化的单个标点，不重建全部（避免漂移）
+    if (dataItem) updateSingleMarker(dataItem);
   } catch (error) {
     console.error('灯光控制失败:', error);
   } finally {
