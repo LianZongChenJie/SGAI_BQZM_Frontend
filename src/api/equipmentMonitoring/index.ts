@@ -7,6 +7,12 @@ enum Api {
   addLightingPlanAPi = '/sgai-bqzm/bems/lighting/plan/add',
   getLightingPlanAPi = '/sgai-bqzm/bems/lighting/plan/listPage',
   planDetailApi = '/sgai-bqzm/bems/lighting/plan/detail',
+  deleteLightingPlanAPi = '/sgai-bqzm/bems/lighting/plan/delete',
+  disableApi = '/sgai-bqzm/bems/lighting/plan/disable',
+  getPlanTimeApi = '/sgai-bqzm/bems/lighting/planExecutionTime/getByPlanId',
+  enablePlanApi = '/sgai-bqzm/bems/lighting/plan/enable',
+  executeNowApi = '/sgai-bqzm/bems/lighting/plan/executeNow',
+  controlRecordListApi = '/sgai-bqzm/bems/lighting/operationLog/listPage',
 }
 
 /**
@@ -35,3 +41,31 @@ export const getLightingPlanAPi = (params) => defHttp.get({ url: Api.getLighting
  * @param params
  */
 export const planDetailApi = (params) => defHttp.get({ url: Api.planDetailApi, params });
+/**
+ * 删除定时计划
+ */
+export const deleteLightingPlanAPi = (params) => defHttp.delete({ url: Api.deleteLightingPlanAPi, params }, { joinParamsToUrl: true });
+
+/**
+ * 禁用
+ */
+export const disableApi = (params) => defHttp.post({ url: Api.disableApi, params }, { joinParamsToUrl: true });
+
+/**
+ * 获取控制计划启用信息
+ */
+export const getPlanTimeApi = (params) => defHttp.get({ url: Api.getPlanTimeApi, params }, { joinParamsToUrl: true });
+
+/**
+ * 启用控制计划
+ */
+export const enablePlanApi = (params) => defHttp.post({ url: Api.enablePlanApi, params }, { joinParamsToUrl: true });
+/**
+ * 立即执行计划
+ * @param params
+ */
+export const executeNow = (params) => defHttp.post({ url: Api.executeNowApi, params }, { joinParamsToUrl: true });
+/**
+ * 控制记录列表
+ */
+export const controlRecordListApi = (params) => defHttp.get({ url: Api.controlRecordListApi, params }, { joinParamsToUrl: true });

@@ -202,15 +202,15 @@
             <table class="timer-table">
               <thead>
                 <tr>
-                  <th>序号</th>
-                  <th>类型</th>
-                  <th>名称</th>
-                  <th>时间</th>
-                  <th>时间范围</th>
-                  <th>周期</th>
-                  <th>控制指令</th>
-                  <th>状态</th>
-                  <th>操作</th>
+                  <th style="width: 5%">序号</th>
+                  <th style="width: 5%">类型</th>
+                  <th style="width: 22%">名称</th>
+                  <th style="width: 9%">时间</th>
+                  <th style="width: 20%">时间范围</th>
+                  <th style="width: 7%">周期</th>
+                  <th style="width: 10%">控制指令</th>
+                  <th style="width: 7%">状态</th>
+                  <th style="width: 15%">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -229,17 +229,43 @@
                     >{{ row.status }}</span>
                   </td>
                   <td class="timer-actions">
-                    <button class="btn btn-secondary" @click="onEditTimer(row)">编辑</button>
+                    <button v-if="row.status === '禁用'" class="btn btn-secondary" @click="onEditTimer(row, 'edit')">编辑</button>
+                    <button v-else class="btn btn-secondary" @click="onEditTimer(row, 'detail')">详情</button>
+                   
+                    <a-popconfirm
+                      v-if="row.status !== '启用'"
+                      title="确认删除该条数据？"
+                      ok-text="确定"
+                      cancel-text="取消"
+                      @confirm="handleDelete(row)"
+                    >
+                      <button class="btn btn-danger">删除</button>
+                    </a-popconfirm>
+
                     <button
-                      v-if="row.status === '启用'"
-                      class="btn btn-danger"
-                      @click="onToggleTimer(row)"
-                    >停用</button>
-                    <button
-                      v-else
+                      v-if="row.status != '启用'"
                       class="btn btn-success"
                       @click="onToggleTimer(row)"
                     >启用</button>
+                     <template v-else>
+                      <a-popconfirm title="确认禁用该条计划？" ok-text="确定" cancel-text="取消" @confirm="handleDisable(row)">
+                        <button
+                          class="btn btn-danger"
+                        >禁用</button>
+                      </a-popconfirm>
+                    </template>
+                   
+                    <a-popconfirm
+                      v-if="row.status == '启用'"
+                      title="确认立即执行该条计划？"
+                      ok-text="确定"
+                      cancel-text="取消"
+                      @confirm="handleExecuteNow(row)"
+                    >
+                      <button
+                      class="btn btn-success"
+                    >立即执行</button>
+                    </a-popconfirm>
                   </td>
                 </tr>
               </tbody>
@@ -297,12 +323,16 @@
               <span class="day-number">{{ cell.date }}</span>
               <div class="day-tasks">
                 <span
-                  v-for="(task, tidx) in cell.tasks"
-                  :key="tidx"
+                  v-for="record in cell.records"
+                  :key="record.id"
                   class="task-tag"
-                  :class="`tag-${task.type}`"
+                  :class="getRecordTagClass(record.operationType)"
+                  :title="`${record.timeStr} ${record.name} ${record.operationType} ${record.operationBy}`"
                 >
-                  {{ task.label }}
+                  {{ record.timeStr }} {{ record.operationType }}
+                </span>
+                <span v-if="cell.overflow > 0" class="task-tag tag-more">
+                  +{{ cell.overflow }}
                 </span>
               </div>
             </div>
@@ -312,6 +342,8 @@
     </div>
   </section>
   <createNewSceneModal ref="createNewSceneModalRef" @success="createNewSceneModalSuccess"></createNewSceneModal>
+  <createNewTimerModal ref="createNewTimerModalRef" @success="createNewTimerModalSuccess"></createNewTimerModal>
+  <TimerEnableModal ref="timerEnableModalRef" @success="onTimerEnableSuccess"></TimerEnableModal>
   <sceneConfirmModal ref="sceneConfirmModalRef" @success="onSceneConfirmSuccess"></sceneConfirmModal>
 </template>
 
@@ -319,12 +351,17 @@
 import { ref, computed, nextTick } from 'vue';
 import type { Dayjs } from 'dayjs';
 import createNewSceneModal from './components/createNewSceneModal.vue';
+import createNewTimerModal from './components/createNewTimerModal.vue';
+import TimerEnableModal from './components/TimerEnableModal.vue';
 import sceneConfirmModal from './components/sceneConfirmModal.vue';
-import { getLightingPlanAPi } from '@/api/equipmentMonitoring';
+import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, controlRecordListApi } from '@/api/equipmentMonitoring';
+import { message } from 'ant-design-vue';
 
 // 定时任务 src\views\bems\lightingControl\components\TimingControl.vue
 
 const createNewSceneModalRef = ref<InstanceType<typeof createNewSceneModal>>();
+const createNewTimerModalRef = ref<InstanceType<typeof createNewTimerModal>>();
+const timerEnableModalRef = ref<InstanceType<typeof TimerEnableModal>>();
 const sceneConfirmModalRef = ref<InstanceType<typeof sceneConfirmModal>>();
 
 /* --------------------- Tab 导航 --------------------- */
@@ -410,8 +447,9 @@ async function handleTabChange(key: string) {
     }
   } else if (key === 'timer') {
     await fetchTimerList();
+  } else if (key === 'calendar') {
+    await fetchCalendarRecords();
   }
-  // TODO: 其他 tab 的接口请求
 }
 
 /* ---------- 场景配置事件 ---------- */
@@ -479,19 +517,12 @@ function onToggle(c: typeof circuitList.value[0]) {
   console.log('切换状态', c.name, c.status);
 }
 
-function onTimer(c: typeof circuitList.value[0]) {
-  console.log('定时设置', c.name);
-}
 
-function onDiagnose(c: typeof circuitList.value[0]) {
-  console.log('故障诊断', c.name);
-}
-
-function onExecute(s: typeof sceneList.value[0]) {
+function onExecute(s) {
   sceneConfirmModalRef.value?.showModal('execute', s);
 }
 
-function onDeleteScene(s: typeof sceneList.value[0]) {
+function onDeleteScene(s) {
   sceneConfirmModalRef.value?.showModal('delete', s);
 }
 
@@ -545,6 +576,7 @@ async function fetchTimerList() {
     console.log('定时控制列表：', data);
     if (data?.records) {
       timerList.value = (data.records as any[]).map((item) => ({
+        ...item,
         id: item.id,
         planName: item.planName || '',
         relType: item.relType || '',
@@ -581,15 +613,55 @@ async function fetchTimerList() {
 
 /* ---------- 定时任务事件 ---------- */
 function onAddTimer() {
-  console.log('新建定时任务');
+  createNewTimerModalRef.value?.showModal('add');
 }
 
-function onEditTimer(row: typeof timerList.value[0]) {
-  console.log('编辑定时任务', row.planName);
+function onEditTimer(row ,type) {
+  console.log('编辑--详情定时任务', row.planName);
+  createNewTimerModalRef.value?.showModal(type, row);
 }
 
-function onToggleTimer(row: typeof timerList.value[0]) {
-  console.log('切换定时任务状态', row.planName, row.status);
+function onToggleTimer(row) {
+  timerEnableModalRef.value?.showModal(row);
+}
+const handleDisable = async (row) => {
+   console.log('切换定时任务状态--禁用', row.planName, row.status);
+    await disableApi({
+      id: row.id,
+    }).then((res) => {
+      console.log('禁用定时任务成功', res);
+      message.success('禁用成功！');
+    });
+    await onTimerSearch();
+}
+// 立即执行
+const handleExecuteNow = async (row) => {
+   await executeNow({
+      id: row.id,
+    }).then((res) => {
+      console.log('立即执行成功！', res);
+    });
+    // 刷新
+    await onTimerSearch();
+}
+// 删除
+const handleDelete = async (record) => {
+    await deleteLightingPlanAPi({
+      id: record.id,
+    }).then((res) => {
+      console.log('删除定时任务成功', res);
+    });
+    // 刷新
+    await onTimerSearch();
+  };
+/** 新建定时任务成功回调 */
+async function createNewTimerModalSuccess() {
+  await onTimerSearch();
+}
+
+/** 启用定时任务成功回调 */
+async function onTimerEnableSuccess() {
+  await onTimerSearch();
 }
 
 function onTimerSearch() {
@@ -619,36 +691,56 @@ const currentDate = ref(new Date(2026, 5, 1)); // 默认显示 2026年6月
 const calendarYear = computed(() => currentDate.value.getFullYear());
 const calendarMonth = computed(() => currentDate.value.getMonth());
 
-interface CalendarTask {
-  label: string;
-  type: 'blue' | 'green' | 'red';
+interface CalendarRecordItem {
+  id: number;
+  name: string;
+  relType: string;
+  operationType: string;
+  operationTime: string;
+  operationBy: string;
+  timeStr: string;
 }
 
 interface CalendarCell {
   date: number;
   isCurrentMonth: boolean;
-  tasks: CalendarTask[];
+  records: CalendarRecordItem[];
+  overflow: number;
 }
 
-function getTasksForDate(year: number, month: number, day: number): CalendarTask[] {
-  if (year === 2026 && month === 5) {
-    if ([1, 2, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 19, 20, 21, 23, 25, 26, 27, 28, 29, 30].includes(day)) {
-      return [{ label: '19:00 开灯', type: 'blue' }];
-    }
-    if ([3, 10, 17, 24].includes(day)) {
-      return [
-        { label: '19:00 开灯', type: 'blue' },
-        { label: '18:30 节日', type: 'green' },
-      ];
-    }
-    if (day === 22) {
-      return [
-        { label: '19:00 开灯', type: 'blue' },
-        { label: '待执行', type: 'red' },
-      ];
-    }
+const calendarRecords = ref<CalendarRecordItem[]>([]);
+
+/** 根据操作类型返回 tag 颜色类 */
+function getRecordTagClass(operationType: string) {
+  if (operationType.includes('关') || operationType.includes('停')) return 'tag-red';
+  if (operationType.includes('开') || operationType.includes('启')) return 'tag-blue';
+  return 'tag-green';
+}
+
+/** 获取控制日历操作记录 */
+async function fetchCalendarRecords() {
+  if (activeTab.value !== 'calendar') return;
+  const year = calendarYear.value;
+  const month = calendarMonth.value;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const startTime = `${year}-${pad(month + 1)}-01 00:00:00`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const endTime = `${year}-${pad(month + 1)}-${pad(lastDay)} 23:59:59`;
+
+  try {
+    const res = await controlRecordListApi({
+      pageNo: 1,
+      pageSize: 1000,
+      startTime,
+      endTime,
+    });
+    calendarRecords.value = (res.records || []).map((r: any) => ({
+      ...r,
+      timeStr: r.operationTime ? r.operationTime.split(' ')[1].substring(0, 5) : '',
+    }));
+  } catch (err) {
+    console.error('获取控制日历记录失败：', err);
   }
-  return [];
 }
 
 const calendarDays = computed<CalendarCell[]>(() => {
@@ -662,22 +754,32 @@ const calendarDays = computed<CalendarCell[]>(() => {
   const startDayOfWeek = firstDayOfMonth.getDay(); // 0=周日
 
   const days: CalendarCell[] = [];
+  const pad = (n: number) => String(n).padStart(2, '0');
 
   // 上月末尾日期
   const prevMonthLastDay = new Date(year, month, 0).getDate();
   for (let i = startDayOfWeek - 1; i >= 0; i--) {
-    days.push({ date: prevMonthLastDay - i, isCurrentMonth: false, tasks: [] });
+    days.push({ date: prevMonthLastDay - i, isCurrentMonth: false, records: [], overflow: 0 });
   }
 
   // 当月日期
   for (let i = 1; i <= daysInMonth; i++) {
-    days.push({ date: i, isCurrentMonth: true, tasks: getTasksForDate(year, month, i) });
+    const dateKey = `${year}-${pad(month + 1)}-${pad(i)}`;
+    const dayRecords = calendarRecords.value.filter(
+      (r) => r.operationTime && r.operationTime.startsWith(dateKey),
+    );
+    days.push({
+      date: i,
+      isCurrentMonth: true,
+      records: dayRecords.slice(0, 4),
+      overflow: dayRecords.length > 4 ? dayRecords.length - 4 : 0,
+    });
   }
 
   // 下月开头日期，补足 42 格（6 行 × 7 列）
   const remaining = 42 - days.length;
   for (let i = 1; i <= remaining; i++) {
-    days.push({ date: i, isCurrentMonth: false, tasks: [] });
+    days.push({ date: i, isCurrentMonth: false, records: [], overflow: 0 });
   }
 
   return days;
@@ -685,22 +787,27 @@ const calendarDays = computed<CalendarCell[]>(() => {
 
 function prevMonth() {
   currentDate.value = new Date(calendarYear.value, calendarMonth.value - 1, 1);
+  fetchCalendarRecords();
 }
 
 function nextMonth() {
   currentDate.value = new Date(calendarYear.value, calendarMonth.value + 1, 1);
+  fetchCalendarRecords();
 }
 
 function prevYear() {
   currentDate.value = new Date(calendarYear.value - 1, calendarMonth.value, 1);
+  fetchCalendarRecords();
 }
 
 function nextYear() {
   currentDate.value = new Date(calendarYear.value + 1, calendarMonth.value, 1);
+  fetchCalendarRecords();
 }
 
 function goToToday() {
   currentDate.value = new Date();
+  fetchCalendarRecords();
 }
 </script>
 
@@ -846,7 +953,16 @@ function goToToday() {
 .btn-primary:hover {
   background: var(--color-primary-hover);
 }
+.btn-outline {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
 
+.btn-outline:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
 .btn-secondary {
   background: #ffffff;
   color: #1a1a1a;
@@ -1159,6 +1275,10 @@ function goToToday() {
   color: var(--color-text) !important;
 }
 
+.filter-bar :deep(.ant-select-selection-item) {
+  color: var(--color-text) !important;
+}
+
 .filter-bar :deep(.ant-select-selection-placeholder) {
   color: var(--color-muted) !important;
 }
@@ -1218,6 +1338,7 @@ function goToToday() {
 
 .timer-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -1372,6 +1493,12 @@ function goToToday() {
 .tag-red {
   background: var(--color-danger);
   color: #fff;
+}
+
+.tag-more {
+  background: var(--color-muted);
+  color: #fff;
+  cursor: pointer;
 }
 
 /* ------------------- 响应式 ------------------- */
