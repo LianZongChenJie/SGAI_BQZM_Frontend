@@ -17,6 +17,7 @@ enum Api {
   getLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/listPage',
   planDetailApiNew = '/sgai-bqzm/bems/lighting/scene/detail',
   addLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/add',
+  postSceneSwitchApi = '/sgai-bqzm/bems/lighting/plan/control',
 }
 
 /**
@@ -90,3 +91,6 @@ export const planDetailApiNew = (params) => defHttp.get({ url: Api.planDetailApi
  * 新增场景
  */
 export const addLightingPlanAPiNew = (params) => defHttp.post({ url: Api.addLightingPlanAPiNew, params });
+
+// 场景的全开全关
+export const postSceneSwitchApi = (params) => defHttp.post({ url: Api.postSceneSwitchApi, params });

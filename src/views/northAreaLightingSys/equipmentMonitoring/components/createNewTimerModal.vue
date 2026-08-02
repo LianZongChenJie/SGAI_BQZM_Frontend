@@ -272,12 +272,15 @@ async function onSubmit() {
      // 根据类型调用对应 API
     const api = mode.value === 'add' ? addLightingPlanAPi : editLightingPlanAPi;
  
-    const res = await api(submitData);
-    console.log('接口返回');
-    console.log('res', res);
-    message.success(mode.value === 'add' ? '新建定时任务成功！' : '编辑定时任务成功！');
-    closeModal();
-    emit('success');
+    await api(submitData).then(res => {
+      console.log('接口返回');
+      console.log('res', res);
+      if(!res) {
+        message.success(mode.value === 'add' ? '新建定时任务成功！' : '编辑定时任务成功！');
+        closeModal();
+        emit('success');
+      }
+    });
   } catch (err: any) {
     // 表单校验失败由 antd 自带提示，不作额外处理
     if (err?.errorFields) return;

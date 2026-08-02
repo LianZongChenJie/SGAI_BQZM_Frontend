@@ -51,52 +51,41 @@
           </div>
         </section>
 
-        <!-- 回路控制面板 -->
-        <section class="panel">
-          <header class="panel-header">
+        <!-- 场景控制面板 -->
+        <section class="panel panel-scene-monitor">
+          <header class="panel-header panel-header--fixed">
             <div class="left">
               <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
-                <rect x="9" y="9" width="6" height="6"/>
-                <line x1="9" y1="1" x2="9" y2="4"/>
-                <line x1="15" y1="1" x2="15" y2="4"/>
-                <line x1="9" y1="20" x2="9" y2="23"/>
-                <line x1="15" y1="20" x2="15" y2="23"/>
-                <line x1="20" y1="9" x2="23" y2="9"/>
-                <line x1="20" y1="14" x2="23" y2="14"/>
-                <line x1="1" y1="9" x2="4" y2="9"/>
-                <line x1="1" y1="14" x2="4" y2="14"/>
+                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
               </svg>
               <h2 class="panel-title">场景控制面板</h2>
             </div>
           </header>
 
-          <div class="circuit-grid">
-            <div v-for="c in circuitList" :key="c.id" class="circuit-card">
-              <div class="circuit-header">
-                <span class="circuit-name">{{ c.name }}</span>
-                <span
-                  class="circuit-status"
-                  :class="c.status === '开启' ? 'status-on' : 'status-off'"
+          <div class="scene-grid">
+            <div
+              v-for="s in sceneList"
+              :key="s.id"
+              class="scene-card"
+            >
+              <div class="scene-header">
+                <div class="scene-title-row">
+                  <span class="scene-name">{{ s.name }}</span>
+                </div>
+                <!-- <span
+                  class="scene-status-badge"
+                  :class="s.operationType === '开启' ? 'status-on' : 'status-off'"
                 >
-                  {{ c.status }}
-                </span>
+                  {{ s.operationType || '-' }}
+                </span> -->
               </div>
-              <p class="circuit-location">{{ c.location }}</p>
-              <!-- <p class="circuit-info">{{ c.info }}</p> -->
-              <div class="circuit-actions">
-                <template v-if="c.status === '开启'">
-                  <button class="btn btn-success" @click="onToggle(c)">开启</button>
-                  <button class="btn btn-danger" @click="onToggle(c)">关闭</button>
-                </template>
-                <template v-else-if="c.status === '关闭' && c.isFault">
-                 <button class="btn btn-success" @click="onToggle(c)">开启</button>
-                  <button class="btn btn-danger" @click="onToggle(c)">关闭</button>
-                </template>
-                <template v-else>
-                  <button class="btn btn-success" @click="onToggle(c)">开启</button>
-                  <button class="btn btn-danger" @click="onToggle(c)">关闭</button>
-                </template>
+              <p class="scene-circuits">包含 {{ s.circuitCount }} 个{{ s.relType }}</p>
+              <p class="scene-desc">{{ s.desc }}</p>
+              <div class="scene-actions">
+                <button class="btn btn-primary" @click="onExecute(s)">开启</button>
+                <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
               </div>
             </div>
           </div>
@@ -135,7 +124,12 @@
                   <!-- <span class="scene-icon">{{ s.icon }}</span> -->
                   <span class="scene-name">{{ s.name }}</span>
                 </div>
-                <!-- <span v-if="s.isDefault" class="scene-default-tag">默认</span> -->
+                <!-- <span
+                  class="scene-status-badge"
+                  :class="s.operationType === '开启' ? 'status-on' : 'status-off'"
+                >
+                  {{ s.operationType || '-' }}
+                </span> -->
               </div>
               <p class="scene-circuits">包含 {{ s.circuitCount }} 个{{ s.relType }}</p>
               <p class="scene-desc">{{ s.desc }}</p>
@@ -204,10 +198,10 @@
                 <tr>
                   <th style="width: 5%">序号</th>
                   <th style="width: 5%">类型</th>
-                  <th style="width: 22%">名称</th>
+                  <th style="width: 18%">名称</th>
                   <th style="width: 9%">时间</th>
-                  <th style="width: 20%">时间范围</th>
-                  <th style="width: 7%">周期</th>
+                  <th style="width: 18%">时间范围</th>
+                  <th style="width: 13%">周期</th>
                   <th style="width: 10%">控制指令</th>
                   <th style="width: 7%">状态</th>
                   <th style="width: 15%">操作</th>
@@ -215,17 +209,18 @@
               </thead>
               <tbody>
                 <tr v-for="(row, idx) in timerList" :key="row.id">
-                  <td>{{ (timerCurrentPage - 1) * timerPageSize + idx + 1 }}</td>
-                  <td>{{ row.relType }}</td>
-                  <td>{{ row.planName }}</td>
-                  <td>{{ row.executionLocalTime || row.executionTime }}</td>
-                  <td>{{ row.date }}</td>
-                  <td>{{ row.weeks }}</td>
-                  <td>{{ row.operationType }}</td>
+                  <td><span class="cell-text" :title="String((timerCurrentPage - 1) * timerPageSize + idx + 1)">{{ (timerCurrentPage - 1) * timerPageSize + idx + 1 }}</span></td>
+                  <td><span class="cell-text" :title="row.relType">{{ row.relType }}</span></td>
+                  <td><span class="cell-text" :title="row.planName">{{ row.planName }}</span></td>
+                  <td><span class="cell-text" :title="row.executionLocalTime || row.executionTime">{{ row.executionLocalTime || row.executionTime }}</span></td>
+                  <td><span class="cell-text" :title="row.date">{{ row.date }}</span></td>
+                  <td><span class="cell-text" :title="row.weeks">{{ row.weeks }}</span></td>
+                  <td><span class="cell-text" :title="row.operationType">{{ row.operationType }}</span></td>
                   <td>
                     <span
                       class="timer-status-badge"
                       :class="row.status === '启用' ? 'status-enabled' : 'status-disabled'"
+                      :title="row.status"
                     >{{ row.status }}</span>
                   </td>
                   <td class="timer-actions">
@@ -347,14 +342,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import type { Dayjs } from 'dayjs';
 import createNewSceneModal from './components/createNewSceneModal.vue';
 import createNewTimerModal from './components/createNewTimerModal.vue';
 import TimerEnableModal from './components/TimerEnableModal.vue';
 import sceneConfirmModal from './components/sceneConfirmModal.vue';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
-import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, getCalendarControlApi, getLightingPlanAPiNew } from '@/api/equipmentMonitoring';
+import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, getCalendarControlApi, getLightingPlanAPiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring';
 import { message } from 'ant-design-vue';
 
 // 定时任务 src\views\bems\lightingControl\components\TimingControl.vue
@@ -388,42 +383,6 @@ const videoList = ref([
   },
 ]);
 
-/* --------------------- 回路数据 --------------------- */
-const circuitList = ref([
-  {
-    id: 'c1',
-    name: 'A1-回路01',
-    location: '冬奥广场 · 主照明',
-    info: '功率: 3.2kW | 运行: 8h | 今日用电: 25.6kWh',
-    status: '开启',
-    isFault: false,
-  },
-  {
-    id: 'c2',
-    name: 'A2-回路03',
-    location: '服贸会场馆 · 景观照明',
-    info: '功率: 5.8kW | 运行: 8h | 今日用电: 46.4kWh',
-    status: '开启',
-    isFault: false,
-  },
-  {
-    id: 'c3',
-    name: 'B2-回路07',
-    location: '滨水绿道 · 步道灯',
-    info: '功率: 0kW | 离线故障 | 今日用电: 0kWh',
-    status: '关闭',
-    isFault: true,
-  },
-  {
-    id: 'c4',
-    name: 'C1-回路12',
-    location: '科技大厦 · 外立面',
-    info: '功率: 8.5kW | 运行: 8h | 今日用电: 68kWh',
-    status: '开启',
-    isFault: false,
-  },
-]);
-
 /* --------------------- 场景数据 --------------------- */
 const sceneList = ref<any[]>([]);
 
@@ -446,6 +405,8 @@ async function handleTabChange(key: string) {
         pageLoading.value = false;
       }, 200);
     }
+  } else if (key === 'monitor') {
+    await fetchSceneList();
   } else if (key === 'timer') {
     await fetchTimerList();
   } else if (key === 'calendar') {
@@ -513,11 +474,6 @@ function onRefreshVideo() {
   console.log('刷新视频');
 }
 
-function onToggle(c: typeof circuitList.value[0]) {
-  c.status = c.status === '开启' ? '关闭' : '开启';
-  console.log('切换状态', c.name, c.status);
-}
-
 
 function onExecute(s) {
   sceneConfirmModalRef.value?.showModal('execute', s);
@@ -532,12 +488,41 @@ function onDeleteScene(s) {
 function onSceneConfirmSuccess(payload: { type: string; scene: any }) {
   console.log('场景确认回调：', payload.type, payload.scene);
   if (payload.type === 'execute') {
-    // TODO: 调用执行场景接口
+    // TODO: 调用执行场景接口--开启
+    postSceneSwitchApiChange({
+    "operationType": "开启",
+    "relIds": payload.scene.relIds,
+    "relType": payload.scene.relType
+    })
   } else if (payload.type === 'delete') {
-    // TODO: 调用关闭场景接口
+    // TODO: 调用关闭场景接口--关闭
+    postSceneSwitchApiChange({
+      "operationType": "关闭",
+      "relIds": payload.scene.relIds,
+      "relType": payload.scene.relType
+    })
   }
 }
 
+const postSceneSwitchApiChange = async (params) =>{
+  await postSceneSwitchApi(params).then(res => {
+    console.log('postSceneSwitchApiChange', res);
+    message.success(`${params.operationType}成功!`);
+  }).catch(err => {
+    console.error('postSceneSwitchApiChange', err);
+  });
+  // 刷新场景列表
+  pageLoading.value = true;
+  try {
+    await fetchSceneList();
+    // TODO: 其他 tab 的接口请求
+  } finally {
+    await nextTick();
+    setTimeout(() => {
+      pageLoading.value = false;
+    }, 200);
+  }
+}
 /* --------------------- 定时任务数据 --------------------- */
 const timerList = ref<any[]>([]);
 const timerLoading = ref(false);
@@ -641,6 +626,7 @@ const handleExecuteNow = async (row) => {
       id: row.id,
     }).then((res) => {
       console.log('立即执行成功！', res);
+      message.success('立即执行成功！');
     });
     // 刷新
     await onTimerSearch();
@@ -807,6 +793,10 @@ function goToToday() {
   currentDate.value = new Date();
   fetchCalendarRecords();
 }
+
+onMounted(() => {
+  fetchSceneList();
+});
 </script>
 
 <style scoped>
@@ -1038,73 +1028,22 @@ function goToToday() {
   color: var(--color-muted);
 }
 
-/* ------------------- 回路控制面板 ------------------- */
-.circuit-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-
-.circuit-card {
-  background: var(--bg-video);
-  border-radius: 6px;
-  padding: 14px 16px;
+/* ------------------- 场景控制面板（监控 tab） ------------------- */
+.panel-scene-monitor {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  overflow: hidden;
 }
 
-.circuit-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.circuit-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.circuit-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  line-height: 1;
-}
-
-.circuit-status.status-on {
-  color: var(--color-success);
-  background: rgba(82, 196, 26, 0.2);
-}
-
-.circuit-status.status-off {
-  color: var(--color-danger);
-  background: rgba(255, 77, 79, 0.2);
-}
-
-.circuit-location {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.circuit-info {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.circuit-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+.panel-scene-monitor .scene-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  align-content: start;
 }
 
 /* ------------------- 场景配置 ------------------- */
@@ -1185,6 +1124,30 @@ function goToToday() {
   line-height: 1;
   color: var(--color-primary);
   background: rgba(0, 162, 232, 0.15);
+}
+
+.scene-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  flex-shrink: 0;
+
+  &.status-on {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+  }
+
+  &.status-off {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+  }
 }
 
 .scene-circuits {
@@ -1372,6 +1335,13 @@ function goToToday() {
   white-space: nowrap;
 }
 
+.timer-table td .cell-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .timer-status-badge {
   display: inline-flex;
   align-items: center;
@@ -1507,10 +1477,6 @@ function goToToday() {
 
 /* ------------------- 响应式 ------------------- */
 @media (max-width: 1200px) {
-  .circuit-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .scene-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1518,10 +1484,6 @@ function goToToday() {
 
 @media (max-width: 768px) {
   .video-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .circuit-grid {
     grid-template-columns: 1fr;
   }
 

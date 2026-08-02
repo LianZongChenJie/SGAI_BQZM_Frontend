@@ -213,12 +213,17 @@ async function onSubmit() {
      const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(',')};
      // 根据类型调用对应 API
     const api = mode.value === 'add' ? addLightingPlanAPiNew : editLightingPlanAPi;
-    const res = await api(submitData);
-    console.log('接口返回');
-    console.log('res', res);
-    message.success(mode.value === 'add' ? '新建场景成功！' : '编辑场景成功！');
-    closeModal();
-    emit('success');
+    await api(submitData).then(res => {
+      console.log('接口返回');
+      console.log('res', res);
+      if(!res) {
+        message.success(mode.value === 'add' ? '新建场景成功！' : '编辑场景成功！');
+        closeModal();
+        emit('success');
+      }
+     
+    });
+   
   } catch (err: any) {
     // 表单校验失败由 antd 自带提示，不作额外处理
     if (err?.errorFields) return;
@@ -344,7 +349,6 @@ const getDetailInit = async () => {
       } else if(editRecord.value.relType === '回路') {
         tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
       }
-      // tableData.value = Array.isArray(data.details) ? data.details : [];
     }
   } catch (err) {
     console.error('Failed to load equipment list:', err);
