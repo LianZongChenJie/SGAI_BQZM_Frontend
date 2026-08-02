@@ -13,6 +13,10 @@ enum Api {
   enablePlanApi = '/sgai-bqzm/bems/lighting/plan/enable',
   executeNowApi = '/sgai-bqzm/bems/lighting/plan/executeNow',
   controlRecordListApi = '/sgai-bqzm/bems/lighting/operationLog/listPage',
+  getCalendarControlApi = '/sgai-bqzm/bems/lighting/calendar/events',
+  getLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/listPage',
+  planDetailApiNew = '/sgai-bqzm/bems/lighting/scene/detail',
+  addLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/add',
 }
 
 /**
@@ -69,3 +73,20 @@ export const executeNow = (params) => defHttp.post({ url: Api.executeNowApi, par
  * 控制记录列表
  */
 export const controlRecordListApi = (params) => defHttp.get({ url: Api.controlRecordListApi, params }, { joinParamsToUrl: true });
+
+// 日历显示定时任务接口
+export const getCalendarControlApi = (params) => defHttp.get({ url: Api.getCalendarControlApi, params }, { joinParamsToUrl: true });
+
+/**
+ * 获取场景数据新
+ */
+export const getLightingPlanAPiNew = (params) => defHttp.get({ url: Api.getLightingPlanAPiNew, params }, { joinParamsToUrl: true });
+/**
+ * 获取场景详情
+ * @param params
+ */
+export const planDetailApiNew = (params) => defHttp.get({ url: Api.planDetailApiNew, params });
+/**
+ * 新增场景
+ */
+export const addLightingPlanAPiNew = (params) => defHttp.post({ url: Api.addLightingPlanAPiNew, params });

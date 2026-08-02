@@ -47,6 +47,26 @@
         </div>
       </a-form>
 
+      <!-- ==================== 详情额外信息（仅 detail 模式显示） ==================== -->
+      <div v-if="isDetail" class="detail-info-section">
+        <div class="detail-item detail-item-sm">
+          <span class="detail-label">开始时间</span>
+          <span class="detail-value">{{ detailInfo.executionTime || '-' }}</span>
+        </div>
+        <div class="detail-item detail-item-sm">
+          <span class="detail-label">操控类型</span>
+          <span class="detail-value">{{ detailInfo.operationType || '-' }}</span>
+        </div>
+        <div class="detail-item detail-item-lg">
+          <span class="detail-label">周期范围</span>
+          <span class="detail-value">{{ detailInfo.dateRange || '-' }}</span>
+        </div>
+        <div class="detail-item detail-item-lg">
+          <span class="detail-label">执行日期</span>
+          <span class="detail-value">{{ detailInfo.enabledWeek || '-' }}</span>
+        </div>
+      </div>
+
       <!-- ==================== 表格区域 ==================== -->
       <section class="table-section">
       <div class="table-scroll">
@@ -119,6 +139,36 @@ const title = computed(() => {
   return '定时任务详情';
 });
 const isDetail = computed(() => mode.value === 'detail');
+
+/** detail 模式额外信息（处理 executionInfo 嵌套字段） */
+const detailInfo = computed(() => {
+  const r = editRecord.value;
+  if (!r) return {};
+  const info = r.executionInfo || {};
+  const start = info.startDate || r.startDate || '';
+  const end = info.endDate || r.endDate || '';
+  let weekStr = info.enabledWeek || r.enabledWeek || '';
+  // 将数字映射为中文星期
+  const weekMap: Record<string, string> = {
+    '1': '周一', '2': '周二', '3': '周三', '4': '周四',
+    '5': '周五', '6': '周六', '7': '周日',
+    '周一': '周一', '周二': '周二', '周三': '周三', '周四': '周四',
+    '周五': '周五', '周六': '周六', '周日': '周日',
+  };
+  if (weekStr && typeof weekStr === 'string') {
+    weekStr = weekStr
+      .split(/[,，]/)
+      .map((d: string) => weekMap[d.trim()] || d.trim())
+      .filter(Boolean)
+      .join('、');
+  }
+  return {
+    executionTime: r.executionTime || r.executionLocalTime || '',
+    operationType: r.operationType || '',
+    dateRange: start && end ? `${start} 至 ${end}` : (start || end || ''),
+    enabledWeek: weekStr,
+  };
+});
 // 表单数据
 const formData = reactive({
   relType: '',
@@ -398,6 +448,50 @@ defineExpose({ showModal, closeModal });
     flex: 1;
     margin-bottom: 0;
   }
+}
+
+/* ==================== 详情额外信息区域 ==================== */
+.detail-info-section {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 14px;
+  background: rgba(27, 37, 51, 0.4);
+  border: 1px solid #303d50;
+  border-radius: 4px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  line-height: 28px;
+  overflow: hidden;
+}
+
+.detail-item-sm {
+  flex: 1;
+}
+
+.detail-item-lg {
+  flex: 1.8;
+}
+
+.detail-label {
+  color: #a0aabf;
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.detail-label::after {
+  content: '：';
+}
+
+.detail-value {
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ==================== 表格区域 ==================== */

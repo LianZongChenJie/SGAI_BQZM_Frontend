@@ -1,5 +1,5 @@
 <template>
-  <h2 class="mb-3 text-2xl font-bold text-center xl:text-3xl enter-x xl:text-left">
+  <h2 v-if="getFormTitle" class="form-title enter-x">
     {{ getFormTitle }}
   </h2>
 </template>
@@ -15,7 +15,7 @@
   const getFormTitle = computed(() => {
     const titleObj = {
       [LoginStateEnum.RESET_PASSWORD]: t('sys.login.forgetFormTitle'),
-      [LoginStateEnum.LOGIN]: t('sys.login.signInFormTitle'),
+      [LoginStateEnum.LOGIN]: '',
       [LoginStateEnum.REGISTER]: t('sys.login.signUpFormTitle'),
       [LoginStateEnum.MOBILE]: t('sys.login.mobileSignInFormTitle'),
       [LoginStateEnum.QR_CODE]: t('sys.login.qrSignInFormTitle'),
@@ -23,3 +23,12 @@
     return titleObj[unref(getLoginState)];
   });
 </script>
+<style scoped>
+  .form-title {
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #0f172a;
+    text-align: center;
+  }
+</style>

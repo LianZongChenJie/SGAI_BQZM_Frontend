@@ -99,7 +99,7 @@
 import { ref, reactive, computed, nextTick } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPi, planDetailApi } from '@/api/equipmentMonitoring'
+import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring'
 
 // 对应src\views\bems\lightingControl\components\TimingControlModal.vue
 // ==================== Emits ====================
@@ -212,7 +212,7 @@ async function onSubmit() {
     submitLoading.value = true;
      const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(',')};
      // 根据类型调用对应 API
-    const api = mode.value === 'add' ? addLightingPlanAPi : editLightingPlanAPi;
+    const api = mode.value === 'add' ? addLightingPlanAPiNew : editLightingPlanAPi;
     const res = await api(submitData);
     console.log('接口返回');
     console.log('res', res);
@@ -336,7 +336,7 @@ const getDetailInit = async () => {
     const params = {
       id: editRecord.value.id
     };
-    const data = await planDetailApi(params);
+    const data = await planDetailApiNew(params);
     console.log('获取数据：', data);
     if (data) {
       if(editRecord.value.relType === '区域') {
@@ -344,6 +344,7 @@ const getDetailInit = async () => {
       } else if(editRecord.value.relType === '回路') {
         tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
       }
+      // tableData.value = Array.isArray(data.details) ? data.details : [];
     }
   } catch (err) {
     console.error('Failed to load equipment list:', err);

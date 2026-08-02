@@ -312,7 +312,7 @@
             </div>
           </header>
 
-          <div class="calendar-grid">
+          <div v-loading="calendarLoading" class="calendar-grid">
             <div v-for="day in weekDays" :key="day" class="calendar-weekday">{{ day }}</div>
             <div
               v-for="(cell, idx) in calendarDays"
@@ -323,16 +323,14 @@
               <span class="day-number">{{ cell.date }}</span>
               <div class="day-tasks">
                 <span
-                  v-for="record in cell.records"
-                  :key="record.id"
+                  v-for="event in cell.events"
+                  :key="`${event.source}-${event.planId}-${event.operationType}`"
                   class="task-tag"
-                  :class="getRecordTagClass(record.operationType)"
-                  :title="`${record.timeStr} ${record.name} ${record.operationType} ${record.operationBy}`"
+                  :class="getEventTagClass(event)"
+                  :title="`${event.planName} [${event.planType}] ${event.status}（点击查看详情）`"
+                  @click.stop="openEventDetail(event)"
                 >
-                  {{ record.timeStr }} {{ record.operationType }}
-                </span>
-                <span v-if="cell.overflow > 0" class="task-tag tag-more">
-                  +{{ cell.overflow }}
+                  {{ event.label.split(' ')[0] }} {{ event.status }}
                 </span>
               </div>
             </div>
@@ -345,6 +343,7 @@
   <createNewTimerModal ref="createNewTimerModalRef" @success="createNewTimerModalSuccess"></createNewTimerModal>
   <TimerEnableModal ref="timerEnableModalRef" @success="onTimerEnableSuccess"></TimerEnableModal>
   <sceneConfirmModal ref="sceneConfirmModalRef" @success="onSceneConfirmSuccess"></sceneConfirmModal>
+  <CalendarEventDetailModal ref="calendarEventDetailModalRef"></CalendarEventDetailModal>
 </template>
 
 <script setup lang="ts">
@@ -354,7 +353,8 @@ import createNewSceneModal from './components/createNewSceneModal.vue';
 import createNewTimerModal from './components/createNewTimerModal.vue';
 import TimerEnableModal from './components/TimerEnableModal.vue';
 import sceneConfirmModal from './components/sceneConfirmModal.vue';
-import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, controlRecordListApi } from '@/api/equipmentMonitoring';
+import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
+import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, getCalendarControlApi, getLightingPlanAPiNew } from '@/api/equipmentMonitoring';
 import { message } from 'ant-design-vue';
 
 // 定时任务 src\views\bems\lightingControl\components\TimingControl.vue
@@ -363,6 +363,7 @@ const createNewSceneModalRef = ref<InstanceType<typeof createNewSceneModal>>();
 const createNewTimerModalRef = ref<InstanceType<typeof createNewTimerModal>>();
 const timerEnableModalRef = ref<InstanceType<typeof TimerEnableModal>>();
 const sceneConfirmModalRef = ref<InstanceType<typeof sceneConfirmModal>>();
+const calendarEventDetailModalRef = ref<InstanceType<typeof CalendarEventDetailModal>>();
 
 /* --------------------- Tab 导航 --------------------- */
 const tabs = [
@@ -482,7 +483,7 @@ async function fetchSceneList() {
       pageNo: 1,
       pageSize: 999
     };
-    const data = await getLightingPlanAPi(params);
+    const data = await getLightingPlanAPiNew(params);
     console.log('场景配置列表：', data);
     if (data?.records) {
       sceneList.value = (data.records as any[]).map((item) => {
@@ -686,60 +687,56 @@ function onTimerPageChange(page: number) {
 
 /* --------------------- 控制日历 --------------------- */
 const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-const currentDate = ref(new Date(2026, 5, 1)); // 默认显示 2026年6月
+const currentDate = ref(new Date()); // 默认显示当前系统年月
 
 const calendarYear = computed(() => currentDate.value.getFullYear());
 const calendarMonth = computed(() => currentDate.value.getMonth());
 
-interface CalendarRecordItem {
-  id: number;
-  name: string;
-  relType: string;
+interface CalendarEventItem {
+  source: string; // PLAN / SCHEDULE / LOG
+  planId: number;
+  planName: string;
+  label: string; // 展示文本，如 "19:30:00 开灯"
+  color: string; // blue / green / red / gray / orange
+  planType: string; // 普通计划 / 历史记录 / 动态任务
   operationType: string;
-  operationTime: string;
-  operationBy: string;
-  timeStr: string;
+  status: string; // 待执行 / 已执行
 }
 
 interface CalendarCell {
   date: number;
   isCurrentMonth: boolean;
-  records: CalendarRecordItem[];
-  overflow: number;
+  events: CalendarEventItem[];
 }
 
-const calendarRecords = ref<CalendarRecordItem[]>([]);
+/** 日历事件按月分组数据 */
+const calendarResult = ref<{ date: string; dayOfWeek: string; events: CalendarEventItem[] }[]>([]);
+const calendarLoading = ref(false);
 
-/** 根据操作类型返回 tag 颜色类 */
-function getRecordTagClass(operationType: string) {
-  if (operationType.includes('关') || operationType.includes('停')) return 'tag-red';
-  if (operationType.includes('开') || operationType.includes('启')) return 'tag-blue';
-  return 'tag-green';
+/** tag 颜色：已执行→蓝色，待执行→红色 */
+function getEventTagClass(event: CalendarEventItem) {
+  return event.status === '待执行' ? 'tag-red' : 'tag-blue';
 }
 
-/** 获取控制日历操作记录 */
+/** 点击日历标签打开详情弹框 */
+function openEventDetail(event: CalendarEventItem) {
+  calendarEventDetailModalRef.value?.showModal(event);
+}
+
+/** 获取控制日历事件 */
 async function fetchCalendarRecords() {
   if (activeTab.value !== 'calendar') return;
-  const year = calendarYear.value;
-  const month = calendarMonth.value;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const startTime = `${year}-${pad(month + 1)}-01 00:00:00`;
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  const endTime = `${year}-${pad(month + 1)}-${pad(lastDay)} 23:59:59`;
-
+  calendarLoading.value = true;
   try {
-    const res = await controlRecordListApi({
-      pageNo: 1,
-      pageSize: 1000,
-      startTime,
-      endTime,
+    const res = await getCalendarControlApi({
+      year: calendarYear.value,
+      month: calendarMonth.value + 1, // month 为 0-based，接口需要 1-based
     });
-    calendarRecords.value = (res.records || []).map((r: any) => ({
-      ...r,
-      timeStr: r.operationTime ? r.operationTime.split(' ')[1].substring(0, 5) : '',
-    }));
+    calendarResult.value = (res || []) as any;
   } catch (err) {
-    console.error('获取控制日历记录失败：', err);
+    console.error('获取控制日历事件失败：', err);
+  } finally {
+    calendarLoading.value = false;
   }
 }
 
@@ -754,32 +751,33 @@ const calendarDays = computed<CalendarCell[]>(() => {
   const startDayOfWeek = firstDayOfMonth.getDay(); // 0=周日
 
   const days: CalendarCell[] = [];
-  const pad = (n: number) => String(n).padStart(2, '0');
+
+  // 构建日期 → event 映射
+  const eventMap: Record<string, CalendarEventItem[]> = {};
+  calendarResult.value.forEach((item) => {
+    eventMap[item.date] = item.events || [];
+  });
 
   // 上月末尾日期
   const prevMonthLastDay = new Date(year, month, 0).getDate();
   for (let i = startDayOfWeek - 1; i >= 0; i--) {
-    days.push({ date: prevMonthLastDay - i, isCurrentMonth: false, records: [], overflow: 0 });
+    days.push({ date: prevMonthLastDay - i, isCurrentMonth: false, events: [] });
   }
 
-  // 当月日期
+  // 当月日期（全部展示，不截断不合并）
   for (let i = 1; i <= daysInMonth; i++) {
-    const dateKey = `${year}-${pad(month + 1)}-${pad(i)}`;
-    const dayRecords = calendarRecords.value.filter(
-      (r) => r.operationTime && r.operationTime.startsWith(dateKey),
-    );
+    const dayEvents = eventMap[`${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`] || [];
     days.push({
       date: i,
       isCurrentMonth: true,
-      records: dayRecords.slice(0, 4),
-      overflow: dayRecords.length > 4 ? dayRecords.length - 4 : 0,
+      events: dayEvents,
     });
   }
 
   // 下月开头日期，补足 42 格（6 行 × 7 列）
   const remaining = 42 - days.length;
   for (let i = 1; i <= remaining; i++) {
-    days.push({ date: i, isCurrentMonth: false, records: [], overflow: 0 });
+    days.push({ date: i, isCurrentMonth: false, events: [] });
   }
 
   return days;
@@ -1441,11 +1439,11 @@ function goToToday() {
 
 .calendar-day {
   background: var(--bg-card);
-  min-height: 90px;
-  padding: 8px;
+  height: 110px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  overflow: hidden;
   transition: background 0.15s;
 }
 
@@ -1461,44 +1459,50 @@ function goToToday() {
   font-size: 13px;
   font-weight: 500;
   color: var(--color-text);
-  margin-bottom: 2px;
+  flex-shrink: 0;
 }
 
 .day-tasks {
   display: flex;
   flex-direction: column;
   gap: 3px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+  }
 }
 
 .task-tag {
-  font-size: 11px;
-  padding: 3px 6px;
+  display: block;
+  width: 100%;
+  height: 20px;
+  line-height: 20px;
+  padding: 0 6px;
   border-radius: 3px;
+  font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.3;
+  color: #fff;
+  text-align: left;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .tag-blue {
   background: var(--color-primary);
-  color: #fff;
-}
-
-.tag-green {
-  background: var(--color-success);
-  color: #fff;
 }
 
 .tag-red {
   background: var(--color-danger);
-  color: #fff;
-}
-
-.tag-more {
-  background: var(--color-muted);
-  color: #fff;
-  cursor: pointer;
 }
 
 /* ------------------- 响应式 ------------------- */
