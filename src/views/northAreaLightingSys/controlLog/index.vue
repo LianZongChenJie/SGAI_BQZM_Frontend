@@ -41,7 +41,7 @@
           <el-button @click="onReset">重置</el-button>
         </div>
       </div>
-      <div class="table-wrapper" v-loading="loading">
+      <div class="table-wrapper">
         <table class="log-table">
           <thead>
             <tr>
@@ -159,6 +159,18 @@ onMounted(() => {
 
 <style scoped lang="less">
 .page-container {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --accent: #0ea5e9;
+  --accent2: #10b981;
+  --accent3: #f59e0b;
+  --danger: #ef4444;
+  --text: #f1f5f9;
+  --text2: #94a3b8;
+  --border: #334155;
+  --radius: 8px;
+  --primary: #0ea5e9;
+
   position: absolute;
   top: 0;
   left: 0;
@@ -434,8 +446,8 @@ onMounted(() => {
 }
 
 .pagination-btn:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: #38bdf8;
+  color: #38bdf8 !important;
 }
 
 .pagination-btn:disabled {
