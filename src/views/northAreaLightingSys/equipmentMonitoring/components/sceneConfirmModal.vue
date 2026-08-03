@@ -16,7 +16,9 @@
           <line x1="12" y1="16" x2="12" y2="12" />
           <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
-        <span>{{ contenMessage }}</span>
+        <span>
+          {{ contenMessage.prefix }}<strong class="tip-action">{{ contenMessage.action }}</strong>{{ contenMessage.suffix }}
+        </span>
       </div>
 
       <!-- 底部操作按钮 -->
@@ -43,10 +45,12 @@ const loading = ref(false);
 
 const contenMessage = computed(() => {
   const name = sceneData.value?.name || '';
-  if (type.value === 'execute') {
-    return `确定要执行场景【${name}】吗？`;
-  }
-  return `确定要关闭场景【${name}】吗？`;
+  const action = type.value === 'execute' ? '打开' : '关闭';
+  return {
+    prefix: '确定要 ',
+    action,
+    suffix: ` 【${name}】场景下的区域或回路吗？`,
+  };
 });
 
 function showModal(mode: 'execute' | 'delete', scene: any) {
@@ -90,6 +94,11 @@ defineExpose({
     height: 18px;
     color: #00a2e8;
     flex-shrink: 0;
+  }
+
+  .tip-action {
+    font-weight: 700;
+    color: #00a2e8;
   }
 }
 

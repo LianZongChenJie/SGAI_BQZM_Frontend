@@ -33,7 +33,7 @@
                 <polyline points="1 20 1 14 7 14"/>
                 <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
               </svg>
-              刷新视频
+              获取视频列表
             </button>
           </header>
 
@@ -64,7 +64,7 @@
             </div>
           </header>
 
-          <div class="scene-grid">
+          <div class="scene-grid" v-loading="loadingSceneList">
             <div
               v-for="s in sceneList"
               :key="s.id"
@@ -74,12 +74,6 @@
                 <div class="scene-title-row">
                   <span class="scene-name">{{ s.name }}</span>
                 </div>
-                <!-- <span
-                  class="scene-status-badge"
-                  :class="s.operationType === '开启' ? 'status-on' : 'status-off'"
-                >
-                  {{ s.operationType || '-' }}
-                </span> -->
               </div>
               <p class="scene-circuits">包含 {{ s.circuitCount }} 个{{ s.relType }}</p>
               <p class="scene-desc">{{ s.desc }}</p>
@@ -121,15 +115,8 @@
             >
               <div class="scene-header">
                 <div class="scene-title-row">
-                  <!-- <span class="scene-icon">{{ s.icon }}</span> -->
                   <span class="scene-name">{{ s.name }}</span>
                 </div>
-                <!-- <span
-                  class="scene-status-badge"
-                  :class="s.operationType === '开启' ? 'status-on' : 'status-off'"
-                >
-                  {{ s.operationType || '-' }}
-                </span> -->
               </div>
               <p class="scene-circuits">包含 {{ s.circuitCount }} 个{{ s.relType }}</p>
               <p class="scene-desc">{{ s.desc }}</p>
@@ -438,12 +425,18 @@ const createNewSceneModalSuccess = async () =>{
 }
 
 /** 获取场景配置列表 */
+const loadingSceneList = ref(false);
 async function fetchSceneList() {
+  if(loadingSceneList.value) {
+    return;
+  }
+  loadingSceneList.value = true
   try {
     const params = {
       pageNo: 1,
       pageSize: 999
     };
+
     const data = await getLightingPlanAPiNew(params);
     console.log('场景配置列表：', data);
     if (data?.records) {
@@ -468,6 +461,7 @@ async function fetchSceneList() {
   } catch (err) {
     console.error('获取场景配置列表失败：', err);
   }
+  loadingSceneList.value = false
 }
 
 function onRefreshVideo() {

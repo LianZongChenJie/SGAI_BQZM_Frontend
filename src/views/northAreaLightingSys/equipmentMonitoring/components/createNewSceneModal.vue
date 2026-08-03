@@ -36,14 +36,6 @@
               allowClear
             />
           </a-form-item>
-          <a-form-item label="操控类型" name="operationType">
-            <a-select
-              v-model:value="formData.operationType"
-              placeholder="请选择操控类型"
-              :options="operationTypeOptions"
-              allowClear
-            />
-          </a-form-item>
         </div>
       </a-form>
 
@@ -209,6 +201,9 @@ async function onSubmit() {
     if (!selectedRowKeys.value.length) {
       // 如果没有选中行，提交时仅传空数组
     }
+    if(submitLoading.value) {
+      return;
+    }
     submitLoading.value = true;
      const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(',')};
      // 根据类型调用对应 API
@@ -236,16 +231,17 @@ async function onSubmit() {
 async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
   mode.value = type;
   formRef.value?.resetFields();
+  visible.value = true;
   if (type === 'add') {
     Object.assign(formData, { ...defaultForm });
     selectedRowKeys.value = [];
     editRecord.value = null;
-    // 默认回路
-    formData.relType = '回路';
+    // 默认区域
+    formData.relType = '区域';
     // 表单 + 表格一起进入 loading
     tableLoading.value = true;
     try {
-      await loadCircuitData();
+      await loadAreaData(); // 区域
     } finally {
       await nextTick();
       setTimeout(() => {
@@ -270,7 +266,7 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
       }, 200);
     }
   }
-  visible.value = true;
+
   
   // 清除校验残留
   nextTick(() => {

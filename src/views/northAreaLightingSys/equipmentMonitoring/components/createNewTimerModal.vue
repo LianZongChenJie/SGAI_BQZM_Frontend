@@ -53,7 +53,7 @@
           <span class="detail-label">开始时间</span>
           <span class="detail-value">{{ detailInfo.executionTime || '-' }}</span>
         </div>
-        <div class="detail-item detail-item-sm">
+        <div class="detail-item detail-item-smm">
           <span class="detail-label">操控类型</span>
           <span class="detail-value">{{ detailInfo.operationType || '-' }}</span>
         </div>
@@ -61,7 +61,7 @@
           <span class="detail-label">周期范围</span>
           <span class="detail-value">{{ detailInfo.dateRange || '-' }}</span>
         </div>
-        <div class="detail-item detail-item-lg">
+        <div class="detail-item detail-item-lgg">
           <span class="detail-label">执行日期</span>
           <span class="detail-value">{{ detailInfo.enabledWeek || '-' }}</span>
         </div>
@@ -475,9 +475,15 @@ defineExpose({ showModal, closeModal });
 .detail-item-sm {
   flex: 1;
 }
+.detail-item-smm {
+  flex: 0.8;
+}
 
 .detail-item-lg {
-  flex: 1.8;
+  flex: 1.5;
+}
+.detail-item-lgg {
+  flex: 2;
 }
 
 .detail-label {
