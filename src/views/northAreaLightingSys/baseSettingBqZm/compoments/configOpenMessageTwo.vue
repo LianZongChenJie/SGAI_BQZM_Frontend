@@ -16,7 +16,7 @@
           <line x1="12" y1="16" x2="12" y2="12" />
           <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
-        <span>{{contenMessage}}</span>
+        <span v-html="contenMessage"></span>
       </div>
 
       <!-- 底部操作按钮 -->
@@ -44,7 +44,12 @@ const type = ref<'open' | 'close'>('open');
 const loading = ref(false);
 
 
-const contenMessage = computed(() => (type.value === 'open' ? '确定要将此区域设置为开启状态吗？' : '确定要将此区域设置为关闭状态吗'));
+const contenMessage = computed(() => {
+  if (type.value === 'open') {
+    return '确定要将此区域设置为<span class="keyword-open">开启</span>状态吗？';
+  }
+  return '确定要将此区域设置为<span class="keyword-close">关闭</span>状态吗？';
+});
 
 
 const rowObj = reactive({})
@@ -94,6 +99,16 @@ defineExpose({
     height: 18px;
     color: #00a2e8;
     flex-shrink: 0;
+  }
+
+  :deep(.keyword-open) {
+    color: #22c55e;
+    font-weight: 600;
+  }
+
+  :deep(.keyword-close) {
+    color: #ef4444;
+    font-weight: 600;
   }
 }
 

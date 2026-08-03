@@ -306,13 +306,13 @@
               <div class="day-tasks">
                 <span
                   v-for="event in cell.events"
-                  :key="`${event.source}-${event.planId}-${event.operationType}`"
+                  :key="`${event.planId}-${event.planName}`"
                   class="task-tag"
                   :class="getEventTagClass(event)"
-                  :title="`${event.planName} [${event.planType}] ${event.status}（点击查看详情）`"
+                  :title="`${event.label} [${event.planName}]（点击查看详情）`"
                   @click.stop="openEventDetail(event)"
                 >
-                  {{ event.label.split(' ')[0] }} {{ event.status }}
+                   {{ event.label }}【{{ event.planName }}】
                 </span>
               </div>
             </div>
@@ -681,6 +681,7 @@ interface CalendarEventItem {
   planType: string; // 普通计划 / 历史记录 / 动态任务
   operationType: string;
   status: string; // 待执行 / 已执行
+  dateStr: string;
 }
 
 interface CalendarCell {
@@ -700,6 +701,7 @@ function getEventTagClass(event: CalendarEventItem) {
 
 /** 点击日历标签打开详情弹框 */
 function openEventDetail(event: CalendarEventItem) {
+  console.log(event)
   calendarEventDetailModalRef.value?.showModal(event);
 }
 
@@ -712,6 +714,7 @@ async function fetchCalendarRecords() {
       year: calendarYear.value,
       month: calendarMonth.value + 1, // month 为 0-based，接口需要 1-based
     });
+    console.log(res)
     calendarResult.value = (res || []) as any;
   } catch (err) {
     console.error('获取控制日历事件失败：', err);
@@ -735,7 +738,8 @@ const calendarDays = computed<CalendarCell[]>(() => {
   // 构建日期 → event 映射
   const eventMap: Record<string, CalendarEventItem[]> = {};
   calendarResult.value.forEach((item) => {
-    eventMap[item.date] = item.events || [];
+    const events = item.events || [];
+    eventMap[item.date] = events.map((evt) => ({ ...evt, dateStr: item.date }));
   });
 
   // 上月末尾日期

@@ -111,8 +111,8 @@
               <td class="actions">
                 <button class="action-btn">监控视频</button>
                 <button class="action-btn" @click="circuitListModalOpenChange(row)">回路列表</button>
-                <button class="action-btn" @click="onOpenRow(row)">全开</button>
-                <button class="action-btn" @click="onCloseRow(row)">全关</button>
+                <button class="action-btn btn-primary" @click="onOpenRow(row)">全开</button>
+                <button class="action-btn btn-danger" @click="onCloseRow(row)">全关</button>
               </td>
             </tr>
           </tbody>
@@ -337,7 +337,7 @@ function onOpenRow(row) {
 /** 单行--全关 */
 function onCloseRow(row) {
  configOpenMessageRefTwo.value?.showModal({
-  type: 'open',
+  type: 'close',
   row: row,
  });
 }
@@ -355,13 +355,19 @@ function onModalConfigOpenMessageSuccessTwo(event) {
 const handleOpen = async (record) => {
   await setAreaOpenApi({
     id: record.id,
-  });
+  }).then((res) => {
+    console.log('禁用定时任务成功', res);
+    message.success('全开成功！');
+  });;
   onSearch()
 };
 // 单行--全关
 const handleClose = async (record) => {
   await setAreaCloseApi({
     id: record.id,
+  }).then((res) => {
+    console.log('禁用定时任务成功', res);
+    message.success('全关成功！');
   });
   onSearch()
 };
@@ -735,6 +741,24 @@ onMounted(() => {
 
 .actions .action-btn:hover {
   opacity: 0.85;
+}
+
+.actions .action-btn.btn-primary {
+  background: #22c55e;
+  color: #fff;
+}
+
+.actions .action-btn.btn-primary:hover {
+  background: #16a34a;
+}
+
+.actions .action-btn.btn-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.actions .action-btn.btn-danger:hover {
+  background: #dc2626;
 }
 
 /* ------------------- Pagination ------------------- */

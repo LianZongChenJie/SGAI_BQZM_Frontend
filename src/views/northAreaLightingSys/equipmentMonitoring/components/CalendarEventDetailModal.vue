@@ -3,47 +3,67 @@
     v-model:open="open"
     title="事件详情"
     :footer="null"
-    width="480px"
+    width="720px"
     :destroyOnClose="true"
     :maskClosable="true"
     wrapClassName="dark-tech-modal"
     @cancel="closeModal"
   >
     <!-- 顶部状态条 -->
-    <div class="event-status-bar" :class="eventData?.status === '待执行' ? 'status-pending' : 'status-done'">
+    <!-- <div class="event-status-bar" :class="(detailData?.status || eventData?.status) === '待执行' ? 'status-pending' : 'status-done'">
       <span class="status-dot"></span>
-      <span class="status-label">{{ eventData?.status || '-' }}</span>
+      <span class="status-label">{{ detailData?.status || eventData?.status || '-' }}</span>
       <span class="status-divider">|</span>
       <span class="status-source">{{ sourceLabel }}</span>
-    </div>
+    </div> -->
 
-    <!-- 详情信息 -->
-    <div class="event-detail-list">
-      <div class="detail-row">
-        <span class="detail-label">计划名称</span>
-        <span class="detail-value">{{ eventData?.planName || '-' }}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">计划编号</span>
-        <span class="detail-value">{{ eventData?.planId || '-' }}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">计划类型</span>
-        <span class="detail-value">{{ eventData?.planType || '-' }}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">操作类型</span>
-        <span class="detail-value">
-          <span class="operation-badge" :class="eventData?.status === '待执行' ? 'badge-pending' : 'badge-done'">
-            {{ eventData?.operationType || '-' }}
+    <!-- Loading 遮罩 -->
+    <a-spin :spinning="detailLoading" tip="加载中...">
+      <!-- 详情信息 -->
+      <div class="event-detail-list">
+        <div class="detail-row">
+          <span class="detail-label">计划名称</span>
+          <span class="detail-value">{{ detailData?.planName || eventData?.planName || '-' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">计划类型</span>
+          <span class="detail-value">{{ detailData?.relType || eventData?.planType || '-' }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">操作类型</span>
+          <span class="detail-value">
+            <span class="operation-badge" :class="(detailData?.status || eventData?.status) === '待执行' ? 'badge-pending' : 'badge-done'">
+              {{ detailData?.operationType || eventData?.operationType || '-' }}
+            </span>
           </span>
-        </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">操作描述</span>
+          <span class="detail-value">{{ eventData?.label || '-' }}</span>
+        </div>
       </div>
-      <div class="detail-row">
-        <span class="detail-label">操作描述</span>
-        <span class="detail-value">{{ eventData?.label || '-' }}</span>
+
+      <!-- 执行日志 / 执行目标 表格 -->
+      <div v-if="tableData.length > 0" class="detail-table-section">
+        <div class="table-title">{{ tableTitle }}</div>
+        <div class="table-body-wrapper">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th v-for="col in currentColumns" :key="col.key" :style="{ width: col.width }">{{ col.title }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in tableData" :key="(row as any).id || (row as any).relId">
+                <td v-for="col in currentColumns" :key="col.key">
+                  <span class="cell-text" :title="(row as any)[col.key] || '-'">{{ (row as any)[col.key] || '-' }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </a-spin>
 
     <!-- 底部关闭按钮 -->
     <div class="modal-footer">
@@ -54,6 +74,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { getCalendarControlDetailApi } from '@/api/equipmentMonitoring';
 
 interface CalendarEventItem {
   source: string;
@@ -64,10 +85,46 @@ interface CalendarEventItem {
   planType: string;
   operationType: string;
   status: string;
+  dateStr: string;
+}
+
+interface LogItem {
+  closeTime: string;
+  id: number;
+  ipAddress: string;
+  name: string;
+  openTime: string;
+  operationBy: string;
+  operationTime: string;
+  operationType: string;
+  operatorType: string;
+  relId: number;
+  relType: string;
+}
+
+interface TargetItem {
+  relId: number;
+  relName: string;
+  relType: string;
+}
+
+interface DetailResult {
+  date: string;
+  executionTime: string;
+  logs: LogItem[];
+  operationType: string;
+  planId: number;
+  planName: string;
+  relType: string;
+  source: string;
+  status: string;
+  targets: TargetItem[];
 }
 
 const open = ref(false);
 const eventData = ref<CalendarEventItem | null>(null);
+const detailData = ref<DetailResult | null>(null);
+const detailLoading = ref(false);
 
 const sourceLabelMap: Record<string, string> = {
   PLAN: '照明计划',
@@ -76,13 +133,68 @@ const sourceLabelMap: Record<string, string> = {
 };
 
 const sourceLabel = computed(() => {
-  if (!eventData.value) return '-';
-  return sourceLabelMap[eventData.value.source] || eventData.value.source;
+  const data = detailData.value || eventData.value;
+  if (!data) return '-';
+  return sourceLabelMap[(data as any).source] || (data as any).source || '-';
 });
 
-function showModal(event: CalendarEventItem) {
+/** 优先 logs，否则 targets */
+const tableData = computed(() => {
+  if (!detailData.value) return [];
+  const logs = detailData.value.logs;
+  if (logs && logs.length > 0) return logs;
+  return detailData.value.targets || [];
+});
+
+/** 当前表格类型 */
+const tableType = computed<'logs' | 'targets'>(
+  () => (detailData.value?.logs?.length ? 'logs' : 'targets'),
+);
+
+/** logs 列定义 */
+const logColumns = [
+  { key: 'name', title: '名称', width: '14%' },
+  { key: 'relType', title: '类型', width: '8%' },
+  { key: 'operationType', title: '操控', width: '8%' },
+  { key: 'openTime', title: '开启时间', width: '16%' },
+  { key: 'closeTime', title: '关闭时间', width: '16%' },
+  { key: 'operationTime', title: '操作时间', width: '16%' },
+  { key: 'operationBy', title: '操作人', width: '10%' },
+  { key: 'ipAddress', title: 'IP', width: '12%' },
+];
+
+/** targets 列定义 */
+const targetColumns = [
+  { key: 'relName', title: '关联名称', width: '50%' },
+  { key: 'relType', title: '关联类型', width: '50%' },
+];
+
+const currentColumns = computed(() =>
+  tableType.value === 'logs' ? logColumns : targetColumns,
+);
+
+/** 表格总标题 */
+const tableTitle = computed(() =>
+  tableType.value === 'logs' ? '执行日志列表' : '执行目标列表',
+);
+
+async function showModal(event: CalendarEventItem) {
   eventData.value = event;
+  console.log(eventData.value)
   open.value = true;
+  detailData.value = null;
+  detailLoading.value = true;
+  try {
+    const res = await getCalendarControlDetailApi({ planId: event.planId, date: event.dateStr, source: event.source});
+    console.log(res)
+    if (res) {
+      detailData.value = res as DetailResult;
+    }
+  } catch (err) {
+    console.error('获取日历详情失败：', err);
+  } finally {
+    detailLoading.value = false;
+  }
 }
 
 function closeModal() {
@@ -188,6 +300,75 @@ defineExpose({ showModal, closeModal });
     background: rgba(255, 77, 79, 0.15);
     color: #ff4d4f;
   }
+}
+
+/* ==================== 表格区域 ==================== */
+.detail-table-section {
+  margin-top: 16px;
+  border: 1px solid #1e2a3a;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0f1a26;
+}
+
+.table-title {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #c0c8d4;
+  border-bottom: 1px solid #1e2a3a;
+  background: rgba(0, 162, 232, 0.06);
+}
+
+.table-body-wrapper {
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.detail-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.detail-table thead tr {
+  border-bottom: 1px solid #1e2a3a;
+}
+
+.detail-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 500;
+  color: #5a6a80;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.detail-table tbody tr {
+  border-bottom: 1px solid #1e2a3a;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+.detail-table td {
+  padding: 8px 12px;
+  color: #c0c8d4;
+  vertical-align: middle;
+}
+
+.detail-table .cell-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ==================== 底部按钮 ==================== */
