@@ -279,7 +279,6 @@
   }
 
   onMounted(() => {
-    loadStats();
     loadAllSpace();
     loadAllCircuit();
   });
