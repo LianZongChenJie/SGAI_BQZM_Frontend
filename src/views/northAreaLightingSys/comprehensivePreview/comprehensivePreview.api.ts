@@ -1,7 +1,7 @@
 import { defHttp } from '/@/utils/http/axios';
 
 enum Api {
-  overviewStats = '/northAreaLighting/overview/stats',
+  overviewStats = '/sgai-bqzm/bems/lighting/home/areaStatistics',
   blockList = '/northAreaLighting/overview/blockList',
   allOn = '/sgai-bqzm/bems/lighting/home/controlAll?action=open',
   allOff = '/sgai-bqzm/bems/lighting/home/controlAll?action=close',

@@ -4,11 +4,12 @@
   <!-- POI 详情弹窗 -->
   <el-dialog
     v-model="dialogVisible"
-    :title="currentLight?.name || '灯光详情'"
+    :title="currentLight?.name || '详情'"
     width="520px"
     top="5vh"
     :close-on-click-modal="false"
     destroy-on-close
+    class="dark-dialog"
   >
     <template v-if="currentLight">
       <div class="detail-body">
@@ -29,18 +30,15 @@
 
         <!-- 设备信息 -->
         <el-descriptions :column="2" border size="small" class="info-table">
-          <el-descriptions-item label="设备ID" :span="2">{{ currentLight.id }}</el-descriptions-item>
           <el-descriptions-item label="地块名称">{{ currentLight.spaceName }}</el-descriptions-item>
           <el-descriptions-item label="区域名称">
               {{ currentLight.areaName }}
           </el-descriptions-item>
-          <el-descriptions-item label="经度" :span="2">{{ currentLight.lng }}</el-descriptions-item>
-          <el-descriptions-item label="纬度" :span="2">{{ currentLight.lat }}</el-descriptions-item>
         </el-descriptions>
       </div>
     </template>
     <template #footer>
-      <el-button @click="dialogVisible = false">关闭</el-button>
+      <el-button class="btn-dark" @click="dialogVisible = false">关闭</el-button>
       <el-button
         type="primary"
         :loading="lightingLoading"
@@ -82,7 +80,7 @@ const mapConfig = {
   spriteUrl: `${window.location.origin}/map/assets/images/default_markers`,
   scenePath: "/data/",
   buildingId: buildingID,
-  defaultCenter: { lon: 116.15551, lat: 39.916878 },
+  defaultCenter: { lon: 116.162, lat: 39.912 },
   defaultZoomLevel: zoomNum,
   showOutDoorMap: false,
   mapDataPath: "/data/572d6c0c869b3e2ce85a63ab2a1d5a0a/{{bdid}}/",
@@ -182,8 +180,8 @@ const setMapZoom = () => {
     1200 < windowWidth && windowWidth < 1440
       ? 14.8
       : windowWidth > 1439
-        ? 15.5
-        : 16.5
+        ? 16.5
+        : 18.5
   );
 };
 
@@ -354,6 +352,41 @@ const toggleLight = async () => {
   }
 };
 
+/**
+ * 根据地块名称聚焦地图到该区域（取该地块下第一个标点作为基点）
+ */
+function focusToSpace(spaceName: string) {
+  if (!map.value || !spaceName) return;
+  // 从标点数据中找出属于该地块的第一个有效坐标
+  const target = lightingData.value.find(
+    (item) => item.spaceName === spaceName && item.location
+  );
+  if (!target) {
+    console.warn('未找到地块对应的标点:', spaceName);
+    return;
+  }
+  const [lng, lat] = target.location.split(',');
+  if (!lng || !lat) return;
+  // 聚焦并放大（纬度微偏，使目标点在视觉上偏上）
+  map.value.easeTo({
+    bdid: buildingID,
+    lon: parseFloat(lng),
+    lat: parseFloat(lat) + 0.002,
+    floorId: flid,
+  });
+  setTimeout(() => {
+    map.value.setZoom(
+      1200 < windowWidth && windowWidth < 1440
+        ? 15.5
+        : windowWidth > 1439
+          ? 16.0
+          : 16.5
+    );
+  }, 300);
+}
+
+defineExpose({ focusToSpace });
+
 onMounted(async () => {
   await loadMapScripts()
   initMap()
@@ -372,7 +405,7 @@ onUnmounted(() => {
 <style scoped>
 .map-container {
   width: 100%;
-  height: 420px;
+  height: 820px;
   border-radius: 6px;
   overflow: hidden;
 }
@@ -402,10 +435,10 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: #1a2d47;
   border-radius: 6px;
   margin-bottom: 16px;
-  color: #909399;
+  color: #8899aa;
   font-size: 14px;
 }
 
@@ -415,5 +448,57 @@ onUnmounted(() => {
 
 .info-table {
   margin-top: 4px;
+}
+</style>
+
+<style>
+/* 深色弹窗样式（全局，因为 el-dialog 会 teleport 到 body） */
+.dark-dialog.el-dialog {
+  background: #0f2035 !important;
+  border: 1px solid #1e3a5f !important;
+}
+
+.dark-dialog .el-dialog__header {
+  background: #0f2035 !important;
+  border-bottom: 1px solid #1e3a5f !important;
+}
+
+.dark-dialog .el-dialog__title {
+  color: #e0e6ed !important;
+}
+
+.dark-dialog .el-dialog__body {
+  background: #0f2035 !important;
+  color: #e0e6ed !important;
+}
+
+.dark-dialog .el-dialog__footer {
+  background: #0f2035 !important;
+  border-top: 1px solid #1e3a5f !important;
+}
+
+.dark-dialog .el-descriptions {
+  --el-descriptions-table-border: #1e3a5f !important;
+}
+
+.dark-dialog .el-descriptions .el-descriptions__content {
+  background-color: #0f2035 !important;
+  color: #ffffff !important;
+}
+
+.dark-dialog .el-descriptions .el-descriptions__label {
+  background-color: #152a42 !important;
+  color: #8899aa !important;
+}
+
+/* 深色主题按钮 */
+.dark-dialog .btn-dark {
+  background-color: #1e3a5f !important;
+  color: #ffffff !important;
+  border: 1px solid #2a4a6f !important;
+}
+
+.dark-dialog .btn-dark:hover {
+  background-color: #2a4a6f !important;
 }
 </style>
