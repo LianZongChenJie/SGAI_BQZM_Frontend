@@ -14,8 +14,7 @@
       </div>
       <div class="stat-card orange"> 
         <div class="stat-label">今日用电</div>
-        <div class="stat-value" style="color: var(--accent3)">{{ todayUsage }}</div>
-        <div class="stat-trend trend-up">kWh 较昨日 +12%</div>
+        <div class="stat-value" style="color: var(--accent3)">{{ todayUsage }} <span style="font-size: 14px; font-weight: 400;">kWh</span></div>
       </div>
       <div class="stat-card red">
         <div class="stat-label">待处理报警</div>
@@ -29,7 +28,7 @@
       <div class="card-title-row">
         <div class="card-title">🗺️ 地图模式 - 北区照明地块分布</div>
       </div>
-      <MapView />
+      <MapView ref="mapViewRef" />
     </div>
 
     <!-- 底部两栏 -->
@@ -91,20 +90,16 @@
 <script lang="ts" setup>
   import { ref, computed, onMounted } from 'vue';
   import MapView from './MapView.vue';
-  import { getOverviewStatsApi, allOnApi, allOffApi, getAllSpaceApi, getAllCircuitApi, openAreaApi, closeAreaApi, getAreaRunStatusApi } from './comprehensivePreview.api';
+  import { getOverviewStatsApi, allOnApi, allOffApi, getAllSpaceApi, getAllCircuitApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api';
   import { useMessage } from '/@/hooks/web/useMessage';
 
-  const { createMessage } = useMessage();
+  const mapViewRef = ref<InstanceType<typeof MapView> | null>(null);
+
+  const { createMessage, createConfirm } = useMessage();
 
   /** 总览统计数据 */
   const stats = ref({
-    blockCount: 0,
     blockCoverage: '0%',
-    onlineDevices: 0,
-    onlineRate: '0%',
-    todayUsage: '0',
-    usageTrend: '+0%',
-    alarmCount: 0,
   });
 
   /** 地图状态统计 */
@@ -158,53 +153,18 @@
     })
   );
 
-  /** 加载总览数据 */
+  /** 查询地块覆盖率 */
   async function loadStats() {
     try {
       const res = await getOverviewStatsApi();
+      const data = res?.result ?? res;
       stats.value = {
-        blockCount: res.blockCount ?? 12,
-        blockCoverage: res.blockCoverage ?? '100%',
-        onlineDevices: res.onlineDevices ?? 486,
-        onlineRate: res.onlineRate ?? '98.2%',
-        todayUsage: res.todayUsage ?? '2,845',
-        usageTrend: res.usageTrend ?? '+12%',
-        alarmCount: res.alarmCount ?? 3,
+        blockCoverage: data.coverageRate != null ? `${data.coverageRate}%` : '0%',
       };
-      mapStatus.value = {
-        normal: res.mapNormal ?? 10,
-        warning: res.mapWarning ?? 2,
-        offline: res.mapOffline ?? 0,
-      };
-      // 用 areaRunStatus 接口覆盖状态数据
-      try {
-        const statusRes = await getAreaRunStatusApi();
-        mapStatus.value = {
-          normal: statusRes.normal ?? statusRes.online ?? statusRes.normalCount ?? 0,
-          warning: statusRes.warning ?? statusRes.alarm ?? statusRes.warningCount ?? 0,
-          offline: statusRes.offline ?? statusRes.offlineCount ?? 0,
-        };
-      } catch { /* 忽略 */ }
     } catch {
-      // 接口未通时使用默认值
       stats.value = {
-        blockCount: 12,
-        blockCoverage: '100%',
-        onlineDevices: 486,
-        onlineRate: '98.2%',
-        todayUsage: '2,845',
-        usageTrend: '+12%',
-        alarmCount: 3,
+        blockCoverage: '0%',
       };
-      mapStatus.value = { normal: 10, warning: 2, offline: 0 };
-      try {
-        const statusRes = await getAreaRunStatusApi();
-        mapStatus.value = {
-          normal: statusRes.normal ?? statusRes.online ?? statusRes.normalCount ?? 10,
-          warning: statusRes.warning ?? statusRes.alarm ?? statusRes.warningCount ?? 2,
-          offline: statusRes.offline ?? statusRes.offlineCount ?? 0,
-        };
-      } catch { /* 忽略 */ }
     }
   }
 
@@ -239,46 +199,79 @@
   }
 
   /** 全区开灯 */
-  async function handleAllOn() {
-    try {
-      await allOnApi();
-      createMessage.success('全区开灯指令已下发');
-    } catch {
-      createMessage.error('操作失败');
-    }
+  function handleAllOn() {
+    createConfirm({
+      iconType: 'warning',
+      title: '确认操作',
+      content: '确定要执行全区开灯操作吗？',
+      onOk: async () => {
+        try {
+          await allOnApi();
+          createMessage.success('全区开灯指令已下发');
+        } catch {
+          createMessage.error('操作失败');
+        }
+      },
+    });
   }
 
   /** 全区关灯 */
-  async function handleAllOff() {
-    try {
-      await allOffApi();
-      createMessage.success('全区关灯指令已下发');
-    } catch {
-      createMessage.error('操作失败');
-    }
+  function handleAllOff() {
+    createConfirm({
+      iconType: 'warning',
+      title: '确认操作',
+      content: '确定要执行全区关灯操作吗？',
+      onOk: async () => {
+        try {
+          await allOffApi();
+          createMessage.success('全区关灯指令已下发');
+        } catch {
+          createMessage.error('操作失败');
+        }
+      },
+    });
   }
 
   /** 地块开灯控制 */
-  async function handleControlOn(item: any) {
-    try {
-      await openAreaApi(item.spaceId);
-      createMessage.success(`${item.spaceName} 开灯指令已下发`);
-    } catch {
-      createMessage.error('操作失败');
-    }
+  function handleControlOn(item: any) {
+    // 聚焦地图到该地块
+    mapViewRef.value?.focusToSpace(item.spaceName);
+    createConfirm({
+      iconType: 'warning',
+      title: '确认操作',
+      content: `确定要开启【${item.spaceName}】的灯光吗？`,
+      onOk: async () => {
+        try {
+          await openAreaApi(item.spaceId);
+          createMessage.success(`${item.spaceName} 开灯指令已下发`);
+        } catch {
+          createMessage.error('操作失败');
+        }
+      },
+    });
   }
 
   /** 地块关灯控制 */
-  async function handleControlOff(item: any) {
-    try {
-      await closeAreaApi(item.spaceId);
-      createMessage.success(`${item.spaceName} 关灯指令已下发`);
-    } catch {
-      createMessage.error('操作失败');
-    }
+  function handleControlOff(item: any) {
+    // 聚焦地图到该地块
+    mapViewRef.value?.focusToSpace(item.spaceName);
+    createConfirm({
+      iconType: 'warning',
+      title: '确认操作',
+      content: `确定要关闭【${item.spaceName}】的灯光吗？`,
+      onOk: async () => {
+        try {
+          await closeAreaApi(item.spaceId);
+          createMessage.success(`${item.spaceName} 关灯指令已下发`);
+        } catch {
+          createMessage.error('操作失败');
+        }
+      },
+    });
   }
 
   onMounted(() => {
+    loadStats();
     loadAllSpace();
     loadAllCircuit();
   });
