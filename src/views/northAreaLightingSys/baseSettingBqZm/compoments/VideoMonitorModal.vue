@@ -15,12 +15,7 @@
 
       <!-- 视频播放 -->
       <div class="video-box">
-        <div v-if="loadingVideo" class="video-placeholder">
-          <a-spin size="large" />
-          <div class="placeholder-text">正在获取视频流...</div>
-        </div>
         <VideoPlayer
-          v-show="!loadingVideo"
           :key="currentUrl"
           :url="currentUrl"
         />
@@ -35,31 +30,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { ref } from 'vue';
 import VideoPlayer from '../../equipmentMonitoring/components/VideoPlayer.vue';
 
 /* ==================== 弹框状态 ==================== */
 const open = ref(false);
 const cameraName = ref('');
 const currentUrl = ref('');
-const loadingVideo = ref(true);
 
 /* ==================== Mock 视频地址 ==================== */
 const videoUrlMap: Record<number, string> = {
-  1: '/video-stream/bipbop_adv_example_hevc/master.m3u8',
-  2: '/video-stream/bipbop_adv_example_hevc/master.m3u8',
-  3: '/video-stream/bipbop_adv_example_hevc/master.m3u8',
+  1: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160',
+  2: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160',
+  3: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160',
 };
 
 function showModal(row: { id: number; areaName?: string; name?: string }) {
   cameraName.value = row.areaName || row.name || '摄像头';
   currentUrl.value = videoUrlMap[row.id] || videoUrlMap[1];
-  loadingVideo.value = true;
   open.value = true;
-  // VideoPlayer 加载完成后关闭 loading（通过 onPlaying 事件自动处理，这里给个兜底超时）
-  setTimeout(() => {
-    loadingVideo.value = false;
-  }, 8000);
 }
 
 function closeModal() {
@@ -100,21 +89,6 @@ defineExpose({ showModal, closeModal });
   border-radius: 6px;
   overflow: hidden;
   position: relative;
-}
-
-.video-placeholder {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.placeholder-text {
-  font-size: 13px;
 }
 
 /* ==================== 底部按钮 ==================== */

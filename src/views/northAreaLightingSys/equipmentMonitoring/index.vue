@@ -55,7 +55,7 @@
             :key="cam.id"
             class="detail-video"
           >
-            <div class="video-label">{{ cam.name }}</div>
+            <!-- <div class="video-label">{{ cam.name }}</div> -->
             <VideoPlayer :url="cam.url" />
           </div>
         </div>
@@ -797,12 +797,18 @@ const activeCameras = ref<{ id: number; name: string; url: string }[]>([])
 
 // Mock 全量摄像头列表（后续替换为接口）
 const allCameraList = ref<{ id: number; name: string; url: string }[]>([
-  { id: 1, name: 'A1地块主入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  { id: 2, name: 'B2滨水绿道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  { id: 3, name: 'C3停车场入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  { id: 4, name: 'D4南门监控摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  { id: 5, name: 'E5北区主干道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  { id: 6, name: 'F6西门出入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  // { id: 1, name: 'A1地块主入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  // { id: 2, name: 'B2滨水绿道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  // { id: 3, name: 'C3停车场入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  // { id: 4, name: 'D4南门监控摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  // { id: 5, name: 'E5北区主干道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  // { id: 6, name: 'F6西门出入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  { id: 1, name: 'A1地块主入口摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
+  { id: 2, name: 'B2滨水绿道摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
+  { id: 3, name: 'C3停车场入口摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
+  { id: 4, name: 'D4南门监控摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
+  { id: 5, name: 'E5北区主干道摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
+  { id: 6, name: 'F6西门出入口摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
 ])
 
 function onRefreshVideo() {
