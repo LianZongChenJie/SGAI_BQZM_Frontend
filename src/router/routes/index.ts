@@ -39,8 +39,6 @@ export const LoginRoute: AppRouteRecordRaw = {
   },
 };
 
-
-
 //update-begin---author:wangshuai ---date:20220629  for：auth2登录页面路由------------
 export const Oauth2LoginRoute: AppRouteRecordRaw = {
   path: '/oauth2-app/login',
@@ -66,5 +64,26 @@ export const TokenLoginRoute: AppRouteRecordRaw = {
     ignoreAuth: true,
   },
 };
+
+export const bigGisRoute: AppRouteRecordRaw = {
+  path: '/bigGis',
+  name: 'BigGis',
+  component: () => import('/@/layouts/header-only/index.vue'),
+  redirect: '/bigGis/index',
+  meta: {
+    title: '大屏',
+    hideMenu: true,
+  },
+  children: [
+    {
+      path: 'index',
+      name: 'BigGisPage',
+      component: () => import('/@/views/northAreaLightingSys/bigGis/index.vue'),
+      meta: {
+        title: '大屏',
+      },
+    },
+  ],
+};
 // Basic routing without permission
-export const basicRoutes = [LoginRoute, RootRoute, ...mainOutRoutes, REDIRECT_ROUTE, PAGE_NOT_FOUND_ROUTE, TokenLoginRoute, Oauth2LoginRoute];
+export const basicRoutes = [LoginRoute, bigGisRoute, RootRoute, ...mainOutRoutes, REDIRECT_ROUTE, PAGE_NOT_FOUND_ROUTE, TokenLoginRoute, Oauth2LoginRoute];

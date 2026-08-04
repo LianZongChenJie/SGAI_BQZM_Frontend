@@ -27,7 +27,7 @@
     <!-- menu-end -->
 
     <!-- action  -->
-    <div>
+    <div class="header-action">
       <!-- <AppSearch :class="`${prefixCls}-action__item `" v-if="getShowSearch" /> -->
 
       <!-- <ErrorAction v-if="getUseErrorHandle" :class="`${prefixCls}-action__item error-action`" /> -->
@@ -39,8 +39,11 @@
       <!-- <LockScreen v-if="getUseLockPage" /> -->
 
       <!-- <AppLocalePicker v-if="getShowLocalePicker" :reload="true" :showText="false" :class="`${prefixCls}-action__item`" /> -->
-
+      <a-button class="mode-toggle-btn" @click="toggleMode">
+        {{ isBigGis ? '表单模式' : '地图模式' }}
+      </a-button>
       <UserDropDown :theme="getHeaderTheme" />
+
 
       <!-- <SettingDrawer v-if="getShowSetting" :class="`${prefixCls}-action__item`" /> -->
       <!-- ai助手 -->
@@ -81,7 +84,7 @@
   import { useI18n } from '/@/hooks/web/useI18n';
   import Aide from "@/views/dashboard/ai/components/aide/index.vue"
 
-  import { useRoute } from 'vue-router';
+  import { useRoute, useRouter } from 'vue-router';
 
   const { t } = useI18n();
 
@@ -116,10 +119,19 @@
       const { getUseErrorHandle, getShowSettingButton, getSettingButtonPosition } = useRootSetting();
       const { title } = useGlobSetting();
         const route = useRoute();
+  const router = useRouter();
   const menuTitle = computed(() => route.meta?.title ?? (route.name as
   string));
   console.log("---------------vue-------")
   console.log(menuTitle.value)
+  const isBigGis = computed(() => route.path.startsWith('/bigGis'));
+  function toggleMode() {
+    if (isBigGis.value) {
+      router.push('/northAreaLightingSys/comprehensivePreview');
+    } else {
+      router.push('/bigGis');
+    }
+  }
       const {
         getHeaderTheme,
         getShowFullScreen,
@@ -228,7 +240,9 @@
         loginSelectRef,
         title,
         t,
-        menuTitle
+        menuTitle,
+        isBigGis,
+        toggleMode
       };
     },
   });
@@ -298,8 +312,31 @@
   height: 8px;
   background-color: #10b981; /* 实心绿色 (Emerald-500) */
   border-radius: 50%;
-  
+
   /* 关键：添加外发光效果，模拟指示灯 */
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3); 
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+}
+
+/* 头部操作区：按钮与用户信息并排 */
+.header-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 地图/表单模式切换按钮 */
+.mode-toggle-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  border: 1px solid rgba(59, 130, 246, 0.5) !important;
+  color: #fff !important;
+  border-radius: 6px;
+  height: 32px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  &:hover {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    border-color: rgba(59, 130, 246, 0.8) !important;
+  }
 }
 </style>
