@@ -109,7 +109,7 @@
                 >{{ row.status }}</span>
               </td>
               <td class="actions">
-                <button class="action-btn">监控视频</button>
+                <button class="action-btn" @click="videoMonitorModalOpen(row)">监控视频</button>
                 <button class="action-btn" @click="circuitListModalOpenChange(row)">回路列表</button>
                 <button class="action-btn btn-primary" @click="onOpenRow(row)">全开</button>
                 <button class="action-btn btn-danger" @click="onCloseRow(row)">全关</button>
@@ -143,6 +143,8 @@
   <configOpenMessageTwo ref="configOpenMessageRefTwo" @success="onModalConfigOpenMessageSuccessTwo($event)"></configOpenMessageTwo>
   <!-- 回路列表 -->
   <circuitListModal ref="circuitListModalRef" @success="circuitListModalSuccess($event)"></circuitListModal>
+  <!-- 监控视频弹框 -->
+  <VideoMonitorModal ref="videoMonitorModalRef"></VideoMonitorModal>
 </template>
 
 <script setup lang="ts">
@@ -151,6 +153,7 @@ import { getRelName, getAllSpace, getAreaListPageApi, setAreaOpenApi, setAreaClo
 import configOpenMessage from './compoments/configOpenMessage.vue';
 import configOpenMessageTwo from './compoments/configOpenMessageTwo.vue';
 import circuitListModal from './compoments/circuitListModal.vue';
+import VideoMonitorModal from './compoments/VideoMonitorModal.vue';
 
 import { message } from 'ant-design-vue';
 /* --------------------- 模拟数据 --------------------- */
@@ -374,6 +377,7 @@ const handleClose = async (record) => {
 
 // 回路列表
 const circuitListModalRef = ref<InstanceType<typeof circuitListModal>>();
+const videoMonitorModalRef = ref<InstanceType<typeof VideoMonitorModal> | null>(null);
 const circuitListModalOpenChange = (rowObj) => {
   circuitListModalRef.value?.showModal({
     row: rowObj,
@@ -381,6 +385,11 @@ const circuitListModalOpenChange = (rowObj) => {
 }
 const circuitListModalSuccess = () =>{
   onSearch()
+}
+
+// 监控视频弹框
+const videoMonitorModalOpen = (row) => {
+  videoMonitorModalRef.value?.showModal(row);
 }
 
 /* --------------------- 翻页 --------------------- */

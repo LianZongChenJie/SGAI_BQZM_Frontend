@@ -9,7 +9,7 @@
     @cancel="onCancel"
   >
     <!-- ==================== 表单 + 表格 统一 Loading 容器 ==================== -->
-    <div v-loading="tableLoading" class="modal-body-content">
+    <div v-loading="tableLoading || submitLoading" class="modal-body-content">
       <!-- ==================== 表单区域 ==================== -->
       <a-form
         ref="formRef"

@@ -38,16 +38,27 @@
           </header>
 
           <div class="video-grid">
-            <div v-for="v in videoList" :key="v.id" class="video-card">
-              <div class="video-placeholder">
-                <svg class="video-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M23 7l-7 5 7 5V7z"/>
-                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-                </svg>
-                <p class="video-name">{{ v.name }}</p>
-                <p class="video-desc">{{ v.desc }}</p>
-              </div>
-            </div>
+          <div class="video-grid-cameras">
+          <!-- 未选择摄像头 -->
+          <div v-if="activeCameras.length === 0 && !modalLoading" class="video-placeholder">
+            <video-camera-outlined class="video-icon" />
+            <div class="video-text">请点击「获取视频列表」选择摄像头</div>
+          </div>
+          <!-- 加载中 -->
+          <div v-if="modalLoading" class="video-placeholder">
+            <a-spin size="large" />
+            <div class="video-text">正在获取视频流...</div>
+          </div>
+          <!-- 播放视频 -->
+          <div
+            v-for="cam in activeCameras"
+            :key="cam.id"
+            class="detail-video"
+          >
+            <div class="video-label">{{ cam.name }}</div>
+            <VideoPlayer :url="cam.url" />
+          </div>
+        </div>
           </div>
         </section>
 
@@ -326,6 +337,7 @@
   <TimerEnableModal ref="timerEnableModalRef" @success="onTimerEnableSuccess"></TimerEnableModal>
   <sceneConfirmModal ref="sceneConfirmModalRef" @success="onSceneConfirmSuccess"></sceneConfirmModal>
   <CalendarEventDetailModal ref="calendarEventDetailModalRef"></CalendarEventDetailModal>
+  <CameraListModal ref="cameraModalRef" :cameraList="allCameraList" @confirm="onCameraConfirm"></CameraListModal>
 </template>
 
 <script setup lang="ts">
@@ -336,8 +348,10 @@ import createNewTimerModal from './components/createNewTimerModal.vue';
 import TimerEnableModal from './components/TimerEnableModal.vue';
 import sceneConfirmModal from './components/sceneConfirmModal.vue';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
+import CameraListModal from './components/CameraListModal.vue';
 import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, getCalendarControlApi, getLightingPlanAPiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring';
 import { message } from 'ant-design-vue';
+import VideoPlayer from './components/VideoPlayer.vue'
 
 // 定时任务 src\views\bems\lightingControl\components\TimingControl.vue
 
@@ -357,18 +371,6 @@ const tabs = [
 const activeTab = ref('monitor');
 
 /* --------------------- 视频流数据 --------------------- */
-const videoList = ref([
-  {
-    id: 'v1',
-    name: '视频流1 - A1地块主入口',
-    desc: '实时查看现场开关灯状态',
-  },
-  {
-    id: 'v2',
-    name: '视频流2 - B2滨水绿道',
-    desc: '实时查看现场开关灯状态',
-  },
-]);
 
 /* --------------------- 场景数据 --------------------- */
 const sceneList = ref<any[]>([]);
@@ -464,9 +466,6 @@ async function fetchSceneList() {
   loadingSceneList.value = false
 }
 
-function onRefreshVideo() {
-  console.log('刷新视频');
-}
 
 
 function onExecute(s) {
@@ -792,12 +791,99 @@ function goToToday() {
   fetchCalendarRecords();
 }
 
+// 视频播放
+const modalLoading = ref(false)
+const activeCameras = ref<{ id: number; name: string; url: string }[]>([])
+
+// Mock 全量摄像头列表（后续替换为接口）
+const allCameraList = ref<{ id: number; name: string; url: string }[]>([
+  { id: 1, name: 'A1地块主入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  { id: 2, name: 'B2滨水绿道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  { id: 3, name: 'C3停车场入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  { id: 4, name: 'D4南门监控摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  { id: 5, name: 'E5北区主干道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+  { id: 6, name: 'F6西门出入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
+])
+
+function onRefreshVideo() {
+  cameraModalRef.value?.showModal()
+}
+
+/** FIFO 弹框确认：新选中 → 移除最旧的 → push 新的，最多保持 2 个 */
+function onCameraConfirm(cameras: { id: number; name: string; url: string }[]) {
+  for (const cam of cameras) {
+    // 跳过已在播放中的
+    if (activeCameras.value.some((c) => c.id === cam.id)) continue
+    if (activeCameras.value.length >= 2) {
+      activeCameras.value.shift() // 移除最旧（先进先出）
+    }
+    activeCameras.value.push(cam)
+  }
+}
+
+// 摄像头弹框 ref
+const cameraModalRef = ref<InstanceType<typeof CameraListModal> | null>(null)
+
 onMounted(() => {
   fetchSceneList();
+  // 进入页面：优先展示列表前两个
+  activeCameras.value = allCameraList.value.slice(0, 2)
 });
 </script>
 
 <style scoped>
+/* ==================== 视频网格 ==================== */
+.video-grid-cameras {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.detail-video {
+  margin-bottom: 20px;
+  width: calc(50% - 8px);
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+
+  .video-label {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 2;
+    padding: 2px 10px;
+    font-size: 11px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 4px;
+    backdrop-filter: blur(4px);
+    max-width: calc(100% - 16px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .video-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.5);
+    
+    .video-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .video-text {
+      font-size: 16px;
+    }
+  }
+}
 /* ------------------- 颜色变量 ------------------- */
 .page-wrapper {
   --bg-page: #0b111e;
@@ -983,9 +1069,7 @@ onMounted(() => {
 
 /* ------------------- 视频流区域 ------------------- */
 .video-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  min-height: 260px;
 }
 
 .video-card {
@@ -1481,8 +1565,12 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .video-grid {
-    grid-template-columns: 1fr;
+  .video-grid-cameras {
+    flex-direction: column;
+  }
+
+  .detail-video {
+    width: 100%;
   }
 
   .scene-grid {
