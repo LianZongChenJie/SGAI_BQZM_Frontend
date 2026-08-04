@@ -13,13 +13,9 @@
   >
     <template v-if="currentLight">
       <div class="detail-body">
-        <!-- 视频播放区域 -->
+        <!-- 视频播放区域（iframe 形式，monitorAdr 作为参数拼接地址） -->
         <div v-if="currentLight.videoUrl" class="video-wrapper">
-          <iframe
-            :src="currentLight.videoUrl"
-            frameborder="0"
-            allowfullscreen
-          ></iframe>
+          <VideoPlayer :url="currentLight.videoUrl" />
         </div>
         <div v-else class="video-placeholder">
           <el-icon :size="48" color="#dcdfe6">
@@ -55,20 +51,52 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { loadMapScripts } from '/@/components/map/loadMapScripts'
 import { getAllAreaApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api'
 import { VideoCamera } from '@element-plus/icons-vue'
+import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
+
+// 监控平台 iframe 地址前缀（与设备监控页面保持一致），monitorAdr 为监控通道编码
+const MONITOR_BASE_URL = 'http://10.168.47.23:4000/index.html?id=';
 import lightOnImg from '/@/assets/images/lightOn.png'
 import lightOffImg from '/@/assets/images/lightOff.png'
 
 let map = ref(null);
+// 当前展开的成员列表（点击地图空白时自动关闭）
+let openedListEl: HTMLElement | null = null;
+
+/**
+ * 关闭当前展开的成员列表
+ */
+function closeAllMarkerLists() {
+  if (openedListEl) {
+    openedListEl.style.display = 'none';
+    openedListEl = null;
+  }
+}
+
+/**
+ * 点击地图空白时自动关闭展开的成员列表（捕获阶段，标点主体/列表项点击不触发）
+ */
+function handleDocumentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  // 点击列表项：由列表项自己处理，不在此关闭
+  if (target.closest('.marker-list-item')) return;
+  // 点击标点主体：由标点主体自己处理 toggle，不在此关闭
+  if (target.closest('.light-marker')) return;
+  closeAllMarkerLists();
+}
 const buildingInfo = ref<unknown[]>([]);
 let marker = ref(null);
 let flid = null;
 const windowWidth = window.outerWidth;
-let zoomNum =
-  1200 < windowWidth && windowWidth < 1440
-    ? 14
-    : windowWidth > 1439
-      ? 14.6
-      : 15.5;
+// 根据屏幕宽度设置初始缩放级别
+let zoomNum: number;
+if (windowWidth > 1439) {
+  zoomNum = 15.95; // 大屏
+} else if (windowWidth > 1200) {
+  zoomNum = 14.45; // 中屏
+} else {
+  zoomNum = 15.95; // 小屏
+}
+console.log(zoomNum);
 // 配置参数
 const buildingID = "B000A11DMD";
 const token = "572d6c0c869b3e2ce85a63ab2a1d5a0a";
@@ -91,7 +119,8 @@ const initMap = async () => {
     map.value = await new DaxiMap.Map("mapContainer", mapConfig);
     map.value.on("loadComplete", async () => {
       console.log("地图加载完成");
-      map.value.setZoomLevelRange(zoomNum, 23);
+      // 设置缩放范围：最小10级，最大23级
+      map.value.setZoomLevelRange(10, 23);
       buildingInfo.value = map.value.getBuildingInfo(buildingID);
       // 获取当前楼层ID（标点需绑定楼层场景，flid 为空会导致 SDK addToMap 报错）
       await initFloorId();
@@ -99,6 +128,13 @@ const initMap = async () => {
       setTimeout(async () => {
         await loadLightingData();
         AddLightingMarker();
+        // 初始化时聚焦到金安桥
+        map.value.easeTo({
+          bdid: buildingID,
+          lon: 116.15521113890562,
+          lat: 39.924386114869634-0.0036,
+          floorId: flid,
+        });
       }, 800);
     });
     console.log("地图初始化成功");
@@ -202,9 +238,39 @@ const focusMapTo = (item: any) => {
 };
 
 /**
+ * 标点主体点击：
+ * - 成员数 >1：第一次点击展示成员列表，再次点击收起
+ * - 仅 1 条：直接打开详情弹框
+ */
+const handleMarkerMainClick = (data: any, group: any[]) => {
+  if (group.length > 1) {
+    const el = document.getElementById(`light-${String(data.type)}-${String(data.id)}`);
+    const listEl = el?.querySelector<HTMLElement>('.marker-list');
+    if (listEl) {
+      // 关闭其他已展开的列表
+      closeAllMarkerLists();
+      // 切换当前列表显隐
+      const isHidden = listEl.style.display === 'none';
+      listEl.style.display = isHidden ? 'block' : 'none';
+      openedListEl = isHidden ? listEl : null;
+    }
+    return;
+  }
+  openLightDetail(data);
+};
+
+/**
  * 自定义标记：基于 DaxiMap.DXMapMarker，支持自定义 DOM
  */
-const customizeMarker = (elDom: string, lat: string, lng: string, text: string, data: any) => {
+const customizeMarker = (
+  elDom: string,
+  lat: string,
+  lng: string,
+  text: string,
+  data: any,
+  group: any[] = [],
+  domId: string = ''
+) => {
   if (!map.value) return null;
   const markerInfo = {
     bdid: buildingID, // 楼栋ID
@@ -218,13 +284,34 @@ const customizeMarker = (elDom: string, lat: string, lng: string, text: string, 
     console.warn('当前无有效楼层ID，跳过标记:', text);
     return null;
   }
-  const marker = new DaxiMap.DXMapMarker();
-  marker.initialize(map.value, markerInfo, {
-    anchor: 'bottom',
-    onClick: () => openLightDetail(data),
-  });
-  marker.addToMap();
-  return marker;
+  try {
+    const marker = new DaxiMap.DXMapMarker();
+    marker.initialize(map.value, markerInfo, {
+      anchor: 'bottom',
+      onClick: () => handleMarkerMainClick(data, group),
+    });
+    marker.addToMap();
+    // 成员列表项点击：打开对应设备详情并收起列表（阻止冒泡，避免触发主标点点击逻辑）
+    if (domId && group.length) {
+      const el = document.getElementById(domId);
+      el?.addEventListener('click', (e) => {
+        const li = (e.target as HTMLElement)?.closest?.('.marker-list-item');
+        if (!li) return;
+        e.stopPropagation();
+        closeAllMarkerLists();
+        const gid = li.getAttribute('data-id');
+        const gtype = li.getAttribute('data-type');
+        const target = group.find(
+          (g) => String(g.id) === gid && String(g.type) === gtype
+        );
+        if (target) openLightDetail(target);
+      });
+    }
+    return marker;
+  } catch (error) {
+    console.error('标点创建异常:', text, '坐标:', lng, lat, '数据:', data, '错误:', error);
+    return null;
+  }
 };
 
 /**
@@ -242,20 +329,55 @@ const clearMarker = (marker: any) => {
 /**
  * 根据单个设备数据生成对应的标记 DOM
  */
-function buildMarkerDom(item: any): string {
+function buildMarkerDom(item: any, group: any[] = []): string {
   let lightIcon: string;
   if (item.status === '关闭') {
     lightIcon = item.type == 1 ? lightOff : areaLightOff;
   } else {
     lightIcon = item.type == 1 ? lightOn : areaLightOn;
   }
-  return `<div class="light-marker" id="light-${item.type}-${item.id}" style="
+  // 统一 type/id 为字符串，避免数字与字符串混用导致 DOM id 碰撞
+  const domId = `light-${String(item.type)}-${String(item.id)}`;
+  // 标点成员列表（点击标点主体时切换展示，点击某一项打开对应设备详情）
+  const listItems = group
+    .map(
+      (g) =>
+        `<div class="marker-list-item" data-id="${String(g.id)}" data-type="${String(g.type)}">${g.areaName || '灯光'}</div>`
+    )
+    .join('');
+  const listHtml = listItems ? `<div class="marker-list" style="display: none;">${listItems}</div>` : '';
+  // 同坐标成员个数徽标（大于 1 时展示）
+  const badgeHtml =
+    group.length > 1
+      ? `<span class="marker-count-badge" style="
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          background: #0ea5e9;
+          color: #ffffff;
+          font-size: 10px;
+          font-weight: 600;
+          line-height: 16px;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          border-radius: 8px;
+          text-align: center;
+          box-sizing: border-box;
+          z-index: 20;
+        ">${group.length}</span>`
+      : '';
+  return `<div class="light-marker" id="${domId}" style="
     width: 50px;
     height: 100px;
     background-image: url('${lightIcon}');
     background-size: contain;
     background-repeat: no-repeat;
-  "></div>`;
+    position: relative;
+  ">
+    ${badgeHtml}
+    ${listHtml}
+  </div>`;
 }
 
 /**
@@ -269,32 +391,45 @@ async function AddLightingMarker() {
   });
   lightingMarkerArr.value = [];
 
-  // 2. 遍历数据，为有经纬度的点位生成标记
-  let hasLocation = 0, noLocation = 0, markerFail = 0;
-  const idSet = new Set();
+  // 2. 按坐标分组：同坐标的多个标点合并为一个标点，hover 时展示成员列表
+  const locGroupMap = new Map<string, any[]>();
   lightingData.value.forEach((item) => {
-    if (!item.location) { noLocation++; return; }
+    if (!item.location) return;
     const [lng, lat] = item.location.split(',');
-    if (!lng || !lat || isNaN(parseFloat(lng)) || isNaN(parseFloat(lat))) { noLocation++; return; }
-    hasLocation++;
+    if (!lng || !lat || isNaN(parseFloat(lng)) || isNaN(parseFloat(lat))) return;
+    const key = String(item.location).trim();
+    if (!locGroupMap.has(key)) locGroupMap.set(key, []);
+    locGroupMap.get(key)!.push(item);
+  });
 
-    // 检查 DOM ID 是否重复
-    const domId = `light-${item.type}-${item.id}`;
-    if (idSet.has(domId)) {
-      console.warn('标点ID重复，跳过:', domId, item.areaName);
-      return;
-    }
-    idSet.add(domId);
+  // 3. 遍历数据，为有经纬度的点位生成标记（同坐标合并为一个标点）
+  let markerFail = 0;
+  const handledLoc = new Set<string>();
+  lightingData.value.forEach((item) => {
+    if (!item.location) return;
+    const [lng, lat] = item.location.split(',');
+    if (!lng || !lat || isNaN(parseFloat(lng)) || isNaN(parseFloat(lat))) return;
 
-    const elDom = buildMarkerDom(item);
-    const marker = customizeMarker(elDom, lat, lng, item.areaName || '泛光照明', item);
+    const locKey = String(item.location).trim();
+    const group = locGroupMap.get(locKey) || [item];
+
+    // 同坐标只创建一个标点，其余成员合并进 hover 列表
+    if (handledLoc.has(locKey)) return;
+    handledLoc.add(locKey);
+
+    // 组内第一条作为主标点
+    const main = group[0];
+    const domId = `light-${String(main.type)}-${String(main.id)}`;
+
+    const elDom = buildMarkerDom(main, group);
+    const marker = customizeMarker(elDom, lat, lng, main.areaName || '泛光照明', main, group, domId);
     if (!marker) {
       markerFail++;
-      console.warn('标点创建失败:', item.areaName, '坐标:', lng, lat);
+      console.warn('标点创建失败:', main.areaName, '坐标:', lng, lat);
     }
     lightingMarkerArr.value.push(marker);
   });
-  console.log(`标点统计: 总数据${lightingData.value.length}条, 有坐标${hasLocation}条, 无坐标${noLocation}条, 创建失败${markerFail}条, 最终标记${lightingMarkerArr.value.filter(Boolean).length}条`);
+  if (markerFail) console.warn(`标点创建失败 ${markerFail} 条`);
 }
 
 /**
@@ -302,7 +437,7 @@ async function AddLightingMarker() {
  */
 function updateSingleMarker(item: any) {
   // 直接通过 DOM 修改标记的背景图片，不触发 SDK 的 remove/add 流程
-  const el = document.getElementById(`light-${item.type}-${item.id}`);
+  const el = document.getElementById(`light-${String(item.type)}-${String(item.id)}`);
   if (el) {
     let lightIcon: string;
     if (item.status === '关闭') {
@@ -319,7 +454,9 @@ function updateSingleMarker(item: any) {
  */
 const openLightDetail = (item: any) => {
   const [lng, lat] = (item.location || '').split(',');
-  currentLight.value = { ...item, lng: lng || '', lat: lat || '' };
+  // 直接根据监控通道编码（monitorAdr）拼接 iframe 地址，不再走接口
+  const videoUrl = item.monitorAdr ? `${MONITOR_BASE_URL}${item.monitorAdr}` : '';
+  currentLight.value = { ...item, lng: lng || '', lat: lat || '', videoUrl };
   dialogVisible.value = true;
 };
 
@@ -366,6 +503,7 @@ function focusToSpace(spaceName: string) {
     return;
   }
   const [lng, lat] = target.location.split(',');
+  console.log(buildingID, parseFloat(lng), parseFloat(lat) + 0.002, flid)
   if (!lng || !lat) return;
   // 聚焦并放大（纬度微偏，使目标点在视觉上偏上）
   map.value.easeTo({
@@ -390,6 +528,8 @@ defineExpose({ focusToSpace });
 onMounted(async () => {
   await loadMapScripts()
   initMap()
+  // 点击地图空白时自动关闭展开的成员列表（捕获阶段）
+  document.addEventListener('click', handleDocumentClick, true);
 })
 
 onUnmounted(() => {
@@ -399,6 +539,8 @@ onUnmounted(() => {
   if (map.value) {
     map.value = null
   }
+  // 移除全局点击监听
+  document.removeEventListener('click', handleDocumentClick, true);
 })
 </script>
 
@@ -429,6 +571,11 @@ onUnmounted(() => {
   height: 100%;
 }
 
+.video-wrapper :deep(.video-player-wrap) {
+  width: 100%;
+  height: 100%;
+}
+
 .video-placeholder {
   height: 200px;
   display: flex;
@@ -452,6 +599,42 @@ onUnmounted(() => {
 </style>
 
 <style>
+/* 标点成员列表（点击标点主体时切换展示；标点 DOM 由 SDK 注入到组件作用域外，需全局样式） */
+.light-marker .marker-list {
+  display: none;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 130px;
+  max-width: 220px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: rgba(10, 22, 40, 0.95);
+  border: 1px solid #2a4a6f;
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 1000;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+.light-marker .marker-list-item {
+  padding: 6px 10px;
+  color: #e0e6ed;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 4px;
+}
+
+.light-marker .marker-list-item:hover {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+}
+
 /* 深色弹窗样式（全局，因为 el-dialog 会 teleport 到 body） */
 .dark-dialog.el-dialog {
   background: #0f2035 !important;
