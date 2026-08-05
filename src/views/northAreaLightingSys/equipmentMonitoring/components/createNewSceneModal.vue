@@ -2,15 +2,16 @@
   <a-modal
     v-model:open="visible"
     :title="title"
-    width="1000px"
-    wrapClassName="dark-tech-modal"
+    width="1100px"
+    wrapClassName="dark-tech-modal create-scene-modal"
     :footer="null"
+    top="20px"
     :maskClosable="false"
     @cancel="onCancel"
   >
     <!-- ==================== 表单 + 表格 统一 Loading 容器 ==================== -->
     <div v-loading="tableLoading || submitLoading" class="modal-body-content">
-      <!-- ==================== 表单区域 ==================== -->
+      <!-- ==================== 单一 <a-form> 包裹，使用 <a-row>/<a-col> 栅格布局 ==================== -->
       <a-form
         ref="formRef"
         :model="formData"
@@ -18,80 +19,149 @@
         class="dark-form"
         :label-col="{ style: { width: '80px' } }"
         :disabled="isDetail"
+        autocomplete="off"
       >
-        <div class="form-row">
-          <a-form-item label="控制类型" name="relType">
-            <a-select
-              v-model:value="formData.relType"
-              placeholder="请选择控制类型"
-              :options="relTypeOptions"
-              allowClear
-              @change="handleChangeRelType"
-            />
-          </a-form-item>
-          <a-form-item label="名称" name="planName">
-            <a-input
-              v-model:value="formData.planName"
-              placeholder="请输入名称"
-              allowClear
-            />
-          </a-form-item>
+        <!-- ==================== 搜索项分组 ==================== -->
+        <div class="search-section">
+          <div class="section-title">搜索项</div>
+          <!-- 第 1 行：控制类型 / 区域 / 名称 -->
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item label="控制类型" name="relType">
+                <div style="width:100%">
+                  <a-select
+                    style="width:100%"
+                    v-model:value="formData.relType"
+                    placeholder="请选择控制类型"
+                    :options="relTypeOptions"
+                    allowClear
+                    @change="handleChangeRelType"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="区域">
+                <div style="width:100%">
+                  <a-select
+                    style="width:100%"
+                    v-model:value="filterSpaceName"
+                    :options="tagOptions"
+                    placeholder="请选择区域"
+                    allowClear
+                    show-search
+                    :filter-option="handleFilterTagOption"
+                    :loading="tagLoading"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="名称">
+                <div style="width:100%">
+                  <a-input
+                    style="width:100%"
+                    v-model:value="filterAreaName"
+                    placeholder="请输入名称"
+                    allowClear
+                    autocomplete="off"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <!-- 第 2 行：回路名称 -->
+          <a-row :gutter="16">
+            <a-col :span="8" v-if="formData.relType === '回路'">
+              <a-form-item label="回路名称">
+                <div style="width:100%">
+                  <a-input
+                    style="width:100%"
+                    v-model:value="filterCircuitName"
+                    placeholder="请输入回路名称"
+                    allowClear
+                    autocomplete="off"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="formData.relType === '回路' ? 16 : 24"></a-col>
+          </a-row>
         </div>
-      </a-form>
 
-      <!-- ==================== 表格区域 ==================== -->
-      <section class="table-section">
-      <div class="table-scroll">
-        <table class="device-table">
-          <thead>
-            <tr>
-              <th class="col-checkbox" v-show="!isDetail">
-                <input
-                  type="checkbox"
-                  :checked="isAllSelected"
-                  :indeterminate.prop="isIndeterminate"
-                  @change="onSelectAllChange"
+        <!-- ==================== 第 3 行：表格 ==================== -->
+        <a-row :gutter="16">
+          <a-col :span="24">
+            <div class="table-wrapper">
+              <vxe-table
+                ref="tableRef"
+                :data="filteredTableData"
+                :loading="tableLoading || tableFilterLoading"
+                :row-config="{ keyField: 'id', height: 32 }"
+                :checkbox-config="{ checkField: '_checked' }"
+                max-height="420"
+                border="none"
+                @checkbox-change="onCheckboxChange"
+                @checkbox-all="onCheckboxAll"
+              >
+                <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
+                <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
+                <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
+                <vxe-column field="areaName" title="名称"></vxe-column>
+                <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
+              </vxe-table>
+            </div>
+          </a-col>
+        </a-row>
+
+        <!-- ==================== 第 4 行：标签 / 场景名称 ==================== -->
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="标签" name="spaceId">
+              <div style="width:100%">
+                <a-select
+                  style="width:100%"
+                  v-model:value="formData.spaceId"
+                  placeholder="请选择标签"
+                  :options="tagOptions"
+                  allowClear
+                  :filter-option="handleFilterTagOption"
+                  :loading="tagLoading"
                 />
-              </th>
-              <th>序号</th>
-              <th>区域</th>
-              <th>名称</th>
-              <th v-show="formData.relType === '回路'">回路名称</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, idx) in tableData" :key="row.id">
-              <td class="col-checkbox" v-show="!isDetail">
-                <input
-                  type="checkbox"
-                  :checked="selectedRowKeys.includes(row.id)"
-                  @change="onRowSelect(row)"
+              </div>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="场景名称" name="planName">
+              <div style="width:100%">
+                <a-input
+                  style="width:100%"
+                  v-model:value="formData.planName"
+                  placeholder="请输入场景名称"
+                  allowClear
+                  autocomplete="off"
                 />
-              </td>
-              <td>{{ idx + 1 }}</td>
-              <td>{{ row.spaceName }}</td>
-              <td>{{ row.areaName }}</td>
-              <td v-show="formData.relType === '回路'">{{ row.circuitName }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+              </div>
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
     </div>
 
-    <!-- ==================== 底部按钮 ==================== -->
-    <div class="modal-footer">
+    <!-- ==================== Modal 底部操作按钮 ==================== -->
+    <div class="modal-footer" v-if="!isDetail">
       <button class="btn btn-cancel" @click="onCancel">取消</button>
-      <button v-if="mode == 'add'" class="btn btn-submit" :loading="submitLoading" @click="onSubmit">确认创建</button>
+      <button class="btn btn-submit" :loading="submitLoading" @click="onSubmit">确认创建</button>
     </div>
   </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick } from 'vue';
+import { ref, reactive, computed, nextTick, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
 import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring'
+import { getAllSpace } from '@/api/baseSettingBqZm';
 
 // 对应src\views\bems\lightingControl\components\TimingControlModal.vue
 // ==================== Emits ====================
@@ -106,12 +176,13 @@ const mode = ref<'add' | 'edit' | 'detail'>('add');
 const editRecord = ref<any>(null);
 const formRef = ref<FormInstance>();
 
-const title = computed(() => (mode.value === 'add' ? '创建新场景' : '场景详情'));
+const title = computed(() => (mode.value === 'add' ? '创建新场景' : mode.value === 'edit' ? '编辑场景': '场景详情'));
 const isDetail = computed(() => mode.value === 'detail');
 // 表单数据
 const formData = reactive({
   relType: '',
   operationType: '',
+  spaceId: undefined as string | undefined,
   planName: '',
 });
 
@@ -119,6 +190,7 @@ const formData = reactive({
 const formRules = {
   relType: [{ required: true, message: '请选择控制类型' }],
   operationType: [{ required: true, message: '请选择操控类型' }],
+  spaceId: [{ required: true, message: '请选择标签' }],
   planName: [{ required: true, message: '请输入名称' }],
 };
 
@@ -134,59 +206,102 @@ const operationTypeOptions = ref([
   { label: '关闭', value: '关闭' },
 ]);
 
+// 标签下拉选项（调用getAllSpace接口获取）
+const tagOptions = ref<{ label: string; value: string }[]>([]);
+const tagLoading = ref(false);
+
+// 表格过滤 loading
+const tableFilterLoading = ref(false);
+
 // 默认表单值
 const defaultForm = {
   relType: '',
   operationType: '',
+  spaceId: undefined as string | undefined,
   planName: '',
 };
 
-// 表格数据（mock，后续替换为接口）
+// 表格数据
 const tableData = ref<any[]>([]);
+
+// vxe-table 实例引用
+const tableRef = ref();
 
 // 复选框勾选
 const selectedRowKeys = ref<string[]>([]);
 
-// 全选判断
-const isAllSelected = computed(() => {
-  if (!tableData.value.length) return false;
-  return tableData.value.every((row: any) => selectedRowKeys.value.includes(row.id));
+// ==================== 本地筛选 ====================
+const filterSpaceName = ref<string | undefined>(undefined);
+const filterAreaName = ref('');
+const filterCircuitName = ref('');
+const debouncedAreaName = ref('');
+const debouncedCircuitName = ref('');
+
+let areaDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let circuitDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(filterAreaName, (val) => {
+  tableFilterLoading.value = true;
+  if (areaDebounceTimer) clearTimeout(areaDebounceTimer);
+  areaDebounceTimer = setTimeout(() => {
+    debouncedAreaName.value = val;
+    nextTick(() => { tableFilterLoading.value = false; });
+  }, 300);
+});
+watch(filterCircuitName, (val) => {
+  tableFilterLoading.value = true;
+  if (circuitDebounceTimer) clearTimeout(circuitDebounceTimer);
+  circuitDebounceTimer = setTimeout(() => {
+    debouncedCircuitName.value = val;
+    nextTick(() => { tableFilterLoading.value = false; });
+  }, 300);
 });
 
-// 半选判断
-const isIndeterminate = computed(() => {
-  if (!tableData.value.length) return false;
-  const count = tableData.value.filter((row: any) => selectedRowKeys.value.includes(row.id)).length;
-  return count > 0 && count < tableData.value.length;
+const filteredTableData = computed(() => {
+  let data = tableData.value;
+  if (filterSpaceName.value) {
+    data = data.filter((item) => item.spaceName === filterSpaceName.value);
+  }
+  if (debouncedAreaName.value) {
+    const kw = debouncedAreaName.value.toLowerCase();
+    data = data.filter((item) => (item.areaName || '').toLowerCase().includes(kw));
+  }
+  if (debouncedCircuitName.value) {
+    const kw = debouncedCircuitName.value.toLowerCase();
+    data = data.filter((item) => (item.circuitName || '').toLowerCase().includes(kw));
+  }
+  return data;
 });
+
+/** 下拉框本地搜索过滤 */
+function handleFilterTagOption(input: string, option: any) {
+  return (option.label || '').toLowerCase().includes(input.toLowerCase());
+}
+
+/** 清空筛选条件 */
+function clearFilters() {
+  filterSpaceName.value = undefined;
+  filterAreaName.value = '';
+  filterCircuitName.value = '';
+  debouncedAreaName.value = '';
+  debouncedCircuitName.value = '';
+}
 
 // ==================== 方法 ====================
 
-/** 表头全选/反选 */
-function onSelectAllChange(e: Event) {
-  const checked = (e.target as HTMLInputElement).checked;
-  if (checked) {
-    const set = new Set([...selectedRowKeys.value, ...tableData.value.map((r: any) => r.id)]);
-    selectedRowKeys.value = Array.from(set);
-  } else {
-    const allIds = new Set(tableData.value.map((r: any) => r.id));
-    selectedRowKeys.value = selectedRowKeys.value.filter((id) => !allIds.has(id));
-  }
+/** vxe-table 复选框变化（含表头全选/反选） */
+function onCheckboxChange({ records }: { records: any[] }) {
+  selectedRowKeys.value = records.map((item: any) => item.id);
 }
 
-/** 单行勾选 */
-function onRowSelect(row: any) {
-  const idx = selectedRowKeys.value.indexOf(row.id);
-  if (idx > -1) {
-    selectedRowKeys.value.splice(idx, 1);
-  } else {
-    selectedRowKeys.value.push(row.id);
-  }
+function onCheckboxAll({ records }: { records: any[] }) {
+  selectedRowKeys.value = records.map((item: any) => item.id);
 }
 
 /** 清空所有勾选 */
 function clearSelection() {
   selectedRowKeys.value = [];
+  tableRef.value?.clearCheckboxRow();
 }
 
 /** 取消 */
@@ -227,11 +342,44 @@ async function onSubmit() {
   }
 }
 
+/** 加载标签下拉选项 */
+async function loadTagOptions() {
+  try {
+    tagLoading.value = true;
+    const res = await getAllSpace();
+    const data = res?.data || res || [];
+    tagOptions.value = (Array.isArray(data) ? data : []).map((item: any) => ({
+      label: item.spaceName,
+      value: item.spaceName,
+    }));
+  } catch {
+    tagOptions.value = [];
+  } finally {
+    tagLoading.value = false;
+  }
+}
+
+/** 根据 relIds 勾选表格行 */
+function checkRowsByRelIds(ids: string[]) {
+  if (!ids.length) return;
+  const idSet = new Set(ids.map(String));
+  // 在源数据上标记 _checked（vxe-table checkField 依此渲染勾选态）
+  tableData.value.forEach((item) => (item._checked = idSet.has(String(item.id))));
+  // 同步 vxe-table 内部状态
+  const checkedRows = tableData.value.filter((item) => idSet.has(String(item.id)));
+  if (checkedRows.length) {
+    tableRef.value?.setCheckboxRow(checkedRows, true);
+  }
+}
+
 /** 打开弹框 */
 async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
   mode.value = type;
   formRef.value?.resetFields();
+  clearFilters();
   visible.value = true;
+  // 预加载标签下拉选项
+  loadTagOptions();
   if (type === 'add') {
     Object.assign(formData, { ...defaultForm });
     selectedRowKeys.value = [];
@@ -242,6 +390,31 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     tableLoading.value = true;
     try {
       await loadAreaData(); // 区域
+    } finally {
+      await nextTick();
+      setTimeout(() => {
+        tableLoading.value = false;
+      }, 200);
+    }
+  } else if (type === 'edit' && record) {
+    editRecord.value = record;
+    // 回填表单数据
+    formData.relType = record.relType || '';
+    formData.planName = record.planName || '';
+    formData.spaceId = record.spaceId || '';
+    // relIds 是逗号分隔的字符串，转数组
+    const relIdArr = record.relIds ? String(record.relIds).split(',').filter(Boolean) : [];
+    selectedRowKeys.value = [...relIdArr];
+    // 根据 relType 加载全量数据，再勾选
+    tableLoading.value = true;
+    try {
+      if (record.relType === '回路') {
+        await loadCircuitData();
+      } else {
+        await loadAreaData();
+      }
+      await nextTick();
+      checkRowsByRelIds(relIdArr);
     } finally {
       await nextTick();
       setTimeout(() => {
@@ -278,14 +451,16 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
 function closeModal() {
   visible.value = false;
   formRef.value?.resetFields();
+  clearFilters();
 }
 
 /** 切换控制类型 */
 const handleChangeRelType = async () => {
+  // 切换类型时清空筛选和选择（因为数据结构不同）
+  clearFilters();
+  clearSelection();
   // 表单 + 表格一起进入 loading
   tableLoading.value = true;
-  // 切换类型时清空选择（因为数据结构不同）
-  clearSelection();
   try {
     if (formData.relType === '回路') {
       await loadCircuitData();
@@ -355,113 +530,100 @@ defineExpose({ showModal, closeModal });
 </script>
 
 <style scoped lang="less">
-/* ==================== 表单区域 ==================== */
-.form-row {
-  display: flex;
-  gap: 24px;
+/* ==================== Grid 统一布局：每行3列 ==================== */
+.layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px 24px;
+  margin-bottom: 20px;
 
+  /* form-item 在 grid 内不产生额外 margin */
   :deep(.ant-form-item) {
-    flex: 1;
     margin-bottom: 0;
+  }
+
+  /* form-item 内的控件铺满 */
+  :deep(.ant-form-item .ant-select),
+  :deep(.ant-form-item .ant-input-affix-wrapper) {
+    width: 100%;
   }
 }
 
-/* ==================== 表格区域 ==================== */
-.table-section {
-  position: relative;
-  margin-bottom: 20px;
+/* 筛选单元格 */
+.filter-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-.table-scroll {
-  min-height: 200px;
-  max-height: 520px;
-  overflow-y: auto;
-  overflow-x: auto;
-}
-
-.device-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.device-table th,
-.device-table td {
-  padding: 12px 12px;
-  text-align: left;
-  font-size: 13px;
+.filter-label {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-shrink: 0;
+  color: #b0c0d6;
+  font-size: 13px;
 }
 
-.device-table thead th {
-  background: #1b2533;
-  color: #a0aabf;
-  font-weight: 500;
-  border-bottom: 1px solid #303d50;
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.filter-cell :deep(.ant-select),
+.filter-cell :deep(.ant-input-affix-wrapper) {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
 }
 
-.device-table tbody td {
-  color: #ffffff;
-  border-bottom: 1px solid #303d50;
+/* 操作按钮单元格：固定在最后一列、右对齐 */
+.action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  grid-column: 3;
 }
 
-.device-table tbody tr {
-  transition: background 0.2s;
+/* ==================== 搜索项分组 ==================== */
+.search-section {
+  margin-bottom: 10px;
+  padding: 8px 16px 0;
+  background: rgba(20, 29, 43, 0.6);
+  border: 1px solid #1f2b3d;
+  border-radius: 6px;
+
+  .section-title {
+    margin-bottom: 6px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    position: relative;
+    padding-left: 10px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 12px;
+      background: linear-gradient(180deg, #00a2e8, #0078c8);
+      border-radius: 2px;
+    }
+  }
+
+  :deep(.ant-form-item) {
+    margin-bottom: 8px;
+  }
 }
 
-.device-table tbody tr:hover {
-  background: rgba(0, 162, 232, 0.04);
-}
-
-/* 列宽 */
-.col-checkbox {
-  width: 5%;
-  text-align: center !important;
-  vertical-align: middle;
-}
-
-.col-checkbox input[type='checkbox'] {
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-  accent-color: #00a2e8;
-  vertical-align: middle;
-  margin: 0;
-  display: inline-block;
-}
-
-.device-table th:nth-child(2),
-.device-table td:nth-child(2) {
-  width: 7%;
-}
-
-.device-table th:nth-child(3),
-.device-table td:nth-child(3) {
-  width: 22%;
-}
-
-.device-table th:nth-child(4),
-.device-table td:nth-child(4) {
-  width: 28%;
-}
-
-.device-table th:nth-child(5),
-.device-table td:nth-child(5) {
-  width: 38%;
-}
-
-/* ==================== 底部按钮 ==================== */
+/* ==================== Modal 底部操作按钮 ==================== */
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 12px;
-  padding-top: 16px;
+  padding: 12px 0 0;
   border-top: 1px solid #303d50;
+  margin-top: 12px;
 }
 
 .btn {
@@ -493,10 +655,94 @@ defineExpose({ showModal, closeModal });
     opacity: 0.9;
   }
 }
+
+/* ==================== 表格区域 —— vxe-table 深色主题 ==================== */
+.table-wrapper {
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.table-wrapper :deep(.vxe-table) {
+  background: #141d2b;
+  color: #ffffff;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+
+  --vxe-ui-table-border-color: #141d2b;
+  --vxe-ui-table-border-width: 0;
+  --vxe-ui-table-checkbox-range-border-color: #141d2b;
+  --vxe-ui-table-cell-area-border-color: #141d2b;
+  --vxe-ui-table-cell-main-area-extension-border-color: #141d2b;
+  --vxe-ui-table-cell-extend-area-border-color: #141d2b;
+  --vxe-ui-table-cell-copy-area-border-color: #141d2b;
+  --vxe-ui-table-fixed-right-scrolling-box-shadow: none;
+  --vxe-ui-table-fixed-left-scrolling-box-shadow: none;
+  --vxe-ui-layout-background-color: #141d2b;
+  --vxe-ui-table-header-background-color: #1b2533;
+  --vxe-ui-table-footer-background-color: #141d2b;
+  --vxe-ui-table-row-hover-background-color: rgba(255, 255, 255, 0.04);
+  --vxe-ui-table-row-striped-background-color: #141d2b;
+  --vxe-ui-table-row-current-background-color: rgba(0, 162, 232, 0.15);
+
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* 自定义滚动条 */
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* 表头行：去掉右边线 */
+.table-wrapper :deep(.vxe-header--row),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column:last-child),
+.table-wrapper :deep(.vxe-header--row .col--fixed-right) {
+  border-right: 0 !important;
+  background-image: none !important;
+}
+
+/* Gutter 列：去掉所有边界线、背景色 */
+.table-wrapper :deep(.vxe-table--header-wrapper .vxe-header--row .vxe-header--gutter),
+.table-wrapper :deep(.vxe-table--body-wrapper .vxe-body--row .vxe-body--gutter),
+.table-wrapper :deep(.vxe-header--gutter),
+.table-wrapper :deep(.vxe-body--gutter),
+.table-wrapper :deep(.col--gutter) {
+  border: 0 !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
 </style>
 
 /* ==================== 全局 Modal 覆盖（深色科技风） ==================== */
 <style lang="less">
+.create-scene-modal {
+  .ant-modal {
+    top: 20px !important;
+  }
+}
+
 .dark-tech-modal {
   .ant-modal-content {
     background: #141d2b !important;
@@ -552,7 +798,7 @@ defineExpose({ showModal, closeModal });
   }
 
   .ant-modal-body {
-    padding: 20px 24px 24px !important;
+    padding: 12px 24px 16px !important;
     background: #141d2b !important;
   }
 
@@ -562,7 +808,56 @@ defineExpose({ showModal, closeModal });
 
   /* ==================== 表单覆盖 ==================== */
   .dark-form {
-    margin-bottom: 16px;
+    margin-bottom: 10px;
+
+    /* Row 撑满表单宽度 */
+    .ant-row {
+      width: 100%;
+    }
+
+    /* Form item 撑满列宽 */
+    .ant-form-item {
+      width: 100% !important;
+      margin-right: 0;
+      margin-bottom: 10px !important;
+    }
+
+    .ant-form-item-row {
+      width: 100% !important;
+    }
+
+    /* 控件区域 flex 撑满 */
+    .ant-form-item-control {
+      flex: 1 1 0 !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+    }
+
+    .ant-form-item-control-input {
+      width: 100% !important;
+    }
+
+    .ant-form-item-control-input-content {
+      width: 100% !important;
+    }
+
+    /* 控件自身铺满（强制 block-level） */
+    .ant-input-affix-wrapper,
+    .ant-select {
+      display: flex !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 1 1 auto !important;
+    }
+
+    /* input 是原生元素，用 block 不用 flex */
+    .ant-input {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
     .ant-form-item-label > label {
       color: #a0aabf !important;
       font-size: 13px !important;
@@ -719,6 +1014,90 @@ defineExpose({ showModal, closeModal });
     .ant-form-item-has-error .ant-select-selector {
       border-color: #ff4d4f !important;
     }
+  }
+}
+
+/* ==================== 筛选单元格（Grid 内非表单控件）深色主题 ==================== */
+.dark-tech-modal .layout-grid .filter-cell {
+  .ant-input-affix-wrapper {
+    background: #1b2533 !important;
+    border: 1px solid #303d50 !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    min-height: 36px !important;
+    padding: 0 11px !important;
+    display: flex !important;
+    align-items: center !important;
+    transition: all 0.2s !important;
+
+    &:hover {
+      border-color: #00a2e8 !important;
+    }
+
+    &.ant-input-affix-wrapper-focused {
+      border-color: #00a2e8 !important;
+      box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .ant-input {
+      background: transparent !important;
+      border: none !important;
+      color: #ffffff !important;
+      font-size: 13px !important;
+      height: 34px !important;
+      line-height: 34px !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+
+      &::placeholder {
+        color: #5a6a80 !important;
+      }
+    }
+
+    .ant-input-clear-icon {
+      color: #5a6a80 !important;
+      background: transparent !important;
+
+      &:hover {
+        color: #a0aabf !important;
+      }
+    }
+  }
+
+  .ant-select-selector {
+    background: #1b2533 !important;
+    border: 1px solid #303d50 !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    min-height: 36px !important;
+    font-size: 13px !important;
+    transition: all 0.2s !important;
+
+    &:hover {
+      border-color: #00a2e8 !important;
+    }
+  }
+
+  .ant-select-focused .ant-select-selector {
+    border-color: #00a2e8 !important;
+    box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .ant-select-arrow {
+    color: #5a6a80 !important;
+  }
+
+  .ant-select-clear {
+    color: #5a6a80 !important;
+    background: #1b2533 !important;
+
+    &:hover {
+      color: #a0aabf !important;
+    }
+  }
+
+  .ant-select-selection-placeholder {
+    color: #5a6a80 !important;
   }
 }
 

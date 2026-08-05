@@ -3,14 +3,15 @@
     v-model:open="visible"
     :title="title"
     width="1000px"
-    wrapClassName="dark-tech-modal"
+    wrapClassName="dark-tech-modal create-timer-modal"
     :footer="null"
+    top="20px"
     :maskClosable="false"
     @cancel="onCancel"
   >
     <!-- ==================== 表单 + 表格 统一 Loading 容器 ==================== -->
-    <div v-loading="tableLoading" class="modal-body-content">
-      <!-- ==================== 表单区域 ==================== -->
+    <div v-loading="tableLoading || submitLoading" class="modal-body-content">
+      <!-- ==================== 单一 <a-form> 包裹，使用 <a-row>/<a-col> 栅格布局 ==================== -->
       <a-form
         ref="formRef"
         :model="formData"
@@ -18,93 +19,150 @@
         class="dark-form"
         :label-col="{ style: { width: '80px' } }"
         :disabled="isDetail"
+        autocomplete="off"
       >
-        <div class="form-row">
-          <a-form-item label="控制类型" name="relType">
-            <a-select
-              v-model:value="formData.relType"
-              placeholder="请选择控制类型"
-              :options="relTypeOptions"
-              allowClear
-              @change="handleChangeRelType"
-            />
-          </a-form-item>
-          <a-form-item label="名称" name="planName">
-            <a-input
-              v-model:value="formData.planName"
-              placeholder="请输入名称"
-              allowClear
-            />
-          </a-form-item>
-          <a-form-item label="操控类型" name="operationType">
-            <a-select
-              v-model:value="formData.operationType"
-              placeholder="请选择操控类型"
-              :options="operationTypeOptions"
-              allowClear
-            />
-          </a-form-item>
+        <!-- ==================== 搜索项分组 ==================== -->
+        <div class="search-section">
+          <div class="section-title">搜索项</div>
+          <!-- 第 1 行：控制类型 / 区域 / 名称 -->
+          <a-row :gutter="16">
+            <a-col :span="8">
+              <a-form-item label="控制类型" name="relType">
+                <div style="width:100%">
+                  <a-select
+                    style="width:100%"
+                    v-model:value="formData.relType"
+                    placeholder="请选择控制类型"
+                    :options="relTypeOptions"
+                    allowClear
+                    @change="handleChangeRelType"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="区域">
+                <div style="width:100%">
+                  <a-select
+                    style="width:100%"
+                    v-model:value="filterSpaceName"
+                    :options="spaceFilterOptions"
+                    placeholder="请选择区域"
+                    allowClear
+                    show-search
+                    :filter-option="handleFilterOption"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="8">
+              <a-form-item label="名称">
+                <div style="width:100%">
+                  <a-input
+                    style="width:100%"
+                    v-model:value="filterAreaName"
+                    placeholder="请输入名称"
+                    allowClear
+                    autocomplete="off"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <!-- 第 2 行：回路名称 -->
+          <a-row :gutter="16">
+            <a-col :span="8" v-if="formData.relType === '回路'">
+              <a-form-item label="回路名称">
+                <div style="width:100%">
+                  <a-input
+                    style="width:100%"
+                    v-model:value="filterCircuitName"
+                    placeholder="请输入回路名称"
+                    allowClear
+                    autocomplete="off"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="formData.relType === '回路' ? 16 : 24"></a-col>
+          </a-row>
         </div>
+
+        <!-- ==================== 第 3 行：表格（vxe-table） ==================== -->
+        <a-row :gutter="16">
+          <a-col :span="24">
+            <div class="table-wrapper">
+              <vxe-table
+                ref="tableRef"
+                :data="filteredTableData"
+                :loading="tableLoading || tableFilterLoading"
+                :row-config="{ keyField: 'id', height: 32 }"
+                :checkbox-config="{ checkField: '_checked' }"
+                max-height="420"
+                border="none"
+                @checkbox-change="onCheckboxChange"
+                @checkbox-all="onCheckboxAll"
+              >
+                <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
+                <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
+                <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
+                <vxe-column field="areaName" title="名称"></vxe-column>
+                <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
+              </vxe-table>
+            </div>
+          </a-col>
+        </a-row>
+
+        <!-- ==================== 第 4 行：操控类型 / 名称（放在表格下方） ==================== -->
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="操控类型" name="operationType">
+              <div style="width:100%">
+                <a-select
+                  style="width:100%"
+                  v-model:value="formData.operationType"
+                  placeholder="请选择操控类型"
+                  :options="operationTypeOptions"
+                  allowClear
+                />
+              </div>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="名称" name="planName">
+              <div style="width:100%">
+                <a-input
+                  style="width:100%"
+                  v-model:value="formData.planName"
+                  placeholder="请输入名称"
+                  allowClear
+                  autocomplete="off"
+                />
+              </div>
+            </a-form-item>
+          </a-col>
+        </a-row>
       </a-form>
+    </div>
 
-      <!-- ==================== 详情额外信息（仅 detail 模式显示） ==================== -->
-      <div v-if="isDetail" class="detail-info-section">
-        <div class="detail-item detail-item-sm">
-          <span class="detail-label">开始时间</span>
-          <span class="detail-value">{{ detailInfo.executionTime || '-' }}</span>
-        </div>
-        <div class="detail-item detail-item-smm">
-          <span class="detail-label">操控类型</span>
-          <span class="detail-value">{{ detailInfo.operationType || '-' }}</span>
-        </div>
-        <div class="detail-item detail-item-lg">
-          <span class="detail-label">周期范围</span>
-          <span class="detail-value">{{ detailInfo.dateRange || '-' }}</span>
-        </div>
-        <div class="detail-item detail-item-lgg">
-          <span class="detail-label">执行日期</span>
-          <span class="detail-value">{{ detailInfo.enabledWeek || '-' }}</span>
-        </div>
+    <!-- ==================== 详情额外信息（仅 detail 模式显示） ==================== -->
+    <div v-if="isDetail" class="detail-info-section">
+      <div class="detail-item detail-item-sm">
+        <span class="detail-label">开始时间</span>
+        <span class="detail-value">{{ detailInfo.executionTime || '-' }}</span>
       </div>
-
-      <!-- ==================== 表格区域 ==================== -->
-      <section class="table-section">
-      <div class="table-scroll">
-        <table class="device-table">
-          <thead>
-            <tr>
-              <th class="col-checkbox" v-show="!isDetail">
-                <input
-                  type="checkbox"
-                  :checked="isAllSelected"
-                  :indeterminate.prop="isIndeterminate"
-                  @change="onSelectAllChange"
-                />
-              </th>
-              <th>序号</th>
-              <th>区域</th>
-              <th>名称</th>
-              <th v-show="formData.relType === '回路'">回路名称</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, idx) in tableData" :key="row.id">
-              <td class="col-checkbox" v-show="!isDetail">
-                <input
-                  type="checkbox"
-                  :checked="selectedRowKeys.includes(row.id)"
-                  @change="onRowSelect(row)"
-                />
-              </td>
-              <td>{{ idx + 1 }}</td>
-              <td>{{ row.spaceName }}</td>
-              <td>{{ row.areaName }}</td>
-              <td v-show="formData.relType === '回路'">{{ row.circuitName }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="detail-item detail-item-smm">
+        <span class="detail-label">操控类型</span>
+        <span class="detail-value">{{ detailInfo.operationType || '-' }}</span>
       </div>
-    </section>
+      <div class="detail-item detail-item-lg">
+        <span class="detail-label">周期范围</span>
+        <span class="detail-value">{{ detailInfo.dateRange || '-' }}</span>
+      </div>
+      <div class="detail-item detail-item-lgg">
+        <span class="detail-label">执行日期</span>
+        <span class="detail-value">{{ detailInfo.enabledWeek || '-' }}</span>
+      </div>
     </div>
 
     <!-- ==================== 底部按钮 ==================== -->
@@ -116,7 +174,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, nextTick } from 'vue';
+import { ref, reactive, computed, watch, nextTick } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
 import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPi, planDetailApi } from '@/api/equipmentMonitoring'
@@ -202,54 +260,109 @@ const defaultForm = {
   planName: '',
 };
 
-// 表格数据（mock，后续替换为接口）
+// 表格数据
 const tableData = ref<any[]>([]);
+
+// vxe-table 实例引用
+const tableRef = ref();
 
 // 复选框勾选
 const selectedRowKeys = ref<string[]>([]);
 
-// 全选判断
-const isAllSelected = computed(() => {
-  if (!tableData.value.length) return false;
-  return tableData.value.every((row: any) => selectedRowKeys.value.includes(row.id));
+// ==================== 本地筛选 ====================
+const filterSpaceName = ref<string | undefined>(undefined);
+const filterAreaName = ref('');
+const filterCircuitName = ref('');
+const debouncedAreaName = ref('');
+const debouncedCircuitName = ref('');
+const tableFilterLoading = ref(false);
+
+let areaDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let circuitDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(filterAreaName, (val) => {
+  tableFilterLoading.value = true;
+  if (areaDebounceTimer) clearTimeout(areaDebounceTimer);
+  areaDebounceTimer = setTimeout(() => {
+    debouncedAreaName.value = val;
+    nextTick(() => { tableFilterLoading.value = false; });
+  }, 300);
+});
+watch(filterCircuitName, (val) => {
+  tableFilterLoading.value = true;
+  if (circuitDebounceTimer) clearTimeout(circuitDebounceTimer);
+  circuitDebounceTimer = setTimeout(() => {
+    debouncedCircuitName.value = val;
+    nextTick(() => { tableFilterLoading.value = false; });
+  }, 300);
 });
 
-// 半选判断
-const isIndeterminate = computed(() => {
-  if (!tableData.value.length) return false;
-  const count = tableData.value.filter((row: any) => selectedRowKeys.value.includes(row.id)).length;
-  return count > 0 && count < tableData.value.length;
+// 区域筛选下拉选项（从表格数据中提取唯一值）
+const spaceFilterOptions = computed(() => {
+  const set = new Set<string>();
+  tableData.value.forEach((item) => {
+    if (item.spaceName) set.add(item.spaceName);
+  });
+  return Array.from(set).map((name) => ({ label: name, value: name }));
+});
+
+// 表格筛选后数据
+const filteredTableData = computed(() => {
+  let data = tableData.value;
+  if (filterSpaceName.value) {
+    data = data.filter((item) => item.spaceName === filterSpaceName.value);
+  }
+  if (debouncedAreaName.value) {
+    const kw = debouncedAreaName.value.toLowerCase();
+    data = data.filter((item) => (item.areaName || '').toLowerCase().includes(kw));
+  }
+  if (debouncedCircuitName.value) {
+    const kw = debouncedCircuitName.value.toLowerCase();
+    data = data.filter((item) => (item.circuitName || '').toLowerCase().includes(kw));
+  }
+  return data;
 });
 
 // ==================== 方法 ====================
 
-/** 表头全选/反选 */
-function onSelectAllChange(e: Event) {
-  if (isDetail.value) return;
-  const checked = (e.target as HTMLInputElement).checked;
-  if (checked) {
-    const set = new Set([...selectedRowKeys.value, ...tableData.value.map((r: any) => r.id)]);
-    selectedRowKeys.value = Array.from(set);
-  } else {
-    const allIds = new Set(tableData.value.map((r: any) => r.id));
-    selectedRowKeys.value = selectedRowKeys.value.filter((id) => !allIds.has(id));
-  }
+/** 下拉框本地搜索过滤 */
+function handleFilterOption(input: string, option: any) {
+  return (option.label || '').toLowerCase().includes(input.toLowerCase());
 }
 
-/** 单行勾选 */
-function onRowSelect(row: any) {
-  if (isDetail.value) return;
-  const idx = selectedRowKeys.value.indexOf(row.id);
-  if (idx > -1) {
-    selectedRowKeys.value.splice(idx, 1);
-  } else {
-    selectedRowKeys.value.push(row.id);
-  }
+/** 清空筛选条件 */
+function clearFilters() {
+  filterSpaceName.value = undefined;
+  filterAreaName.value = '';
+  filterCircuitName.value = '';
+  debouncedAreaName.value = '';
+  debouncedCircuitName.value = '';
+}
+
+/** vxe-table 复选框变化 */
+function onCheckboxChange({ records }: { records: any[] }) {
+  selectedRowKeys.value = records.map((item: any) => item.id);
+}
+
+function onCheckboxAll({ records }: { records: any[] }) {
+  selectedRowKeys.value = records.map((item: any) => item.id);
 }
 
 /** 清空所有勾选 */
 function clearSelection() {
   selectedRowKeys.value = [];
+  tableRef.value?.clearCheckboxRow();
+}
+
+/** 根据 relIds 勾选表格行 */
+function checkRowsByRelIds(ids: string[]) {
+  if (!ids.length) return;
+  const idSet = new Set(ids.map(String));
+  tableData.value.forEach((item) => (item._checked = idSet.has(String(item.id))));
+  const checkedRows = tableData.value.filter((item) => idSet.has(String(item.id)));
+  if (checkedRows.length) {
+    tableRef.value?.setCheckboxRow(checkedRows, true);
+  }
 }
 
 /** 取消 */
@@ -293,6 +406,8 @@ async function onSubmit() {
 async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
   mode.value = type;
   formRef.value?.resetFields();
+  clearFilters();
+  visible.value = true;
   if (type === 'add') {
     Object.assign(formData, { ...defaultForm });
     selectedRowKeys.value = [];
@@ -315,16 +430,14 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     formData.relType = record.relType || '';
     formData.operationType = record.operationType || '';
     formData.planName = record.planName || '';
-    // 表单 + 表格一起进入 loading
+    const relIdArr = record.relIds ? String(record.relIds).split(',').filter(Boolean) : [];
+    selectedRowKeys.value = [...relIdArr];
     tableLoading.value = true;
     try {
       await getDetailInit();
+      await nextTick();
+      checkRowsByRelIds(relIdArr);
     } finally {
-      // 表格数据加载完成后回调，确保 selectedRowKeys 与 row.id 类型一致
-      const idType = typeof tableData.value[0]?.id;
-      selectedRowKeys.value = record.relIds
-        ? record.relIds.split(',').map((id: string) => (idType === 'number' ? Number(id) : String(id)))
-        : [];
       await nextTick();
       setTimeout(() => {
         tableLoading.value = false;
@@ -336,25 +449,26 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     formData.relType = record.relType || '';
     formData.operationType = record.operationType || '';
     formData.planName = record.planName || '';
-    // 表单 + 表格一起进入 loading
+    const relIdArr = record.relIds ? String(record.relIds).split(',').filter(Boolean) : [];
+    selectedRowKeys.value = [...relIdArr];
     tableLoading.value = true;
     try {
-      await loadCircuitData();
+      if (record.relType === '回路') {
+        await loadCircuitData();
+      } else {
+        await loadAreaData();
+      }
+      await nextTick();
+      checkRowsByRelIds(relIdArr);
     } finally {
-      // 表格数据加载完成后回调，确保 selectedRowKeys 与 row.id 类型一致
-      const idType = typeof tableData.value[0]?.id;
-      selectedRowKeys.value = record.relIds
-        ? record.relIds.split(',').map((id: string) => (idType === 'number' ? Number(id) : String(id)))
-        : [];
       await nextTick();
       setTimeout(() => {
         tableLoading.value = false;
       }, 200);
     }
   } 
-  visible.value = true;
   
-  // 清除校验残留edit
+  // 清除校验残留
   nextTick(() => {
     formRef.value?.clearValidate();
   });
@@ -364,6 +478,7 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
 function closeModal() {
   visible.value = false;
   formRef.value?.resetFields();
+  clearFilters();
 }
 
 /** 切换控制类型 */
@@ -442,14 +557,38 @@ defineExpose({ showModal, closeModal });
 </script>
 
 <style scoped lang="less">
-/* ==================== 表单区域 ==================== */
-.form-row {
-  display: flex;
-  gap: 24px;
+/* ==================== 搜索项分组 ==================== */
+.search-section {
+  margin-bottom: 10px;
+  padding: 8px 16px 0;
+  background: rgba(20, 29, 43, 0.6);
+  border: 1px solid #1f2b3d;
+  border-radius: 6px;
+
+  .section-title {
+    margin-bottom: 6px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    position: relative;
+    padding-left: 10px;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 12px;
+      background: linear-gradient(180deg, #00a2e8, #0078c8);
+      border-radius: 2px;
+    }
+  }
 
   :deep(.ant-form-item) {
-    flex: 1;
-    margin-bottom: 0;
+    margin-bottom: 8px;
   }
 }
 
@@ -503,93 +642,82 @@ defineExpose({ showModal, closeModal });
   white-space: nowrap;
 }
 
-/* ==================== 表格区域 ==================== */
-.table-section {
-  position: relative;
-  margin-bottom: 20px;
-}
-
-.table-scroll {
-  min-height: 200px;
-  max-height: 520px;
-  overflow-y: auto;
-  overflow-x: auto;
-}
-
-.device-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.device-table th,
-.device-table td {
-  padding: 12px 12px;
-  text-align: left;
-  font-size: 13px;
-  white-space: nowrap;
+/* ==================== 表格区域 —— vxe-table 深色主题 ==================== */
+.table-wrapper {
   overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 16px;
 }
 
-.device-table thead th {
-  background: #1b2533;
-  color: #a0aabf;
-  font-weight: 500;
-  border-bottom: 1px solid #303d50;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.device-table tbody td {
+.table-wrapper :deep(.vxe-table) {
+  background: #141d2b;
   color: #ffffff;
-  border-bottom: 1px solid #303d50;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+
+  --vxe-ui-table-border-color: #141d2b;
+  --vxe-ui-table-border-width: 0;
+  --vxe-ui-table-checkbox-range-border-color: #141d2b;
+  --vxe-ui-table-cell-area-border-color: #141d2b;
+  --vxe-ui-table-cell-main-area-extension-border-color: #141d2b;
+  --vxe-ui-table-cell-extend-area-border-color: #141d2b;
+  --vxe-ui-table-cell-copy-area-border-color: #141d2b;
+  --vxe-ui-table-fixed-right-scrolling-box-shadow: none;
+  --vxe-ui-table-fixed-left-scrolling-box-shadow: none;
+  --vxe-ui-layout-background-color: #141d2b;
+  --vxe-ui-table-header-background-color: #1b2533;
+  --vxe-ui-table-footer-background-color: #141d2b;
+  --vxe-ui-table-row-hover-background-color: rgba(255, 255, 255, 0.04);
+  --vxe-ui-table-row-striped-background-color: #141d2b;
+  --vxe-ui-table-row-current-background-color: rgba(0, 162, 232, 0.15);
+
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
-.device-table tbody tr {
-  transition: background 0.2s;
+/* 自定义滚动条 */
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.device-table tbody tr:hover {
-  background: rgba(0, 162, 232, 0.04);
+/* 表头行 */
+.table-wrapper :deep(.vxe-header--row),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column:last-child),
+.table-wrapper :deep(.vxe-header--row .col--fixed-right) {
+  border-right: 0 !important;
+  background-image: none !important;
 }
 
-/* 列宽 */
-.col-checkbox {
-  width: 5%;
-  text-align: center !important;
-  vertical-align: middle;
-}
-
-.col-checkbox input[type='checkbox'] {
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-  accent-color: #00a2e8;
-  vertical-align: middle;
-  margin: 0;
-  display: inline-block;
-}
-
-.device-table th:nth-child(2),
-.device-table td:nth-child(2) {
-  width: 7%;
-}
-
-.device-table th:nth-child(3),
-.device-table td:nth-child(3) {
-  width: 22%;
-}
-
-.device-table th:nth-child(4),
-.device-table td:nth-child(4) {
-  width: 28%;
-}
-
-.device-table th:nth-child(5),
-.device-table td:nth-child(5) {
-  width: 38%;
+/* Gutter 列 */
+.table-wrapper :deep(.vxe-table--header-wrapper .vxe-header--row .vxe-header--gutter),
+.table-wrapper :deep(.vxe-table--body-wrapper .vxe-body--row .vxe-body--gutter),
+.table-wrapper :deep(.vxe-header--gutter),
+.table-wrapper :deep(.vxe-body--gutter),
+.table-wrapper :deep(.col--gutter) {
+  border: 0 !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 /* ==================== 底部按钮 ==================== */
@@ -634,6 +762,12 @@ defineExpose({ showModal, closeModal });
 
 /* ==================== 全局 Modal 覆盖（深色科技风） ==================== */
 <style lang="less">
+.create-timer-modal {
+  .ant-modal {
+    top: 20px !important;
+  }
+}
+
 .dark-tech-modal {
   .ant-modal-content {
     background: #141d2b !important;
@@ -700,6 +834,55 @@ defineExpose({ showModal, closeModal });
   /* ==================== 表单覆盖 ==================== */
   .dark-form {
     margin-bottom: 16px;
+
+    /* Row 撑满整列 */
+    .ant-row {
+      width: 100%;
+    }
+
+    /* Form item 撑满列宽 */
+    .ant-form-item {
+      width: 100% !important;
+      margin-right: 0;
+      margin-bottom: 10px !important;
+    }
+
+    .ant-form-item-row {
+      width: 100% !important;
+    }
+
+    /* 控件区域 flex 撑满 */
+    .ant-form-item-control {
+      flex: 1 1 0 !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+    }
+
+    .ant-form-item-control-input {
+      width: 100% !important;
+    }
+
+    .ant-form-item-control-input-content {
+      width: 100% !important;
+    }
+
+    /* 控件自身铺满（强制 block-level） */
+    .ant-input-affix-wrapper,
+    .ant-select {
+      display: flex !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 1 1 auto !important;
+    }
+
+    /* input 是原生元素，用 block 不用 flex */
+    .ant-input {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
     .ant-form-item-label > label {
       color: #a0aabf !important;
       font-size: 13px !important;

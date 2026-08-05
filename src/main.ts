@@ -24,6 +24,9 @@ import { useAppStoreWithOut } from "@/store/modules/app";
 import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import zhCn from 'element-plus/es/locale/lang/zh-cn' // 引入中文语言包
+// 解决表格不分页数据量大问题（虚拟列表）仓库文档 https://enpm.ennew.com/package/vxe-table
+import VxeTable from 'vxe-table'
+import 'vxe-table/lib/style.css'
 
 // 注册online模块lib
 import { registerPackages } from '/@/utils/monorepo/registerPackages';
@@ -51,6 +54,8 @@ async function bootstrap(props?: MainAppProps) {
   app.use(ElementPlus, {
     locale: zhCn, // 设置语言为中文
   })
+  // 虚拟表格
+  app.use(VxeTable)
   
   // 【QQYUN-6329】
   window['JAppRootInstance'] = app;

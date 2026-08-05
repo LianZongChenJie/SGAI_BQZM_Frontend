@@ -45,10 +45,11 @@ const loading = ref(false);
 
 
 const contenMessage = computed(() => {
+  const areaName = rowObj.areaName || '';
   if (type.value === 'open') {
-    return '确定要将此区域设置为<span class="keyword-open">开启</span>状态吗？';
+    return `确定要将所选区域【${areaName}】设置为<span class="keyword-open">开启</span>状态吗？`;
   }
-  return '确定要将此区域设置为<span class="keyword-close">关闭</span>状态吗？';
+  return `确定要将所选区域【${areaName}】设置为<span class="keyword-close">关闭</span>状态吗？`;
 });
 
 
