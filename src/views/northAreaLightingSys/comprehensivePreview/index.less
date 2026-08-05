@@ -92,6 +92,42 @@
     color: var(--text);
   }
 
+  /* 主内容区：左地图 + 右两栏 */
+  .main-area {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+
+    .main-left {
+      flex: 0 0 55%;
+      min-width: 0;
+    }
+
+    .main-right {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      margin-bottom: 0;
+    }
+
+    /* 右侧表格卡片占满剩余高度，内容多时内部滚动 */
+    .card-table {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    /* 右侧一键控制按内容高度 */
+    .card-control {
+      flex: 0 0 auto;
+    }
+  }
+
   .status-badges {
     display: flex;
     gap: 10px;
