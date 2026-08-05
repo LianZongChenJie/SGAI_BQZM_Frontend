@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { loadMapScripts } from '/@/components/map/loadMapScripts'
 import { getAllAreaApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api'
 import { VideoCamera } from '@element-plus/icons-vue'
@@ -58,7 +58,8 @@ const MONITOR_BASE_URL = 'http://10.168.47.23:4000/index.html?id=';
 import lightOnImg from '/@/assets/images/lightOn.png'
 import lightOffImg from '/@/assets/images/lightOff.png'
 
-let map = ref(null);
+const DaxiMap = (window as Window & { DaxiMap?: any }).DaxiMap;
+const map = ref<any>(null);
 // 当前展开的成员列表（点击地图空白时自动关闭）
 let openedListEl: HTMLElement | null = null;
 
@@ -84,8 +85,7 @@ function handleDocumentClick(e: MouseEvent) {
   closeAllMarkerLists();
 }
 const buildingInfo = ref<unknown[]>([]);
-let marker = ref(null);
-let flid = null;
+let flid: string | null = null;
 const windowWidth = window.outerWidth;
 // 根据屏幕宽度设置初始缩放级别
 let zoomNum: number;
@@ -193,11 +193,47 @@ const lightingMarkerArr = ref<any[]>([]);
 const dialogVisible = ref(false);
 const currentLight = ref<any>(null);
 const lightingLoading = ref(false);
+const areaOverlayEl = ref<HTMLElement | null>(null);
 
-const statusTagType = computed(() => {
-  if (!currentLight.value) return 'info';
-  return currentLight.value.status === '打开' ? 'success' : 'info';
-});
+const clearLightingMarkers = () => {
+  lightingMarkerArr.value.forEach((item) => clearMarker(item));
+  lightingMarkerArr.value = [];
+};
+
+const showAreaOverlay = () => {
+  const container = document.getElementById('mapContainer');
+  if (!container) return;
+  if (!areaOverlayEl.value) {
+    const overlay = document.createElement('div');
+    overlay.className = 'area-overlay';
+    overlay.innerHTML = `
+      <div class="area-overlay__box">
+        <span>地块区域</span>
+      </div>
+    `;
+    container.appendChild(overlay);
+    areaOverlayEl.value = overlay;
+  }
+  areaOverlayEl.value.style.display = 'block';
+};
+
+const hideAreaOverlay = () => {
+  if (areaOverlayEl.value) {
+    areaOverlayEl.value.style.display = 'none';
+  }
+};
+
+const showArea = () => {
+  clearLightingMarkers();
+  showAreaOverlay();
+};
+
+const showDetails = () => {
+  hideAreaOverlay();
+  if (lightingData.value.length) {
+    AddLightingMarker();
+  }
+};
 
 // 标记图标：type=1 泛光照明；type!=1 区域照明
 // 区域照明暂无专用图标，暂时复用泛光照明图标，后续可替换
@@ -207,36 +243,6 @@ const areaLightOn = lightOnImg;
 const areaLightOff = lightOffImg;
 
 
-
-/**
- * 点击后控制地图缩放（按窗口宽度分级）
- */
-const setMapZoom = () => {
-  if (!map.value) return;
-  map.value.setZoom(
-    1200 < windowWidth && windowWidth < 1440
-      ? 14.8
-      : windowWidth > 1439
-        ? 16.5
-        : 18.5
-  );
-};
-
-/**
- * 点击后控制地图聚焦到指定灯光点位
- */
-const focusMapTo = (item: any) => {
-  if (!map.value || !item) return;
-  // location 格式为 "lng,lat"
-  const [lng, lat] = (item.location || '').split(',');
-  if (!lng || !lat) return;
-  map.value.easeTo({
-    bdid: buildingID,
-    lon: lng,
-    lat: lat,
-    floorId: flid,
-  });
-};
 
 /**
  * 标点主体点击：
@@ -387,10 +393,7 @@ function buildMarkerDom(item: any, group: any[] = []): string {
 async function AddLightingMarker() {
   if (!map.value) return;
   // 1. 清除旧标记
-  lightingMarkerArr.value.forEach((item) => {
-    clearMarker(item);
-  });
-  lightingMarkerArr.value = [];
+  clearLightingMarkers();
 
   // 2. 按坐标分组：同坐标的多个标点合并为一个标点，hover 时展示成员列表
   const locGroupMap = new Map<string, any[]>();
@@ -524,7 +527,7 @@ function focusToSpace(spaceName: string) {
   }, 300);
 }
 
-defineExpose({ focusToSpace });
+defineExpose({ showArea, showDetails, focusToSpace });
 
 onMounted(async () => {
   await loadMapScripts()
@@ -535,8 +538,11 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // 清除所有标记
-  lightingMarkerArr.value.forEach((item) => clearMarker(item));
-  lightingMarkerArr.value = [];
+  clearLightingMarkers();
+  if (areaOverlayEl.value) {
+    areaOverlayEl.value.remove();
+    areaOverlayEl.value = null;
+  }
   if (map.value) {
     map.value = null
   }
@@ -551,6 +557,32 @@ onUnmounted(() => {
   height: 820px;
   border-radius: 6px;
   overflow: hidden;
+  position: relative;
+}
+
+.area-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: none;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.16), rgba(14, 165, 233, 0.04));
+}
+
+.area-overlay__box {
+  position: absolute;
+  inset: 18% 18% 24% 18%;
+  border: 2px dashed rgba(14, 165, 233, 0.9);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e0f2fe;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  background: rgba(2, 6, 23, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 /* 弹窗样式 */

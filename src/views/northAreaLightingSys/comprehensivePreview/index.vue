@@ -5,7 +5,10 @@
       <div class="stat-card">
         <div class="stat-label">照明地块</div>
         <div class="stat-value" style="color: var(--accent)">{{ allSpaceList.length }}</div>
-        <div class="stat-trend trend-up">{{ stats.blockCoverage }} 覆盖</div>
+        <div class="stat-trend trend-up">
+          <span>{{ stats.blockCoverage }} 覆盖</span>
+          <span style="margin-left: 10px">开启的回路数： {{ openCircuitCount }}</span>
+        </div>
       </div>
       <div class="stat-card green">
         <div class="stat-label">回路数</div>
@@ -23,64 +26,63 @@
       </div>
     </div>
 
-    <!-- 地图模式 -->
-    <div class="card">
-      <div class="card-title-row">
-        <div class="card-title">🗺️ 地图模式 - 北区照明地块分布</div>
-      </div>
-      <MapView ref="mapViewRef" />
-    </div>
-
-    <!-- 底部两栏 -->
-    <div class="grid grid-2">
-      <div class="card">
-        <div class="card-title">📋 表单模式 - 地块运行状态</div>
-        <table class="overview-table">
-          <thead>
-            <tr>
-              <th>地块名称</th>
-              <th>回路数</th>
-              <th>在线</th>
-              <th>运行状态</th>
-              <th>今日用电</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in spaceTableData" :key="item.spaceName">
-              <td>{{ item.spaceName }}</td>
-              <td>{{ item.circuits }}</td>
-              <td>{{ item.online }}</td>
-              <td>
-                <span :class="['tag', item.status === '运行中' ? 'tag-green' : 'tag-orange']">
-                  {{ item.status }}
-                </span>
-              </td>
-              <td>{{ item.todayUsage }} kWh</td>
-              <td>
-                <button class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 11px" @click="handleControlOn(item)">开</button>
-                <button class="btn btn-sm btn-danger" style="margin-left: 6px; padding: 2px 8px; font-size: 11px" @click="handleControlOff(item)">关</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <!-- 主内容区：左侧地图 + 右侧两栏 -->
+    <div class="main-area">
+      <!-- 左列：地图 -->
+      <div class="main-left">
+        <div class="card card-fill">
+          <div class="card-title-row">
+            <div class="card-title">🗺️ 地图模式 - 北区照明地块分布</div>
+          </div>
+          <MapView ref="mapViewRef" />
+        </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">⚡ 一键控制</div>
-        <div style="display: flex; gap: 15px; flex-wrap: wrap">
-          <div class="control-box">
-            <div style="font-size: 32px; margin-bottom: 10px">☀️</div>
-            <div style="font-weight: 600; margin-bottom: 5px">全区开灯</div>
-            <div style="font-size: 12px; color: var(--text2); margin-bottom: 15px">开启所有地块照明</div>
-            <button class="btn btn-success" style="width: 100%" @click="handleAllOn">执行开灯</button>
+      <!-- 右列：一键控制 + 表单模式上下排列 -->
+      <div class="main-right">
+        <div class="card card-control">
+          <div class="card-title">⚡ 一键控制</div>
+          <div style="display: flex; gap: 15px; flex-wrap: wrap">
+            <div class="control-box">
+              <div style="font-size: 32px; margin-bottom: 10px">☀️</div>
+              <div style="font-weight: 600; margin-bottom: 5px">全区开灯</div>
+              <div style="font-size: 12px; color: var(--text2); margin-bottom: 15px">开启所有地块照明</div>
+              <button class="btn btn-success" style="width: 100%" @click="handleAllOn">执行开灯</button>
+            </div>
+            <div class="control-box">
+              <div style="font-size: 32px; margin-bottom: 10px">🌙</div>
+              <div style="font-weight: 600; margin-bottom: 5px">全区关灯</div>
+              <div style="font-size: 12px; color: var(--text2); margin-bottom: 15px">关闭所有地块照明</div>
+              <button class="btn btn-danger" style="width: 100%" @click="handleAllOff">执行关灯</button>
+            </div>
           </div>
-          <div class="control-box">
-            <div style="font-size: 32px; margin-bottom: 10px">🌙</div>
-            <div style="font-weight: 600; margin-bottom: 5px">全区关灯</div>
-            <div style="font-size: 12px; color: var(--text2); margin-bottom: 15px">关闭所有地块照明</div>
-            <button class="btn btn-danger" style="width: 100%" @click="handleAllOff">执行关灯</button>
-          </div>
+        </div>
+
+        <div class="card card-table">
+          <div class="card-title">📋 表单模式 - 地块运行状态</div>
+          <table class="overview-table">
+            <thead>
+              <tr>
+                <th>地块名称</th>
+                <th>回路数</th>
+                <th>回路开启数</th>
+                <th>回路关闭数</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in spaceTableData" :key="item.spaceName">
+                <td>{{ item.spaceName }}</td>
+                <td>{{ item.circuits }}</td>
+                <td>{{ item.openCount }}</td>
+                <td>{{ item.closeCount }}</td>
+                <td>
+                  <button class="btn btn-sm btn-success" style="padding: 2px 8px; font-size: 11px" @click="handleControlOn(item)">开</button>
+                  <button class="btn btn-sm btn-danger" style="margin-left: 6px; padding: 2px 8px; font-size: 11px" @click="handleControlOff(item)">关</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -138,6 +140,8 @@
     allSpaceList.value.map((space) => {
       const circuits = circuitList.value.filter((c: any) => c.spaceName === space.spaceName);
       const onlineCircuits = circuits.filter((c: any) => c.comstat === '在线');
+      const openCircuits = circuits.filter((c: any) => c.status === '开启');
+      const closeCircuits = circuits.filter((c: any) => c.status === '关闭');
       const todayEnergy = onlineCircuits.reduce((sum: number, c: any) => {
         const variation = Math.floor(Math.random() * 11) - 5;
         return sum + 18 + variation;
@@ -146,12 +150,15 @@
         spaceId: space.spaceId,
         spaceName: space.spaceName,
         circuits: circuits.length,
-        online: onlineCircuits.length,
-        status: '运行中',
+        openCount: openCircuits.length,
+        closeCount: closeCircuits.length,
         todayUsage: todayEnergy,
       };
     })
   );
+
+  /** 开启的回路数（status === "开启"） */
+  const openCircuitCount = computed(() => circuitList.value.filter((c: any) => c.status === '开启').length);
 
   /** 查询地块覆盖率 */
   async function loadStats() {
