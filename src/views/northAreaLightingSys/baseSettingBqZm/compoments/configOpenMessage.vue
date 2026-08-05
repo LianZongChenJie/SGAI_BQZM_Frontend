@@ -42,20 +42,22 @@ const emit = defineEmits<{
 const open = ref(false);
 const type = ref<'open' | 'close'>('open');
 const loading = ref(false);
-
+const checkedRows = ref<any[]>([]);
 
 const contenMessage = computed(() => {
+  const names = checkedRows.value.map((r: any) => r.areaName).filter(Boolean).join('，');
+  const prefix = names ? `所选区域【${names}】` : '所选区域';
   if (type.value === 'open') {
-    return '确定要将所选区域设置为<span class="keyword-open">开启</span>状态吗？';
+    return `确定要将${prefix}设置为<span class="keyword-open">开启</span>状态吗？`;
   }
-  return '确定要将所选区域设置为<span class="keyword-close">关闭</span>状态吗？';
+  return `确定要将${prefix}设置为<span class="keyword-close">关闭</span>状态吗？`;
 });
 
 
 
-function showModal(mode: 'open' | 'close') {
+function showModal(mode: 'open' | 'close', rows: any[] = []) {
   type.value = mode;
-
+  checkedRows.value = rows;
   open.value = true;
 }
 

@@ -11,7 +11,7 @@
             <polyline points="10 9 9 9 8 9"/>
           </svg>
         </span>
-        <h2 class="card-title">开关控制日志</h2>
+        <h2 class="card-title">操作日志</h2>
       </div>
       <!-- 查询条件 -->
       <div class="filter-bar">

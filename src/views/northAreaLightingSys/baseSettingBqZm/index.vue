@@ -55,6 +55,11 @@
             <option value="">全部区域</option>
             <option v-for="p in placeOptions" :key="p.value" :value="p.value">{{ p.label }}</option>
           </select>
+          <select v-model="selectedStatus" class="select">
+            <option value="">全部状态</option>
+            <option value="开启">开启</option>
+            <option value="关闭">关闭</option>
+          </select>
           <button class="btn btn-primary" @click="onSearch">查询</button>
           <button class="btn btn-outline" @click="onReset">重置</button>
         </div>
@@ -66,74 +71,45 @@
       </section>
 
       <!-- 数据表格 -->
-      <section class="table-wrapper" v-loading="tableLoading">
-        <table class="device-table">
-          <thead>
-            <tr>
-              <th class="col-checkbox">
-                <input
-                  type="checkbox"
-                  :checked="isCurrentPageAllSelected"
-                  :indeterminate.prop="isIndeterminate"
-                  @change="onSelectAllChange"
-                />
-              </th>
-              <th>序号</th>
-              <th>类别</th>
-              <th>区域</th>
-              <th>名称</th>
-              <th>状态</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, idx) in tableData" :key="row.id">
-              <td class="col-checkbox">
-                <input
-                  type="checkbox"
-                  :checked="selectedRowKeys.includes(row.id)"
-                  @change="onRowSelect(row)"
-                />
-              </td>
-              <td>{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
-              <td>{{ row.relName }}</td>
-              <td>{{ row.spaceName }}</td>
-              <td>{{ row.areaName }}</td>
-              <td class="status-cell">
-                <span
-                  class="status-badge-table"
-                  :class="{
-                    online: row.status === '开启',
-                    offline: row.status === '关闭',
-                  }"
-                >{{ row.status }}</span>
-              </td>
-              <td class="actions">
+      <section ref="tableWrapperRef" class="table-wrapper" v-loading="tableLoading">
+        <vxe-table
+          ref="tableRef"
+          :data="tableData"
+          :row-config="{ keyField: 'id', height: 36 }"
+          :checkbox-config="{ checkField: '_checked' }"
+          height="100%"
+          border="none"
+          @checkbox-change="onCheckboxChange"
+          @checkbox-all="onCheckboxAll"
+        >
+          <vxe-column type="checkbox" width="45" fixed="left"></vxe-column>
+          <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
+          <vxe-column field="relName" title="类别" min-width="150"></vxe-column>
+          <vxe-column field="spaceName" title="区域" min-width="150"></vxe-column>
+          <vxe-column field="areaName" title="名称" min-width="280"></vxe-column>
+          <vxe-column field="status" title="状态" width="130">
+            <template #default="{ row }">
+              <span
+                class="status-badge-table"
+                :class="{
+                  online: row.status === '开启',
+                  offline: row.status === '关闭',
+                }"
+              >{{ row.status }}</span>
+            </template>
+          </vxe-column>
+          <vxe-column title="操作" width="310" fixed="right" header-align="left" align="left">
+            <template #default="{ row }">
+              <div class="actions">
                 <button class="action-btn" @click="videoMonitorModalOpen(row)">监控视频</button>
                 <button class="action-btn" @click="circuitListModalOpenChange(row)">回路列表</button>
                 <button class="action-btn btn-primary" @click="onOpenRow(row)">全开</button>
                 <button class="action-btn btn-danger" @click="onCloseRow(row)">全关</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </div>
+            </template>
+          </vxe-column>
+        </vxe-table>
       </section>
-
-      <!-- 分页 -->
-      <div class="pagination-bar">
-        <span class="pagination-info">共 {{ total }} 条</span>
-        <button
-          class="pagination-btn"
-          :disabled="currentPage <= 1"
-          @click="onPageChange(currentPage - 1)"
-        >上一页</button>
-        <span class="pagination-current">{{ currentPage }} / {{ Math.ceil(total / pageSize) || 1 }}</span>
-        <button
-          class="pagination-btn"
-          :disabled="currentPage >= Math.ceil(total / pageSize)"
-          @click="onPageChange(currentPage + 1)"
-        >下一页</button>
-      </div>
     </div>
   </section>
 
@@ -148,7 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { getRelName, getAllSpace, getAreaListPageApi, setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';   // ← replace with the real module
 import configOpenMessage from './compoments/configOpenMessage.vue';
 import configOpenMessageTwo from './compoments/configOpenMessageTwo.vue';
@@ -157,17 +133,23 @@ import VideoMonitorModal from './compoments/VideoMonitorModal.vue';
 
 import { message } from 'ant-design-vue';
 /* --------------------- 模拟数据 --------------------- */
-const tableData = ref([]);
-
-/* --------------------- 分页 --------------------- */
-const currentPage = ref(1);
-const pageSize = ref(10);
-const total = ref(0);
+const rawData = ref([]);
+const tableRef = ref();
+const tableWrapperRef = ref<HTMLElement>();
+let resizeObserver: ResizeObserver | null = null;
 
 /* --------------------- 筛选状态 --------------------- */
 const searchKeyword = ref('');
 const selectedPlace = ref('');
 const selectedRelName = ref('');
+const selectedStatus = ref('');
+const appliedStatus = ref('');
+
+/* 前端本地过滤（status 不走接口，点查询才生效） */
+const tableData = computed(() => {
+  if (!appliedStatus.value) return rawData.value;
+  return rawData.value.filter((row: any) => row.status === appliedStatus.value);
+});
 
 /* 类别 */
 const relNameOptions = ref<string[]>([]);
@@ -212,18 +194,19 @@ async function fetchList() {
     const params = {
       column: 'createTime',
       order: 'desc',
-      pageNo: currentPage.value,
-      pageSize: pageSize.value,
+      pageNo: 1,
+      pageSize: 9999,
       relName: selectedRelName.value || undefined,
       space: selectedPlace.value || undefined,
       areaName: searchKeyword.value.trim() || undefined,
     };
     const data = await getAreaListPageApi(params);
     console.log('设备列表数据：', data);
-    // 解析分页信息
     if (data) {
-      total.value = data.total ?? 0;
-      tableData.value = Array.isArray(data.records) ? data.records : [];
+      rawData.value = Array.isArray(data.records) ? data.records : [];
+      // 数据更新后重新计算表格尺寸，确保 auto-resize 生效
+      await nextTick();
+      tableRef.value?.recalculate?.();
     }
   } catch (err) {
     console.error('Failed to load equipment list:', err);
@@ -232,7 +215,7 @@ async function fetchList() {
 
 /** 查询 */
 function onSearch() {
-  currentPage.value = 1;
+  appliedStatus.value = selectedStatus.value;
   fetchList();
 }
 
@@ -241,19 +224,24 @@ function onReset() {
   searchKeyword.value = '';
   selectedRelName.value = '';
   selectedPlace.value = '';
-  currentPage.value = 1;
+  selectedStatus.value = '';
+  appliedStatus.value = '';
   fetchList();
 }
 /* --------------------- Modal 操作 --------------------- */
 const configOpenMessageRef = ref<InstanceType<typeof configOpenMessage>>();
 /** 全开 */
 function onOpenAll() {
- configOpenMessageRef.value?.showModal('open');
+  if (!selectedRowKeys.value.length) return message.error('请勾选区域！');
+  const checkedRows = rawData.value.filter((row: any) => selectedRowKeys.value.includes(row.id));
+  configOpenMessageRef.value?.showModal('open', checkedRows);
 }
 
 /** 全关 */
 function onCloseAll() {
- configOpenMessageRef.value?.showModal('close');
+  if (!selectedRowKeys.value.length) return message.error('请勾选区域！');
+  const checkedRows = rawData.value.filter((row: any) => selectedRowKeys.value.includes(row.id));
+  configOpenMessageRef.value?.showModal('close', checkedRows);
 }
 
 function onModalConfigOpenMessageSuccess(type) {
@@ -268,42 +256,14 @@ function onModalConfigOpenMessageSuccess(type) {
 // 表格勾选
 const selectedRowKeys = ref<string[]>([]);
 
-/** 当前页是否全选 */
-const isCurrentPageAllSelected = computed(() => {
-  if (!tableData.value.length) return false;
-  return tableData.value.every((row: any) => selectedRowKeys.value.includes(row.id));
-});
-
-/** 当前页是否半选 */
-const isIndeterminate = computed(() => {
-  if (!tableData.value.length) return false;
-  const selectedCount = tableData.value.filter((row: any) => selectedRowKeys.value.includes(row.id)).length;
-  return selectedCount > 0 && selectedCount < tableData.value.length;
-});
-
-/** 表头全选/反选 */
-function onSelectAllChange(e: Event) {
-  const checked = (e.target as HTMLInputElement).checked;
-  const currentIds = tableData.value.map((row: any) => row.id);
-  if (checked) {
-    // 全选：将当前页 id 合并进 selectedRowKeys（去重）
-    const set = new Set([...selectedRowKeys.value, ...currentIds]);
-    selectedRowKeys.value = Array.from(set);
-  } else {
-    // 取消全选：从 selectedRowKeys 中移除当前页所有 id
-    const removeSet = new Set(currentIds);
-    selectedRowKeys.value = selectedRowKeys.value.filter((id) => !removeSet.has(id));
-  }
+/** vxe-table 单行勾选变更 */
+function onCheckboxChange({ records }: { records: any[] }) {
+  selectedRowKeys.value = records.map((row: any) => row.id);
 }
 
-/** 单行勾选/取消 */
-function onRowSelect(row: any) {
-  const idx = selectedRowKeys.value.indexOf(row.id);
-  if (idx > -1) {
-    selectedRowKeys.value.splice(idx, 1);
-  } else {
-    selectedRowKeys.value.push(row.id);
-  }
+/** vxe-table 全选/全不选 */
+function onCheckboxAll({ records }: { records: any[] }) {
+  selectedRowKeys.value = records.map((row: any) => row.id);
 }
 
 // 多选--全开
@@ -392,17 +352,22 @@ const videoMonitorModalOpen = (row) => {
   videoMonitorModalRef.value?.showModal(row);
 }
 
-/* --------------------- 翻页 --------------------- */
-function onPageChange(page: number) {
-  currentPage.value = page;
-  fetchList();
-}
-
-
 onMounted(() => {
   fetchList();
   fetchRelNameOptions();
   fetchPlaceOptions();
+
+  // ResizeObserver：wrapper 尺寸确定后让 vxe-table 重算高度
+  resizeObserver = new ResizeObserver(() => {
+    tableRef.value?.recalculate?.();
+  });
+  if (tableWrapperRef.value) {
+    resizeObserver.observe(tableWrapperRef.value);
+  }
+})
+
+onUnmounted(() => {
+  resizeObserver?.disconnect();
 })
 
 
@@ -422,11 +387,16 @@ onMounted(() => {
   --color-offline: #ff4d4f;
 
   box-sizing: border-box;
-  min-height: 100%;
+  height: 100%;
+  max-height: calc(100vh - 60px); /* 减去 layout header 高度，超出后内部消化 */
   padding: 16px;
   background: var(--bg-page);
   color: var(--color-text);
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .page-wrapper *,
@@ -440,6 +410,12 @@ onMounted(() => {
   background: var(--bg-panel);
   border-radius: 8px;
   padding: 15px 24px 16px;
+
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ------------------- Header ------------------- */
@@ -614,96 +590,200 @@ onMounted(() => {
 
 /* ------------------- Table ------------------- */
 .table-wrapper {
-  overflow-x: auto;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.device-table {
-  width: 100%;
-  border-collapse: collapse;
+/* ====== vxe-table 深色主题覆盖 ====== */
+/* 把 --color-border 在表格作用域内重定向为背景色，让表头/表体的分隔线也"消失"
+   （.btn-outline 在 .table-wrapper 之外，不受影响） */
+.table-wrapper {
+  --color-border: var(--bg-panel);
+  overflow: hidden; /* 外层截断，table 自己负责滚动 */
+}
+.table-wrapper :deep(.vxe-table) {
+  /* 表格整体背景：去外边框 + 继承父容器 flex 高度 */
+  background: var(--bg-panel);
+  color: var(--color-text);
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  height: 100%;
+
+  /* 终极方案：把 vxe-table 内置所有"边框线"相关 CSS 变量全部指向背景色
+     包括 border--default/full/outer/inner 下用 linear-gradient 画的分隔线 */
+  --vxe-ui-table-border-color: var(--bg-panel);
+  --vxe-ui-table-border-width: 0;
+  --vxe-ui-table-checkbox-range-border-color: var(--bg-panel);
+  --vxe-ui-table-cell-area-border-color: var(--bg-panel);
+  --vxe-ui-table-cell-main-area-extension-border-color: var(--bg-panel);
+  --vxe-ui-table-cell-extend-area-border-color: var(--bg-panel);
+  --vxe-ui-table-cell-copy-area-border-color: var(--bg-panel);
+  /* 滚动状态下 fixed 列的"分隔阴影"也清零 */
+  --vxe-ui-table-fixed-right-scrolling-box-shadow: none;
+  --vxe-ui-table-fixed-left-scrolling-box-shadow: none;
+  /* 渲染层/表头/底部行/选中行的背景都向面板色对齐，避免产生任何对比差异 */
+  --vxe-ui-layout-background-color: var(--bg-panel);
+  --vxe-ui-table-header-background-color: var(--bg-panel);
+  --vxe-ui-table-footer-background-color: var(--bg-panel);
+  --vxe-ui-table-row-hover-background-color: rgba(255, 255, 255, 0.04);
+  --vxe-ui-table-row-striped-background-color: var(--bg-panel);
+  --vxe-ui-table-row-current-background-color: rgba(0, 162, 232, 0.15);
+
+  /* 自定义滚动条：可见、可拖 */
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+/* 自定义滚动条样式 —— 应用到 vxe-table 内任何可滚动节点 */
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
-.device-table th,
-.device-table td {
-  padding: 14px 12px;
-  text-align: left;
-  font-size: 13px;
-  white-space: nowrap;
+/* vxe-table 内置的所有装饰性边框容器，统统隐藏/透明化 */
+.table-wrapper :deep(.vxe-table--border-line),
+.table-wrapper :deep(.vxe-table--column-line),
+.table-wrapper :deep(.vxe-table--row-line) {
+  border-color: transparent;
+}
+.table-wrapper :deep(.vxe-table--border-line) { display: none !important; }
+
+/* 清除 fixed 左右列的 box-shadow（包括 scrolling-middle 状态下的"分隔阴影"） */
+.table-wrapper :deep(.vxe-table--fixed-left-wrapper),
+.table-wrapper :deep(.vxe-table--fixed-right-wrapper) {
+  box-shadow: none !important;
+  background-color: transparent; /* 避免继承 panel 背景形成颜色对比 */
 }
 
-.device-table thead th {
+/* 兜底：清掉所有 header/body wrapper 的右边线/边阴影/轮廓 */
+.table-wrapper :deep(.vxe-table--header-wrapper),
+.table-wrapper :deep(.vxe-table--body-wrapper),
+.table-wrapper :deep(.vxe-table--footer-wrapper),
+.table-wrapper :deep(.vxe-table--header),
+.table-wrapper :deep(.vxe-table--body),
+.table-wrapper :deep(.vxe-table--footer) {
+  border-right: 0 !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+/* 最后兜底：vxe-table 内任何可能的右 1px 线条伪元素，一并去掉 */
+.table-wrapper :deep(.vxe-table)::after,
+.table-wrapper :deep(.vxe-table)::before,
+.table-wrapper :deep(.vxe-table--header-wrapper)::after,
+.table-wrapper :deep(.vxe-table--header-wrapper)::before {
+  display: none !important;
+  border: 0 !important;
+}
+.table-wrapper :deep(.vxe-body--column) {
+  border-right: none !important;
+}
+
+/* 表头行：清掉 vxe-header--row / vxe-header--column 的右边线 */
+.table-wrapper :deep(.vxe-header--row),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column:last-child),
+.table-wrapper :deep(.vxe-header--row .col--fixed-right) {
+  border-right: 0 !important;
+  background-image: none !important;
+}
+
+/* Gutter 列（表头/表体滚动条占位列）—— 多行表头每行都有一个，vxe-table
+   border--default/full 下通过 background-image 画底部边界线；
+   这里把所有边界线、背景色、阴影全部干掉，杜绝右侧白线 */
+.table-wrapper :deep(.vxe-table--header-wrapper .vxe-header--row .vxe-header--gutter),
+.table-wrapper :deep(.vxe-table--body-wrapper .vxe-body--row .vxe-body--gutter),
+.table-wrapper :deep(.vxe-header--gutter),
+.table-wrapper :deep(.vxe-body--gutter),
+.table-wrapper :deep(.col--gutter) {
+  border: 0 !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* 表头 */
+.table-wrapper :deep(.vxe-table--header) {
+  background: #1a2332;
+}
+.table-wrapper :deep(.vxe-header--column) {
+  background: #1a2332;
   color: var(--color-muted);
   font-weight: 500;
   border-bottom: 1px solid var(--color-border);
+  height: 40px;
 }
 
-/* 列宽比例分配 */
-.device-table th:nth-child(1),
-.device-table td:nth-child(1) {
-  width: 4%;
-}
-
-.device-table th:nth-child(2),
-.device-table td:nth-child(2) {
-  width: 6%;
-}
-
-.device-table th:nth-child(3),
-.device-table td:nth-child(3) {
-  width: 20%;
-}
-
-.device-table th:nth-child(4),
-.device-table td:nth-child(4) {
-  width: 20%;
-}
-
-.device-table th:nth-child(5),
-.device-table td:nth-child(5) {
-  width: 17%;
-}
-
-.device-table th:nth-child(6),
-.device-table td:nth-child(6) {
-  width: 10%;
-}
-
-.device-table th:nth-child(7),
-.device-table td:nth-child(7) {
-  width: 13%;
-}
-
-/* 复选框列居中对齐 */
-.col-checkbox {
-  text-align: center !important;
-  vertical-align: middle;
-}
-
-.col-checkbox input[type='checkbox'] {
-  width: 15px;
-  height: 15px;
-  cursor: pointer;
-  accent-color: var(--color-primary);
-  vertical-align: middle;
-  margin: 0;
-  display: inline-block;
-}
-
-.device-table tbody td {
-  color: var(--color-text);
+/* 表体行 */
+.table-wrapper :deep(.vxe-body--row) {
   border-bottom: 1px solid var(--color-border);
+  background: var(--bg-panel);
+}
+.table-wrapper :deep(.vxe-body--row.row--hover),
+.table-wrapper :deep(.vxe-body--row:hover) {
+  background: #233044 !important;
+}
+.table-wrapper :deep(.vxe-table--body) {
+  background: var(--bg-panel);
+}
+.table-wrapper :deep(.vxe-table--body-wrapper) {
+  background: var(--bg-panel);
+}
+.table-wrapper :deep(.vxe-body--column) {
+  color: var(--color-text);
+  font-size: 13px;
 }
 
-.device-table tbody tr:last-child td {
-  border-bottom: none;
+/* 复选框列 */
+.table-wrapper :deep(.vxe-checkbox--icon) {
+  color: var(--color-muted);
+}
+.table-wrapper :deep(.vxe-checkbox.is--checked .vxe-checkbox--icon) {
+  color: var(--color-primary);
 }
 
-.device-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+/* 序号列 */
+.table-wrapper :deep(.vxe-seq--column .vxe-cell) {
+  color: var(--color-muted);
 }
 
-/* 状态列强制左对齐 */
-.status-cell {
-  text-align: left !important;
+/* 固定列阴影 */
+.table-wrapper :deep(.vxe-table--fix-left) {
+  background: var(--bg-panel);
+}
+.table-wrapper :deep(.vxe-table--fix-right) {
+  background: var(--bg-panel);
+}
+
+/* 滚动条 */
+.table-wrapper :deep(.vxe-table--body-wrapper::-webkit-scrollbar) {
+  width: 6px;
+  height: 6px;
+}
+.table-wrapper :deep(.vxe-table--body-wrapper::-webkit-scrollbar-thumb) {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
 }
 
 /* 状态 Badge */
@@ -733,7 +813,12 @@ onMounted(() => {
 .actions {
   display: flex;
   align-items: center;
+  /* 统一左对齐：按钮组从操作列左边缘起依次向右排开
+     与表头"操作"两个字共用同一条左基线 */
+  justify-content: flex-start;
   gap: 8px;
+  width: 100%;
+  padding-right: 12px; /* 与表头一起让操作列整体距离右边留一点空隙 */
 }
 
 .actions .action-btn {
@@ -768,51 +853,6 @@ onMounted(() => {
 
 .actions .action-btn.btn-danger:hover {
   background: #dc2626;
-}
-
-/* ------------------- Pagination ------------------- */
-.pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-border);
-}
-
-.pagination-info {
-  font-size: 13px;
-  color: var(--color-muted);
-}
-
-.pagination-current {
-  font-size: 13px;
-  color: var(--color-text);
-  min-width: 56px;
-  text-align: center;
-}
-
-.pagination-btn {
-  height: 30px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.pagination-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
 }
 
 /* ------------------- 响应式 ------------------- */

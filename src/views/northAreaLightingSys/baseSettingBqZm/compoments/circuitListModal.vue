@@ -40,74 +40,101 @@
      </section>
 
       <!-- 数据表格（可滚动区域） -->
-      <section class="table-scroll" v-loading="tableLoading">
+      <section class="table-container" v-loading="tableLoading">
         <table class="device-table">
           <thead>
             <tr>
               <th>序号</th>
               <th>回路名称</th>
-              <th>状态</th>
-              <th>开启时间</th>
-              <th>关闭时间</th>
-              <th>开启总时长</th>
+              <th>
+                <span class="th-label">状态</span>
+                <span class="th-btn-wrap">
+                  <span class="filter-btn" :class="{ active: statusFilter }" @click.stop="toggleStatusFilter">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                  </span>
+                  <div v-if="showStatusDropdown" class="filter-dropdown" @click.stop>
+                    <div
+                      v-for="opt in statusOptions"
+                      :key="opt"
+                      class="filter-option"
+                      :class="{ active: statusFilter === opt }"
+                      @click="applyStatusFilter(opt)"
+                    >{{ opt }}</div>
+                    <div class="filter-option" :class="{ active: !statusFilter }" @click="applyStatusFilter('')">全部</div>
+                  </div>
+                </span>
+              </th>
+              <th>
+                <span class="th-label">开启时间</span>
+                <span class="th-btn-wrap sort-btn" @click="toggleSort('startTime')">
+                  <span class="arr-up" :class="{ active: sortKey === 'startTime' && sortOrder === 'asc' }">▲</span>
+                  <span class="arr-down" :class="{ active: sortKey === 'startTime' && sortOrder === 'desc' }">▼</span>
+                </span>
+              </th>
+              <th>
+                <span class="th-label">关闭时间</span>
+                <span class="th-btn-wrap sort-btn" @click="toggleSort('closingTime')">
+                  <span class="arr-up" :class="{ active: sortKey === 'closingTime' && sortOrder === 'asc' }">▲</span>
+                  <span class="arr-down" :class="{ active: sortKey === 'closingTime' && sortOrder === 'desc' }">▼</span>
+                </span>
+              </th>
+              <th>
+                <span class="th-label">开启总时长</span>
+                <span class="th-btn-wrap sort-btn" @click="toggleSort('allDuration')">
+                  <span class="arr-up" :class="{ active: sortKey === 'allDuration' && sortOrder === 'asc' }">▲</span>
+                  <span class="arr-down" :class="{ active: sortKey === 'allDuration' && sortOrder === 'desc' }">▼</span>
+                </span>
+              </th>
               <th>操作人</th>
               <th>操作时间</th>
               
               <th>操作</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="(row, idx) in tableData" :key="row.id">
-              <td>{{ (currentPage - 1) * pageSize + idx + 1 }}</td>
-              <td>{{ row.circuitName }}</td>
-              <td class="status-cell">
-                <span
-                  class="status-badge-table"
-                  :class="{
-                    online: row.status === '开启',
-                    offline: row.status === '关闭',
-                  }"
-                >{{ row.status }}</span>
-              </td>
-              <td>{{ row.startTime }}</td>
-              <td>{{ row.closingTime }}</td>
-              <td>{{ formatSeconds(row.allDuration, { showHoursAlways: true }) }}</td>
-              <td>{{ row.operatorBy }}</td>
-              <td>{{ row.operatorTime }}</td>
-              <td class="actions">
-                <a-popconfirm
-                  :title="'确认开启'+ row.circuitName +'？'"
-                  ok-text="确定"
-                  cancel-text="取消"
-                  @confirm="onOpenRow(row)"
-                ><button class="action-btn">开启</button></a-popconfirm>
-                <a-popconfirm
-                  :title="'确认关闭'+ row.circuitName +'？'"
-                  ok-text="确定"
-                  cancel-text="取消"
-                  @confirm="onCloseRow(row)"
-                ><button class="action-btn">关闭</button></a-popconfirm>
-              </td>
-            </tr>
-          </tbody>
         </table>
+        <div class="table-scroll">
+          <table class="device-table">
+            <tbody>
+              <tr v-for="(row, idx) in displayData" :key="row.id">
+                <td>{{ idx + 1 }}</td>
+                <td>{{ row.circuitName }}</td>
+                <td class="status-cell">
+                  <span
+                    class="status-badge-table"
+                    :class="{
+                      online: row.status === '开启',
+                      offline: row.status === '关闭',
+                    }"
+                  >{{ row.status }}</span>
+                </td>
+                <td>{{ row.startTime }}</td>
+                <td>{{ row.closingTime }}</td>
+                <td>{{ formatSeconds(row.allDuration, { showHoursAlways: true }) }}</td>
+                <td>{{ row.operatorBy }}</td>
+                <td>{{ row.operatorTime }}</td>
+                <td class="actions">
+                  <div class="actions-inner">
+                  <a-popconfirm
+                    :title="'确认开启'+ row.circuitName +'？'"
+                    ok-text="确定"
+                    cancel-text="取消"
+                    @confirm="onOpenRow(row)"
+                  ><button class="action-btn btn-open">开启</button></a-popconfirm>
+                  <a-popconfirm
+                    :title="'确认关闭'+ row.circuitName +'？'"
+                    ok-text="确定"
+                    cancel-text="取消"
+                    @confirm="onCloseRow(row)"
+                  ><button class="action-btn btn-close">关闭</button></a-popconfirm>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
-
-      <!-- 分页 -->
-      <div class="pagination-bar">
-        <span class="pagination-info">共 {{ total }} 条</span>
-        <button
-          class="pagination-btn"
-          :disabled="currentPage <= 1"
-          @click="onPageChange(currentPage - 1)"
-        >上一页</button>
-        <span class="pagination-current">{{ currentPage }} / {{ Math.ceil(total / pageSize) || 1 }}</span>
-        <button
-          class="pagination-btn"
-          :disabled="currentPage >= Math.ceil(total / pageSize)"
-          @click="onPageChange(currentPage + 1)"
-        >下一页</button>
-      </div>
 
       <!-- 底部操作按钮 -->
       <div class="modal-footer">
@@ -161,19 +188,63 @@ const tableLoading = ref(false);
 // table表格
 const tableData = ref([]);
 
+/* --------------------- 排序 & 筛选 --------------------- */
+const sortKey = ref('');
+const sortOrder = ref<'asc' | 'desc'>('asc');
+const statusFilter = ref('');
+const statusOptions = ['开启', '关闭'];
+const showStatusDropdown = ref(false);
+
+const displayData = computed(() => {
+  let list = [...tableData.value];
+  // 状态筛选
+  if (statusFilter.value) {
+    list = list.filter((r: any) => r.status === statusFilter.value);
+  }
+  // 排序
+  if (sortKey.value) {
+    const key = sortKey.value;
+    const dir = sortOrder.value === 'asc' ? 1 : -1;
+    list.sort((a: any, b: any) => {
+      const va = a[key];
+      const vb = b[key];
+      if (key === 'allDuration') {
+        return ((va || 0) - (vb || 0)) * dir;
+      }
+      return String(va || '').localeCompare(String(vb || '')) * dir;
+    });
+  }
+  return list;
+});
+
+function toggleSort(key: string) {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortOrder.value = 'asc';
+  }
+}
+
+function toggleStatusFilter() {
+  showStatusDropdown.value = !showStatusDropdown.value;
+}
+
+function applyStatusFilter(val: string) {
+  statusFilter.value = val;
+  showStatusDropdown.value = false;
+}
+
 /* --------------------- 分页 --------------------- */
-const currentPage = ref(1);
-const pageSize = ref(10);
+const pageSize = ref(999);
 const total = ref(0);
 
 /** 查询 */
 function onSearch() {
-  currentPage.value = 1;
   fetchList();
 }
 /** 重置 */
 function onReset() {
-  currentPage.value = 1;
   fetchList();
 }
 /** 获取列表数据 */
@@ -181,7 +252,6 @@ async function fetchList() {
   tableLoading.value = true;
   try {
     const params = {
-      pageNo: currentPage.value,
       pageSize: pageSize.value,
       areaId: formObj.id || undefined,
     };
@@ -261,11 +331,7 @@ const onCloseRow = async (row) => {
       // fetchList();
     });
 }
-/* --------------------- 翻页 --------------------- */
-function onPageChange(page: number) {
-  currentPage.value = page;
-  fetchList();
-}
+/* --------------------- 工具函数 --------------------- */
 function formatSeconds(totalSeconds, options:any = {}) {
   // 参数校验
   if (typeof totalSeconds !== 'number' || totalSeconds < 0) {
@@ -514,10 +580,16 @@ defineExpose({
 }
 
 /* ------------------- Table ------------------- */
+.table-container {
+  position: relative;
+}
+
 .table-scroll {
-  max-height: 420px;
+  min-height: 400px;
+  max-height: 400px;
   overflow-y: auto;
   overflow-x: auto;
+  border-top: none;
 }
 
 .device-table {
@@ -537,6 +609,108 @@ defineExpose({
   color: #a0aabf;
   font-weight: 500;
   border-bottom: 1px solid #303d50;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.device-table thead th .th-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.th-label,
+.th-btn-wrap {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.th-btn-wrap {
+  margin-left: 4px;
+  cursor: pointer;
+  position: relative;
+}
+
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 18px;
+  border-radius: 3px;
+  color: #5a6a80;
+  transition: all 0.15s;
+}
+
+.filter-btn:hover {
+  color: #00c6ff;
+  background: rgba(0, 198, 255, 0.1);
+}
+
+.filter-btn.active {
+  color: #00c6ff;
+  background: rgba(0, 198, 255, 0.15);
+}
+
+.sort-btn {
+  flex-direction: column;
+  gap: 0;
+  margin-left: 8px;
+  line-height: 0;
+  justify-content: center;
+  height: 24px;
+}
+
+.sort-btn .arr-up,
+.sort-btn .arr-down {
+  font-size: 10px;
+  line-height: 10px;
+  color: #3a4a5f;
+  transition: color 0.12s;
+}
+
+.sort-btn .arr-up.active {
+  color: #00c6ff;
+}
+
+.sort-btn .arr-down.active {
+  color: #00c6ff;
+}
+
+.sort-btn:hover .arr-up,
+.sort-btn:hover .arr-down {
+  color: #5a6a80;
+}
+
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: #1b2533;
+  border: 1px solid #303d50;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  min-width: 90px;
+  padding: 4px 0;
+}
+
+.filter-option {
+  padding: 7px 14px;
+  font-size: 12px;
+  color: #c0c8d4;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-option:hover {
+  background: rgba(0, 162, 232, 0.1);
+  color: #00c6ff;
+}
+
+.filter-option.active {
+  color: #00c6ff;
+  font-weight: 600;
 }
 
 /* 列宽比例分配 — 9列 */
@@ -643,70 +817,41 @@ defineExpose({
 }
 
 /* 操作按钮 */
-.actions {
+.device-table td.actions {
+  border-bottom: 1px solid #303d50 !important;
+}
+
+.actions-inner {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.actions .action-btn {
+.actions-inner .action-btn {
   height: 28px;
   padding: 0 12px;
-  background: #ffffff;
   border: none;
   border-radius: 4px;
-  color: #1a1a1a;
   font-size: 12px;
   cursor: pointer;
   transition: opacity 0.2s;
-}
-
-.actions .action-btn:hover {
-  opacity: 0.85;
-}
-/* ------------------- Pagination ------------------- */
-.pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #303d50;
-}
-
-.pagination-info {
-  font-size: 13px;
-  color: #a0aabf;
-}
-
-.pagination-current {
-  font-size: 13px;
   color: #ffffff;
-  min-width: 56px;
-  text-align: center;
 }
 
-.pagination-btn {
-  height: 30px;
-  padding: 0 14px;
-  border: 1px solid #303d50;
-  border-radius: 4px;
-  background: transparent;
-  color: #ffffff;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+.actions-inner .action-btn.btn-open {
+  background: #22c55e;
 }
 
-.pagination-btn:hover:not(:disabled) {
-  border-color: #00a2e8;
-  color: #00a2e8;
+.actions-inner .action-btn.btn-open:hover {
+  background: #16a34a;
 }
 
-.pagination-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+.actions-inner .action-btn.btn-close {
+  background: #ef4444;
+}
+
+.actions-inner .action-btn.btn-close:hover {
+  background: #dc2626;
 }
 
 </style>

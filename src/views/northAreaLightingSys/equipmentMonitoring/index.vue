@@ -26,18 +26,26 @@
                 <line x1="12" y1="17" x2="12" y2="21"/>
               </svg>
               <h2 class="panel-title">实时设备监控</h2>
+              <button class="btn-collapse" :class="{ collapsed: monitorCollapsed }" @click="toggleMonitor">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+                <span>折叠</span>
+              </button>
             </div>
-            <button class="btn btn-primary" @click="onRefreshVideo">
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="23 4 23 10 17 10"/>
-                <polyline points="1 20 1 14 7 14"/>
-                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-              </svg>
-              获取视频列表
-            </button>
+            <div class="header-right">
+              <button class="btn btn-primary" @click="onRefreshVideo">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+                </svg>
+                获取视频列表
+              </button>
+            </div>
           </header>
 
-          <div class="video-grid">
+          <div class="video-grid" v-show="!monitorCollapsed">
           <div class="video-grid-cameras">
           <!-- 未选择摄像头 -->
           <div v-if="activeCameras.length === 0 && !modalLoading" class="video-placeholder">
@@ -63,7 +71,7 @@
         </section>
 
         <!-- 场景控制面板 -->
-        <section class="panel panel-scene-monitor">
+        <section class="panel panel-scene-monitor" :class="{ 'panel-collapsed': sceneCollapsed }">
           <header class="panel-header panel-header--fixed">
             <div class="left">
               <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -72,25 +80,45 @@
                 <line x1="12" y1="22.08" x2="12" y2="12"/>
               </svg>
               <h2 class="panel-title">场景控制面板</h2>
+              <button class="btn-collapse" :class="{ collapsed: sceneCollapsed }" @click="toggleScene">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+                <span>折叠</span>
+              </button>
             </div>
           </header>
 
-          <div class="scene-grid" v-loading="loadingSceneList">
+          <div class="scene-grid" v-show="!sceneCollapsed" v-loading="loadingSceneList">
             <div
               v-for="s in sceneList"
               :key="s.id"
               class="scene-card"
             >
               <div class="scene-header">
-                <div class="scene-title-row">
-                  <span class="scene-name">{{ s.name }}</span>
+                <span class="scene-name">{{ s.name }}</span>
+                <div class="scene-top-actions">
                 </div>
               </div>
-              <p class="scene-circuits">包含 {{ s.circuitCount }} 个{{ s.relType }}</p>
-              <p class="scene-desc">{{ s.desc }}</p>
+              <div class="scene-info">
+                <div class="scene-info-item">
+                  <span class="info-label">包含</span>
+                  <span class="info-value">{{ s.circuitCount }} 个{{ s.relType }}</span>
+                </div>
+                <div class="scene-info-item">
+                  <span class="info-label">操作类型</span>
+                  <span class="info-value">{{ s.operationType || '-' }}</span>
+                </div>
+                <div class="scene-info-item">
+                  <span class="info-label">上次操作</span>
+                  <span class="info-value">{{ s.updateTime || '-' }}</span>
+                </div>
+              </div>
               <div class="scene-actions">
-                <button class="btn btn-primary" @click="onExecute(s)">开启</button>
-                <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
+                <div class="scene-actions-left">
+                  <button class="btn btn-primary" @click="onExecute(s)">开启</button>
+                  <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
+                </div>
               </div>
             </div>
           </div>
@@ -125,16 +153,42 @@
               class="scene-card"
             >
               <div class="scene-header">
-                <div class="scene-title-row">
-                  <span class="scene-name">{{ s.name }}</span>
+                <span class="scene-name">{{ s.name }}</span>
+                <div class="scene-top-actions">
+                  <button class="scene-icon-btn" title="编辑" @click="onEditScene(s)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button class="scene-icon-btn danger" title="删除" @click="onDeleteScene(s)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <p class="scene-circuits">包含 {{ s.circuitCount }} 个{{ s.relType }}</p>
-              <p class="scene-desc">{{ s.desc }}</p>
+              <div class="scene-info">
+                <div class="scene-info-item">
+                  <span class="info-label">包含</span>
+                  <span class="info-value">{{ s.circuitCount }} 个{{ s.relType }}</span>
+                </div>
+                <div class="scene-info-item">
+                  <span class="info-label">操作类型</span>
+                  <span class="info-value">{{ s.operationType || '-' }}</span>
+                </div>
+                <div class="scene-info-item">
+                  <span class="info-label">上次操作</span>
+                  <span class="info-value">{{ s.updateTime || '-' }}</span>
+                </div>
+              </div>
               <div class="scene-actions">
-                <button class="btn btn-primary" @click="onExecute(s)">开启</button>
-                <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
-                <button class="btn btn-secondary" @click="onEditScene(s)">详情</button>
+                <div class="scene-actions-left">
+                  <button class="btn btn-primary" @click="onExecute(s)">开启</button>
+                  <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
+                </div>
+                <button class="btn btn-link" @click="createNewSceneModalRef?.showModal('detail', s)">详情</button>
               </div>
             </div>
           </div>
@@ -143,7 +197,7 @@
 
       <!-- ========== 定时控制 ========== -->
       <template v-if="activeTab === 'timer'">
-        <section class="panel">
+        <section class="panel panel-timer">
           <header class="panel-header">
             <div class="left">
               <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -207,7 +261,7 @@
               </thead>
               <tbody>
                 <tr v-for="(row, idx) in timerList" :key="row.id">
-                  <td><span class="cell-text" :title="String((timerCurrentPage - 1) * timerPageSize + idx + 1)">{{ (timerCurrentPage - 1) * timerPageSize + idx + 1 }}</span></td>
+                  <td><span class="cell-text">{{ idx + 1 }}</span></td>
                   <td><span class="cell-text" :title="row.relType">{{ row.relType }}</span></td>
                   <td><span class="cell-text" :title="row.planName">{{ row.planName }}</span></td>
                   <td><span class="cell-text" :title="row.executionLocalTime || row.executionTime">{{ row.executionLocalTime || row.executionTime }}</span></td>
@@ -265,27 +319,12 @@
             </table>
           </div>
 
-          <!-- 分页 -->
-          <div class="pagination-bar">
-            <span class="pagination-info">共 {{ timerTotal }} 条</span>
-            <button
-              class="pagination-btn"
-              :disabled="timerCurrentPage <= 1"
-              @click="onTimerPageChange(timerCurrentPage - 1)"
-            >上一页</button>
-            <span class="pagination-current">{{ timerCurrentPage }} / {{ Math.ceil(timerTotal / timerPageSize) || 1 }}</span>
-            <button
-              class="pagination-btn"
-              :disabled="timerCurrentPage >= Math.ceil(timerTotal / timerPageSize)"
-              @click="onTimerPageChange(timerCurrentPage + 1)"
-            >下一页</button>
-          </div>
         </section>
       </template>
 
       <!-- ========== 控制日历 ========== -->
       <template v-if="activeTab === 'calendar'">
-        <section class="panel">
+        <section class="panel panel-calendar">
           <header class="panel-header">
             <div class="left">
               <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -296,10 +335,15 @@
               </svg>
               <h2 class="panel-title">控制日历 - {{ calendarYear }}年{{ calendarMonth + 1 }}月</h2>
             </div>
+            <div class="calendar-legend">
+              <span class="legend-item"><i class="legend-dot" style="background:#00a2e8"></i>未执行</span>
+              <span class="legend-item"><i class="legend-dot" style="background:#ff4d4f"></i>执行失败</span>
+              <span class="legend-item"><i class="legend-dot" style="background:#52c41a"></i>执行成功</span>
+            </div>
             <div class="calendar-nav">
               <button class="btn btn-text" title="上一年" @click="prevYear">«</button>
               <button class="btn btn-text" title="上一月" @click="prevMonth">‹</button>
-              <button class="btn btn-secondary" @click="goToToday">今天</button>
+              <button class="btn btn-secondary" @click="goToToday">日期</button>
               <button class="btn btn-text" title="下一月" @click="nextMonth">›</button>
               <button class="btn btn-text" title="下一年" @click="nextYear">»</button>
             </div>
@@ -370,6 +414,16 @@ const tabs = [
 ];
 const activeTab = ref('monitor');
 
+/* --------------------- 面板折叠状态（默认展开） --------------------- */
+const monitorCollapsed = ref(false);
+const sceneCollapsed = ref(false);
+function toggleMonitor() {
+  monitorCollapsed.value = !monitorCollapsed.value;
+}
+function toggleScene() {
+  sceneCollapsed.value = !sceneCollapsed.value;
+}
+
 /* --------------------- 视频流数据 --------------------- */
 
 /* --------------------- 场景数据 --------------------- */
@@ -409,7 +463,7 @@ function onAddScene() {
   createNewSceneModalRef.value?.showModal('add');
 }
 function onEditScene(s) {
-  createNewSceneModalRef.value?.showModal('detail', s);
+  createNewSceneModalRef.value?.showModal('edit', s);
 }
 // 新建场景--回调
 const createNewSceneModalSuccess = async () =>{
@@ -457,6 +511,8 @@ async function fetchSceneList() {
           desc: `控制类型 · ${item.relType || '-'}`,
           isDefault: item.sort === 1,
           relType: item.relType,
+          operationType: item.operationType || '',
+          updateTime: item.updateTime || item.updateDate || item.createTime || '',
         };
       });
     }
@@ -519,8 +575,6 @@ const postSceneSwitchApiChange = async (params) =>{
 /* --------------------- 定时任务数据 --------------------- */
 const timerList = ref<any[]>([]);
 const timerLoading = ref(false);
-const timerCurrentPage = ref(1);
-const timerPageSize = ref(10);
 const timerTotal = ref(0);
 
 const timerFilters = ref({
@@ -544,8 +598,7 @@ async function fetchTimerList() {
   timerLoading.value = true;
   try {
     const params: Record<string, any> = {
-      pageNo: timerCurrentPage.value,
-      pageSize: timerPageSize.value,
+      pageSize: 9999,
     };
     if (timerFilters.value.relType) params.relType = timerFilters.value.relType;
     if (timerFilters.value.startTime) params.startTime = timerFilters.value.startTime.format('HH:mm:ss');
@@ -645,7 +698,6 @@ async function onTimerEnableSuccess() {
 }
 
 function onTimerSearch() {
-  timerCurrentPage.value = 1;
   fetchTimerList();
 }
 
@@ -655,12 +707,6 @@ function onTimerReset() {
     startTime: null,
     endTime: null,
   };
-  timerCurrentPage.value = 1;
-  fetchTimerList();
-}
-
-function onTimerPageChange(page: number) {
-  timerCurrentPage.value = page;
   fetchTimerList();
 }
 
@@ -976,6 +1022,10 @@ onMounted(() => {
   background: var(--bg-panel);
   border-radius: 8px;
   padding: 16px 20px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .panel-header {
@@ -983,6 +1033,50 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 折叠按钮 */
+.btn-collapse {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  font-size: 12px;
+
+  svg {
+    width: 12px;
+    height: 12px;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+
+  &.collapsed svg {
+    transform: rotate(-90deg);
+  }
+}
+
+/* 折叠时面板移除下边距 */
+.panel-collapsed {
+  flex: none !important;
 }
 
 .panel-header .left {
@@ -1164,13 +1258,17 @@ onMounted(() => {
 
 .scene-card {
   background: var(--bg-card);
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
   border: 1px solid transparent;
   transition: border-color 0.2s;
+}
+
+.scene-card:hover {
+  border-color: rgba(0, 162, 232, 0.3);
 }
 
 .scene-card.scene-default {
@@ -1181,6 +1279,41 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.scene-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.scene-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--color-text);
+  }
+
+  &.danger:hover {
+    background: rgba(255, 77, 79, 0.15);
+    color: #ff7875;
+  }
 }
 
 .scene-title-row {
@@ -1195,9 +1328,36 @@ onMounted(() => {
 }
 
 .scene-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text);
+}
+
+.scene-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scene-info-item {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.scene-info-item .info-label {
+  color: var(--color-muted);
+  min-width: 56px;
+  flex-shrink: 0;
+}
+
+.scene-info-item .info-value {
+  color: var(--color-text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .scene-default-tag {
@@ -1238,24 +1398,37 @@ onMounted(() => {
   }
 }
 
-.scene-circuits {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-text);
-}
-
-.scene-desc {
-  margin: 0;
-  font-size: 12px;
-  color: var(--color-muted);
-  line-height: 1.4;
-}
-
 .scene-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.scene-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-link {
+  background: transparent;
+  color: var(--color-primary);
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  height: auto;
+  line-height: 1;
+  transition: color 0.2s;
+
+  &:hover {
+    color: var(--color-primary-hover);
+    text-decoration: underline;
+  }
 }
 
 /* ------------------- 占位提示 ------------------- */
@@ -1280,6 +1453,7 @@ onMounted(() => {
   margin-bottom: 12px;
   flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .filter-left {
@@ -1380,9 +1554,24 @@ onMounted(() => {
 }
 
 /* ------------------- 定时任务表格 ------------------- */
+.panel-timer {
+  flex: 1;
+  min-height: 0;
+}
+
 .table-wrapper {
   width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   overflow-x: auto;
+}
+
+.table-wrapper .timer-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #1a2332;
 }
 
 .timer-table {
@@ -1459,6 +1648,28 @@ onMounted(() => {
 }
 
 /* ------------------- 控制日历 ------------------- */
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 24px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #a0aabf;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
 .calendar-nav {
   display: flex;
   align-items: center;
@@ -1477,32 +1688,54 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* 日历面板充满剩余空间 */
+.panel-calendar {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: 0;
+  padding-bottom: 12px;
+}
+
+.panel-calendar .panel-header {
+  margin-bottom: 8px;
+}
+
 .calendar-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
   gap: 1px;
   background: var(--color-border);
   border-radius: 6px;
   overflow: hidden;
+  margin-bottom: 0;
 }
 
 .calendar-weekday {
   background: var(--bg-panel);
-  padding: 10px;
+  padding: 6px 4px;
   text-align: center;
   font-size: 13px;
   color: var(--color-muted);
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .calendar-day {
   background: var(--bg-card);
-  height: 110px;
-  padding: 6px 8px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transition: background 0.15s;
+  min-height: 0;
 }
 
 .calendar-day:hover {
@@ -1518,12 +1751,13 @@ onMounted(() => {
   font-weight: 500;
   color: var(--color-text);
   flex-shrink: 0;
+  margin-bottom: 2px;
 }
 
 .day-tasks {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
