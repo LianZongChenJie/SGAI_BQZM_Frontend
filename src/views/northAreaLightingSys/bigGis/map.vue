@@ -49,16 +49,16 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadMapScripts } from '/@/components/map/loadMapScripts'
-import { getAllAreaApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api'
+import { getAllAreaApi, openAreaApi, closeAreaApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { VideoCamera } from '@element-plus/icons-vue'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
+import spaceBoundariesData from './space-boundaries.json'
 
 // 监控平台 iframe 地址前缀（与设备监控页面保持一致），monitorAdr 为监控通道编码
 const MONITOR_BASE_URL = 'http://10.168.47.23:4000/index.html?id=';
 import lightOnImg from '/@/assets/images/lightOn.png'
 import lightOffImg from '/@/assets/images/lightOff.png'
 
-const DaxiMap = (window as Window & { DaxiMap?: any }).DaxiMap;
 const map = ref<any>(null);
 // 当前展开的成员列表（点击地图空白时自动关闭）
 let openedListEl: HTMLElement | null = null;
@@ -90,11 +90,11 @@ const windowWidth = window.outerWidth;
 // 根据屏幕宽度设置初始缩放级别
 let zoomNum: number;
 if (windowWidth > 1439) {
-  zoomNum = 15.95; // 大屏
+  zoomNum = 15.0; // 大屏 - 增大初始倍数
 } else if (windowWidth > 1200) {
-  zoomNum = 14.45; // 中屏
+  zoomNum = 14.0; // 中屏 - 增大初始倍数
 } else {
-  zoomNum = 15.95; // 小屏
+  zoomNum = 13.5; // 小屏 - 增大初始倍数
 }
 console.log(zoomNum);
 // 配置参数
@@ -115,8 +115,15 @@ const mapConfig = {
 };
 // 初始化地图
 const initMap = async () => {
+  // 确保 DaxiMap 已经加载
+  const DaxiMapGlobal = (window as Window & { DaxiMap?: any }).DaxiMap;
+  if (!DaxiMapGlobal) {
+    console.error('大希地图 SDK 未加载');
+    return;
+  }
+  
   try {
-    map.value = await new DaxiMap.Map("mapContainer", mapConfig);
+    map.value = await new DaxiMapGlobal.Map("mapContainer", mapConfig);
     map.value.on("loadComplete", async () => {
       console.log("地图加载完成");
       // 设置缩放范围：最小10级，最大23级
@@ -126,8 +133,10 @@ const initMap = async () => {
       await initFloorId();
       // 等待地图瓦片渲染完成后再添加标点，避免标点先于地图出现
       setTimeout(async () => {
-        await loadLightingData();
-        AddLightingMarker();
+        await loadLightingData();  // 初始化时加载灯光数据
+        console.log('灯光数据已加载:', lightingData.value.length, '条');
+        // 注意：不在这里自动添加标点，等待用户操作（如点击地块或查看详情）
+        // AddLightingMarker();
         // 初始化时聚焦到金安桥
         map.value.easeTo({
           bdid: buildingID,
@@ -183,21 +192,411 @@ const lightingData = ref<any[]>([]);
 async function loadLightingData() {
   try {
     const res = await getAllAreaApi();
-    console.log(res);
+    console.log('灯光数据:', res);
     lightingData.value = Array.isArray(res) ? res : [];
+    
+    // 注意：不在这里自动绘制地块边框，等待用户点击“地块”按钮
   } catch {
     lightingData.value = [];
   }
 }
 const lightingMarkerArr = ref<any[]>([]);
+let highlightLine: any = null; // 地块边框线（保留兼容）
+let markersDrawing: boolean = false; // 标记是否正在绘制
+
+/**
+ * 计算中心点
+ */
+function calculateCenterPoint(path: number[][]): { centerLon: number; centerLat: number } {
+  if (!path || path.length === 0) {
+    return { centerLon: 0, centerLat: 0 };
+  }
+  
+  // 计算边界框
+  let minLon = Infinity;
+  let maxLon = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  
+  path.forEach((coord: number[]) => {
+    const [lon, lat] = coord;
+    if (lon < minLon) minLon = lon;
+    if (lon > maxLon) maxLon = lon;
+    if (lat < minLat) minLat = lat;
+    if (lat > maxLat) maxLat = lat;
+  });
+  
+  // 计算中心点
+  const centerLon = (minLon + maxLon) / 2;
+  const centerLat = (minLat + maxLat) / 2;
+  
+  return { centerLon, centerLat };
+}
+
+/**
+ * 在地图上绘制所有地块的边框（根据 space-boundaries.json 坐标数据）
+ */
+function drawAllSpaceBoundaries() {
+  if (!map.value || !spaceBoundariesData.length) return;
+  
+  // 清除之前的边框
+  clearAllHighlights();
+  
+  let drawnCount = 0;
+  
+  // 遍历 space-boundaries.json 中的数据，为每个地块绘制边框
+  spaceBoundariesData.forEach((space: any, index: number) => {
+    const { name: spaceName, path } = space;
+    
+    if (!path || !Array.isArray(path) || path.length < 3) {
+      console.warn(`地块 [${spaceName}] 坐标数据不足，至少需要3个点`);
+      return;
+    }
+    
+    // 根据不同地块使用不同颜色
+    const color = getSpaceBoundaryColor(index);
+    highlightOneSpaceFromPath(spaceName, path, color);
+    drawnCount++;
+  });
+  
+  console.log(`已绘制 ${drawnCount} 个地块的边框`);
+}
+
+/**
+ * 绘制所有地块边框（除了首钢园北区）并添加标记点
+ */
+function drawAllSpacesExceptNorth() {
+  console.log('开始绘制所有地块边框（除首钢园北区）');
+  
+  if (!map.value || !spaceBoundariesData.length) {
+    console.warn('地图或地块数据未加载');
+    return;
+  }
+  
+  // 清除之前的绘制
+  clearAllHighlights();
+  
+  let drawnCount = 0;
+  let skippedCount = 0;
+  let colorIndex = 0; // 独立计数器，确保每个区域都有不同的颜色
+  
+  // 遍历空间数据，过滤掉首钢园北区
+  spaceBoundariesData.forEach((space: any, index: number) => {
+    const { name: spaceName, path } = space;
+    
+    // 跳过首钢园北区
+    if (spaceName === '首钢园北区') {
+      skippedCount++;
+      console.log(`跳过首钢园北区（总区域）`);
+      return;
+    }
+    
+    if (!path || !Array.isArray(path) || path.length < 3) {
+      console.warn(`地块 [${spaceName}] 坐标数据不足，至少需要3个点`);
+      return;
+    }
+    
+    try {
+      // 根据独立计数器获取不同颜色（避免跳过导致的索引重复）
+      const color = getSpaceBoundaryColor(colorIndex);
+      
+      // 直接使用 path 坐标绘制边框
+      highlightOneSpaceFromPath(spaceName, path, color);
+      
+      // 计算中心点并添加标记点
+      const { centerLon, centerLat } = calculateCenterPoint(path);
+      addSpaceMarker(spaceName, centerLon, centerLat, color);
+      
+      drawnCount++;
+      colorIndex++; // 只有成功绘制才增加计数
+      console.log(`✓ 已绘制地块 [${spaceName}]，颜色索引: ${colorIndex - 1}`);
+    } catch (error) {
+      console.error(`✗ 绘制地块 [${spaceName}] 失败:`, error);
+    }
+  });
+  
+  console.log(`\n=== 绘制完成 ===`);
+  console.log(`✅ 成功绘制: ${drawnCount} 个地块`);
+  console.log(`⏭️ 跳过: ${skippedCount} 个地块（首钢园北区）`);
+  console.log(`📍 标记点: ${drawnCount} 个`);
+}
+
+/**
+ * 为地块添加标记点（中心位置）
+ */
+function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number, color: string) {
+  if (!map.value) return;
+  
+  // 创建标记点（使用圆形图标，尺寸从 16px 增大到 28px）
+  const markerHTML = `<div class="space-marker" style="background: ${color}; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.4); cursor: pointer;" title="${spaceName}"></div>`;
+  
+  try {
+    const marker = customizeMarker(
+      markerHTML,
+      centerLat.toString(),
+      centerLon.toString(),
+      spaceName,
+      { name: spaceName }
+    );
+    
+    if (marker) {
+      lightingMarkerArr.value.push(marker);
+      console.log(`📍 添加标记点 [${spaceName}] at (${centerLon}, ${centerLat})`);
+    }
+  } catch (error) {
+    console.error(`创建标记点失败 [${spaceName}]:`, error);
+  }
+}
+
+/**
+ * 清除所有绘制（边框和标记点）
+ */
+/**
+ * 清除所有绘制内容
+ */
+function clearAllDrawings() {
+  console.log('\n===== 开始清除所有绘制 =====');
+  console.log(`当前 lightingMarkerArr.length: ${lightingMarkerArr.value.length}`);
+  
+  // 先清除边框和高亮
+  console.log('• 清除边框和高亮...');
+  clearAllHighlights();
+  
+  // 再清除所有标记点
+  console.log(`• 开始销毁 ${lightingMarkerArr.value.length} 个标记点...`);
+  const allMarkers = [...lightingMarkerArr.value];
+  lightingMarkerArr.value = [];
+  markersDrawing = false;
+  
+  let successCount = 0;
+  let failCount = 0;
+  
+  // 遍历销毁副本
+  allMarkers.forEach((marker, index) => {
+    try {
+      // 方法1: 尝试 destroy()
+      if (marker.destroy) {
+        marker.destroy();
+      }
+      // 方法2: 尝试 removeFromMap()
+      if (marker.removeFromMap) {
+        marker.removeFromMap();
+      }
+      // 方法3: 尝试 setMap(null)
+      if (marker.setMap) {
+        marker.setMap(null);
+      }
+      
+      // 方法4: 直接操作 DOM，移除地图上的所有标点元素
+      const markerElements = document.querySelectorAll('[id^="light-"]');
+      markerElements.forEach(el => {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+          console.log(`  ✓ DOM 元素已移除: ${el.id}`);
+        }
+      });
+      
+      successCount++;
+      console.log(`  ✓ 标记 ${index + 1} 已处理`);
+    } catch (e) {
+      failCount++;
+      console.error(`✗ 标记 ${index + 1} 处理失败:`, e);
+    }
+  });
+  
+  console.log(`✓ 清除完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+  console.log(`✓ lightingMarkerArr 现在长度: ${lightingMarkerArr.value.length}`);
+  
+  // 最后再次检查是否还有残留的标点 DOM
+  const remainingMarkers = document.querySelectorAll('[id^="light-"]');
+  if (remainingMarkers.length > 0) {
+    console.warn(`⚠️ 警告：仍有 ${remainingMarkers.length} 个标点 DOM 元素残留！`);
+    remainingMarkers.forEach(el => {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el);
+        console.log(`  ✓ 清理残留 DOM: ${el.id}`);
+      }
+    });
+  }
+  
+  console.log('===== 清除结束 =====\n');
+}
+
+/**
+ * 根据地块索引获取不同颜色
+ */
+function getSpaceBoundaryColor(index: number): string {
+  const colors = [
+    'rgba(56, 189, 248, 0.9)',  // 天蓝色 - 首钢园北区
+    'rgba(251, 146, 60, 0.9)',  // 橙色 - 大跳台区域
+    'rgba(104, 211, 145, 0.9)', // 绿色 - 服贸会区域
+    'rgba(245, 158, 11, 0.9)',  // 黄色 - 六工汇区域
+    'rgba(167, 139, 250, 0.9)', // 紫色 - 秀池及周边区域
+    'rgba(244, 63, 94, 0.9)',   // 玫红色 - 永定河
+  ];
+  return colors[index % colors.length];
+}
+
+/**
+ * 根据 space-boundaries.json 中的 path 数组绘制地块边框
+ */
+function highlightOneSpaceFromPath(spaceName: string, path: number[][], color: string = 'rgba(56, 189, 248, 0.8)') {
+  if (!path || path.length < 3) return;
+  
+  // 使用 path 中的坐标直接创建多边形
+  // path 格式: [[lon1, lat1], [lon2, lat2], ...]
+  const linePoints = path.map(coord => {
+    // 确保是 [经度, 纬度] 格式
+    return [coord[0], coord[1]];
+  });
+  
+  // 闭合多边形（如果第一个和最后一个点不同）
+  if (linePoints.length > 2 && 
+      linePoints[0][0] !== linePoints[linePoints.length - 1][0] || 
+      linePoints[0][1] !== linePoints[linePoints.length - 1][1]) {
+    linePoints.push([...linePoints[0]]);
+  }
+  
+  // 使用指定的颜色创建线条，线宽从 2 增加到 5
+  const polyline = createBaseLine(linePoints, color, 5);
+  allHighlightLines.push(polyline);
+  
+  console.log(`地块 [${spaceName}] 边框已绘制`, `共 ${path.length} 个顶点`, `颜色: ${color}`, `线宽: 5px`);
+}
+
+/**
+ * 清除所有地块边框
+ */
+function clearAllHighlights() {
+  allHighlightLines.forEach((line: any) => {
+    try {
+      line.removeFromMap();
+    } catch (error) {
+      console.warn('移除边框失败:', error);
+    }
+  });
+  allHighlightLines = [];
+  highlightLine = null;
+}
+
+/**
+ * 根据用户选择的地块名称绘制粗红线边框
+ */
+function highlightSpaceBySelected(spaceName: string) {
+  if (!map.value || !spaceName || !spaceBoundariesData.length) return;
+  
+  // 在 spaceBoundaries.json 中查找该地块
+  const spaceData = spaceBoundariesData.find((space: any) => space.name === spaceName);
+  
+  if (!spaceData || !spaceData.path || spaceData.path.length < 3) {
+    console.warn(`未找到地块 [${spaceName}] 的有效坐标数据`);
+    return;
+  }
+  
+  // 先清除之前的边框
+  clearAllHighlights();
+  
+  const { path } = spaceData;
+  
+  // 计算边界框的中心点作为聚焦基点
+  let minLon = Infinity;
+  let maxLon = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  
+  path.forEach((coord: number[]) => {
+    if (coord[0] < minLon) minLon = coord[0];
+    if (coord[0] > maxLon) maxLon = coord[0];
+    if (coord[1] < minLat) minLat = coord[1];
+    if (coord[1] > maxLat) maxLat = coord[1];
+  });
+  
+  // 计算中心点（经度和纬度的平均值）
+  const centerLon = (minLon + maxLon) / 2;
+  const centerLat = (minLat + maxLat) / 2;
+  
+  // 使用 path 中的坐标创建多边形
+  const linePoints = path.map((coord: number[]) => [
+    coord[0],  // 经度
+    coord[1]   // 纬度
+  ]);
+  
+  // 闭合多边形（如果第一个和最后一个点不同）
+  if (linePoints.length > 2 && 
+      (linePoints[0][0] !== linePoints[linePoints.length - 1][0] || 
+       linePoints[0][1] !== linePoints[linePoints.length - 1][1])) {
+    linePoints.push([...linePoints[0]]);
+  }
+  
+  // 🔴 使用粗红线：宽度为 4px，颜色为鲜红色
+  const redColor = 'rgba(255, 0, 0, 1.0)';
+  const polyline = createBaseLine(linePoints, redColor, 4);
+  allHighlightLines.push(polyline);
+  
+  console.log(`🔴 地块 [${spaceName}] 已用粗红线绘制`, `共 ${path.length} 个顶点`);
+  console.log(`🎯 地块中心点: (${centerLon.toFixed(6)}, ${centerLat.toFixed(6)})`);
+  
+  // 📍 自动聚焦到该地块
+  focusOnSpaceBoundary(centerLon, centerLat, spaceName);
+}
+
+/**
+ * 聚焦到地块区域（根据坐标边界框自动调整视角）
+ */
+function focusOnSpaceBoundary(centerLon: number, centerLat: number, spaceName: string) {
+  if (!map.value) return;
+  
+  console.log(`📍 聚焦到地块 [${spaceName}]`, { centerLon, centerLat });
+  
+  // 使用 easeTo 平滑移动到地块中心
+  map.value.easeTo({
+    bdid: buildingID,
+    lon: centerLon,
+    lat: centerLat,
+    floorId: flid,
+  });
+  
+  // 延迟设置缩放级别，确保移动完成后放大
+  setTimeout(() => {
+    // 根据屏幕尺寸设置合适的缩放级别（比初始大1-2级）
+    const zoomLevel = windowWidth > 1439 
+      ? 15.5  // 大屏 - 比初始(14.0)大1.5级
+      : windowWidth > 1200 
+        ? 14.5  // 中屏 - 比初始(13.0)大1.5级
+        : 14.0; // 小屏 - 比初始(12.5)大1.5级
+    
+    map.value.setZoom(zoomLevel);
+    console.log(`🔍 缩放级别: ${zoomLevel}`);
+  }, 300);
+}
+
+// 存储所有地块边框的折线对象
+let allHighlightLines: any[] = [];
 const dialogVisible = ref(false);
 const currentLight = ref<any>(null);
 const lightingLoading = ref(false);
 const areaOverlayEl = ref<HTMLElement | null>(null);
 
 const clearLightingMarkers = () => {
-  lightingMarkerArr.value.forEach((item) => clearMarker(item));
+  console.log(`• clearLightingMarkers: 开始清除 ${lightingMarkerArr.value.length} 个灯光标点...`);
+  
+  // 立即清空数组并保存副本
+  const allMarkers = [...lightingMarkerArr.value];
   lightingMarkerArr.value = [];
+  
+  // 遍历销毁副本
+  allMarkers.forEach((marker, index) => {
+    if (marker && marker.destroy) {
+      try {
+        marker.destroy();
+        console.log(`  ✓ 灯光标点 ${index + 1} 已销毁`);
+      } catch (error) {
+        console.error(`✗ 灯光标点 ${index + 1} 销毁失败:`, error);
+      }
+    }
+  });
+  
+  console.log('✓ 所有灯光标点已清除');
 };
 
 const showAreaOverlay = () => {
@@ -230,8 +629,31 @@ const showArea = () => {
 
 const showDetails = () => {
   hideAreaOverlay();
-  if (lightingData.value.length) {
+  // 只有点击详情时才插入标点
+  AddLightingMarker();
+};
+
+// 清除所有标点（用于切换地块等操作）
+const clearAllMarkers = () => {
+  console.log('正在清除所有标点...');
+  // 清除灯光标点
+  clearLightingMarkers();
+};
+
+// 加载地标数据
+const getLightingData = () => {
+  return lightingData.value;
+};
+
+// 切换标点显示状态
+let markersVisible = false;
+const toggleMarkers = (show: boolean) => {
+  if (show && !markersVisible) {
     AddLightingMarker();
+    markersVisible = true;
+  } else if (!show) {
+    clearLightingMarkers();
+    markersVisible = false;
   }
 };
 
@@ -392,8 +814,23 @@ function buildMarkerDom(item: any, group: any[] = []): string {
  */
 async function AddLightingMarker() {
   if (!map.value) return;
-  // 1. 清除旧标记
-  clearLightingMarkers();
+  
+  console.log('===== AddLightingMarker: 开始添加标点 =====');
+  console.log(`• lightingData 中有 ${lightingData.value.length} 条数据`);
+  console.log(`• 当前 markingMarkerArr 中有 ${lightingMarkerArr.value.length} 个旧标记`);
+  
+  // 1. 清除旧标记 - 使用更彻底的清理方式
+  console.log('• 正在清除旧标记...');
+  lightingMarkerArr.value.forEach((marker, index) => {
+    try {
+      marker.destroy();
+      console.log(`  ✓ 已销毁旧标记 ${index + 1}`);
+    } catch (error) {
+      console.warn(`销毁标记 ${index + 1} 失败:`, error);
+    }
+  });
+  lightingMarkerArr.value = [];
+  console.log('✓ 所有旧标记已清除');
 
   // 2. 按坐标分组：同坐标的多个标点合并为一个标点，hover 时展示成员列表
   const locGroupMap = new Map<string, any[]>();
@@ -527,11 +964,98 @@ function focusToSpace(spaceName: string) {
   }, 300);
 }
 
-defineExpose({ showArea, showDetails, focusToSpace });
+/**
+ * 高亮显示指定地块的边框（旧接口保留兼容）
+ */
+function highlightSpace(spaceName: string) {
+  highlightOneSpaceByQuery(spaceName);
+}
+
+/**
+ * 根据地块名称查询数据并绘制边框
+ */
+function highlightOneSpaceByQuery(spaceName: string) {
+  if (!spaceName) return;
+  
+  // 找出属于该地块的所有 location
+  const spaceLocations = lightingData.value
+    .filter(item => item.spaceName === spaceName && item.location)
+    .map(item => item.location);
+  
+  if (spaceLocations.length === 0) {
+    console.warn('未找到地块对应的点位:', spaceName);
+    return;
+  }
+  
+  highlightOneSpace(spaceName, spaceLocations);
+  
+  console.log(`地块 [${spaceName}] 边框已绘制`);
+}
+
+/**
+ * 清除单个地块边框（旧接口保留兼容）
+ */
+function clearHighlight() {
+  clearAllHighlights();
+}
+
+/**
+ * 创建折线
+ */
+const createBaseLine = (linePoints: number[][], color: string, width: number) => {
+  const polyline = map.value.createPolyline2({
+    bdid: buildingID,
+    floorId: flid,
+    lineColor: color,
+    lineWidth: width,
+    wrapperColor: "transparent",
+    wrapperWidth: 4,
+    linePoints: linePoints,
+  });
+  return polyline;
+};
+
+/**
+ * 获取地块列表数据
+ */
+function getSpaceList(): any[] {
+  const spaces = new Map<string, any>();
+  lightingData.value.forEach(item => {
+    if (item.spaceName) {
+      if (!spaces.has(item.spaceName)) {
+        spaces.set(item.spaceName, []);
+      }
+      spaces.get(item.spaceName).push(item);
+    }
+  });
+  
+  return Array.from(spaces.keys()).sort();
+}
+
+defineExpose({ 
+  showArea, 
+  showDetails, 
+  focusToSpace, 
+  clearAllMarkers, 
+  getLightingData, 
+  toggleMarkers, 
+  highlightSpace, 
+  clearHighlight, 
+  drawAllSpaceBoundaries,
+  clearAllHighlights,
+  allHighlightLines,
+  highlightSpaceBySelected,  // 用户选择地块后绘制粗红线
+  isDrawing: { get: () => markersDrawing },  // 获取绘制状态
+  clearAllDrawings,  // 清除所有绘制
+  clearLightingMarkers,  // 清除灯光标点
+  drawAllSpacesExceptNorth,  // 绘制所有地块（除首钢园北区）
+  loadLightingData,  // 加载灯光数据
+  AddLightingMarker  // 添加标点
+});
 
 onMounted(async () => {
   await loadMapScripts()
-  initMap()
+  await initMap()  // 使用 await 确保初始化完成
   // 点击地图空白时自动关闭展开的成员列表（捕获阶段）
   document.addEventListener('click', handleDocumentClick, true);
 })
@@ -558,6 +1082,8 @@ onUnmounted(() => {
   border-radius: 6px;
   overflow: hidden;
   position: relative;
+  /* 修复地图滚动问题：允许鼠标滚轮事件穿透到地图 SDK */
+  pointer-events: auto;
 }
 
 .area-overlay {

@@ -524,7 +524,7 @@ function focusToSpace(spaceName: string) {
   }, 300);
 }
 
-defineExpose({ focusToSpace });
+defineExpose({ focusToSpace, map, getCurrentFloorId: () => flid });
 
 onMounted(async () => {
   await loadMapScripts()
