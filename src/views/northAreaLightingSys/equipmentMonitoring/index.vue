@@ -335,6 +335,11 @@
               </svg>
               <h2 class="panel-title">控制日历 - {{ calendarYear }}年{{ calendarMonth + 1 }}月</h2>
             </div>
+            <div class="calendar-legend">
+              <span class="legend-item"><i class="legend-dot" style="background:#00a2e8"></i>未执行</span>
+              <span class="legend-item"><i class="legend-dot" style="background:#ff4d4f"></i>执行失败</span>
+              <span class="legend-item"><i class="legend-dot" style="background:#52c41a"></i>执行成功</span>
+            </div>
             <div class="calendar-nav">
               <button class="btn btn-text" title="上一年" @click="prevYear">«</button>
               <button class="btn btn-text" title="上一月" @click="prevMonth">‹</button>
@@ -1643,6 +1648,28 @@ onMounted(() => {
 }
 
 /* ------------------- 控制日历 ------------------- */
+.calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 24px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #a0aabf;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
 .calendar-nav {
   display: flex;
   align-items: center;

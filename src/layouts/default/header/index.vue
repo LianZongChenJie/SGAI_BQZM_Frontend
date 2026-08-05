@@ -4,15 +4,15 @@
     <div :class="`${prefixCls}-left`">
       <!-- logo -->
       <AppLogo v-if="getShowHeaderLogo || getIsMobile" :class="`${prefixCls}-logo`" :theme="getHeaderTheme" :style="getLogoWidth" />
-      <!-- <LayoutTrigger
-        v-if="(getShowContent && getShowHeaderTrigger && !getSplit && !getIsMixSidebar) || getIsMobile"
+      <LayoutTrigger
+        v-if="!isBigGis && ((getShowContent && getShowHeaderTrigger && !getSplit && !getIsMixSidebar) || getIsMobile)"
         :theme="getHeaderTheme"
         :sider="false"
-      /> -->
+      />
       <LayoutBreadcrumb v-if="getShowContent && getShowBread" :theme="getHeaderTheme" />
       <!-- 欢迎语 -->
       <!-- <span v-if="getShowContent && getShowBreadTitle && !getIsMobile" style="background: #1e293b !important;color: #fff;"> {{t('layout.header.welcomeIn')}} {{ title }} </span> -->
-      <span style="color: #F1F5F9;font-size: 16px;padding-left: 30px;">{{ menuTitle }}</span>
+      <span v-if="!isBigGis" style="color: #F1F5F9;font-size: 16px;padding-left: 30px;">{{ menuTitle }}</span>
       <div class="status-badge">
       <span class="status-dot"></span>
       <span>系统运行正常</span>
