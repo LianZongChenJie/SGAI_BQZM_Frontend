@@ -43,3 +43,4 @@ _temp_check_dir.ps1
 
 # Map SDK 文件（第三方打包文件，内含 Mapbox token，不入库）
 public/map/daximapapi.min.js
+.env.development

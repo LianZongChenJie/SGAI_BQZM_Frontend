@@ -18,7 +18,10 @@ enum Api {
   planDetailApiNew = '/sgai-bqzm/bems/lighting/scene/detail',
   addLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/add',
   postSceneSwitchApi = '/sgai-bqzm/bems/lighting/plan/control',
-  getCalendarControlDetailApi = '/sgai-bqzm/bems/lighting/calendar/detail'
+  getCalendarControlDetailApi = '/sgai-bqzm/bems/lighting/calendar/detail',
+  getAreaListAllTagApi = '/sgai-bqzm/bems/lighting/district/all',
+  getAllVidoeListApi = '/sgai-bqzm/bems/lighting/videoMonitor/list',
+  deleteSceneItemAPi = '/sgai-bqzm/bems/lighting/scene/delete'
 }
 
 /**
@@ -93,8 +96,16 @@ export const planDetailApiNew = (params) => defHttp.get({ url: Api.planDetailApi
  */
 export const addLightingPlanAPiNew = (params) => defHttp.post({ url: Api.addLightingPlanAPiNew, params });
 
+// 删除场景
+export const deleteSceneItemAPi = (params) => defHttp.delete({ url: Api.deleteSceneItemAPi, params }, { joinParamsToUrl: true });
+
 // 场景的全开全关
 export const postSceneSwitchApi = (params) => defHttp.post({ url: Api.postSceneSwitchApi, params });
 
 // 获取日历详情接口
 export const getCalendarControlDetailApi = (params) => defHttp.get({ url: Api.getCalendarControlDetailApi, params });
+// 获取所有片区--标签
+export const getAreaListAllTagApi = (params) => defHttp.get({ url: Api.getAreaListAllTagApi, params });
+
+// 获取所有视频列表
+export const getAllVidoeListApi = (params) => defHttp.get({ url: Api.getAllVidoeListApi, params });

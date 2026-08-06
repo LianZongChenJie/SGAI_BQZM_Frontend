@@ -1,17 +1,17 @@
 <template>
   <a-modal
     v-model:open="open"
-    title="监控视频"
+    :title="cameraName || '监控视频'"
     :footer="null"
     width="720px"
     :destroyOnClose="true"
     :maskClosable="false"
-    wrapClassName="dark-tech-modal"
+    wrapClassName="dark-tech-modal video-monitor-modal"
     @cancel="closeModal"
   >
     <div class="video-modal-body">
       <!-- 摄像头名称 -->
-      <div class="camera-label">{{ cameraName }}</div>
+      <!-- <div class="camera-label">{{ cameraName }}</div> -->
 
       <!-- 视频播放 -->
       <div class="video-box">
@@ -38,16 +38,9 @@ const open = ref(false);
 const cameraName = ref('');
 const currentUrl = ref('');
 
-/* ==================== Mock 视频地址 ==================== */
-const videoUrlMap: Record<number, string> = {
-  1: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160',
-  2: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160',
-  3: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160',
-};
-
-function showModal(row: { id: number; areaName?: string; name?: string }) {
-  cameraName.value = row.areaName || row.name || '摄像头';
-  currentUrl.value = videoUrlMap[row.id] || videoUrlMap[1];
+function showModal(row: { monitorAdr?: string; monitorName?: string }) {
+  cameraName.value = '监控名称：' +  row.monitorName || '摄像头';
+  currentUrl.value = row.monitorAdr || '';
   open.value = true;
 }
 
@@ -120,14 +113,59 @@ defineExpose({ showModal, closeModal });
     }
   }
 }
+</style>
 
-/* ==================== 覆盖 antd 深色皮肤 ==================== */
-:deep(.ant-modal-body) {
-  padding: 20px 24px 24px !important;
-  background: #141d2b !important;
-}
+<!-- ==================== 非 scoped：通过 video-monitor-modal 唯一类名隔离 ==================== -->
+<!-- 原因：a-modal 渲染到 document.body，scoped CSS 的 [data-v-xxx] 属性选择器无法匹配传送的 DOM，-->
+<!-- 所以标题/头部等元素必须在非 scoped 块中通过唯一类名精准定位，确保只影响本页面。-->
+<style lang="less">
+.video-monitor-modal {
+  .ant-modal-content {
+    background: #141d2b !important;
+    border-radius: 8px !important;
+    border: 1px solid #19283d !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+    overflow: hidden !important;
+  }
 
-:deep(.ant-modal-footer) {
-  display: none !important;
+  .ant-modal-header {
+    background: #0d1520 !important;
+    border-bottom: 1px solid #19283d !important;
+    padding: 16px 24px 14px !important;
+    border-radius: 8px 8px 0 0 !important;
+    margin: 0 !important;
+  }
+
+  /* 标题 — 科技感渐变 + 青蓝光晕 */
+  .ant-modal-title {
+    background: linear-gradient(135deg, #00d4ff 0%, #7bb3ff 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    letter-spacing: 1.5px !important;
+    filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.3)) !important;
+  }
+
+  .ant-modal-body {
+    padding: 20px 24px 24px !important;
+    background: #141d2b !important;
+  }
+
+  .ant-modal-footer {
+    display: none !important;
+  }
+
+  /* 关闭按钮 */
+  .ant-modal-close {
+    color: #5a6a80 !important;
+    transition: color 0.2s, background 0.2s !important;
+
+    &:hover {
+      color: #00d4ff !important;
+      background: rgba(0, 212, 255, 0.06) !important;
+    }
+  }
 }
 </style>

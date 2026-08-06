@@ -595,18 +595,15 @@ defineExpose({ showModal, closeModal });
   }
 
   :deep(.ant-form-item) {
-    margin-bottom: 2px;
+    margin-bottom: 12px;
   }
 
-  /* 深色主题 - select */
+  /* 深色主题 - select（外观，高度由全局控制） */
   :deep(.ant-select-selector) {
     background: #1b2533 !important;
     border: 1px solid #303d50 !important;
     color: #ffffff !important;
     border-radius: 4px !important;
-    height: 28px !important;
-    box-sizing: border-box !important;
-    padding: 0 26px 0 10px !important;
     display: flex !important;
     align-items: center !important;
   }
@@ -615,7 +612,6 @@ defineExpose({ showModal, closeModal });
   }
   :deep(.ant-select-selection-item),
   :deep(.ant-select-selection-placeholder) {
-    line-height: 26px !important;
     font-size: 12px !important;
   }
   :deep(.ant-select-selection-item) { color: #ffffff !important; }
@@ -629,9 +625,6 @@ defineExpose({ showModal, closeModal });
     margin-top: 0 !important;
     line-height: 1 !important;
     height: auto !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
   }
   :deep(.ant-select-arrow svg),
   :deep(.ant-select-arrow i) {
@@ -644,20 +637,13 @@ defineExpose({ showModal, closeModal });
     color: #5a6a80 !important;
   }
 
-  /* 深色主题 - input */
+  /* 深色主题 - input（外观，高度由全局控制） */
   :deep(.ant-input-affix-wrapper) {
     background: #1b2533 !important;
     border: 1px solid #303d50 !important;
     border-radius: 4px !important;
-    height: 28px !important;
-    min-height: 28px !important;
-    max-height: 28px !important;
-    box-sizing: border-box !important;
-    padding: 0 10px !important;
-    box-shadow: none !important;
     display: flex !important;
     align-items: center !important;
-    overflow: hidden !important;
   }
   :deep(.ant-input-affix-wrapper:hover) {
     border-color: #00a2e8 !important;
@@ -671,10 +657,6 @@ defineExpose({ showModal, closeModal });
     border: none !important;
     color: #ffffff !important;
     font-size: 12px !important;
-    height: 26px !important;
-    line-height: 26px !important;
-    padding: 0 !important;
-    box-shadow: none !important;
   }
   :deep(.ant-input-affix-wrapper > input.ant-input::placeholder) {
     color: #5a6a80 !important;
@@ -729,18 +711,15 @@ defineExpose({ showModal, closeModal });
   }
 
   :deep(.ant-form-item) {
-    margin-bottom: 2px;
+    margin-bottom: 12px;
   }
 
-  /* 深色主题 - select */
+  /* 深色主题 - select（外观，高度由全局控制） */
   :deep(.ant-select-selector) {
     background: #1b2533 !important;
     border: 1px solid #303d50 !important;
     color: #ffffff !important;
     border-radius: 4px !important;
-    height: 28px !important;
-    box-sizing: border-box !important;
-    padding: 0 26px 0 10px !important;
     display: flex !important;
     align-items: center !important;
   }
@@ -749,7 +728,6 @@ defineExpose({ showModal, closeModal });
   }
   :deep(.ant-select-selection-item),
   :deep(.ant-select-selection-placeholder) {
-    line-height: 26px !important;
     font-size: 12px !important;
   }
   :deep(.ant-select-selection-item) { color: #ffffff !important; }
@@ -763,9 +741,6 @@ defineExpose({ showModal, closeModal });
     margin-top: 0 !important;
     line-height: 1 !important;
     height: auto !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
   }
   :deep(.ant-select-arrow svg),
   :deep(.ant-select-arrow i) {
@@ -778,20 +753,13 @@ defineExpose({ showModal, closeModal });
     color: #5a6a80 !important;
   }
 
-  /* 深色主题 - input */
+  /* 深色主题 - input（外观，高度由全局控制） */
   :deep(.ant-input-affix-wrapper) {
     background: #1b2533 !important;
     border: 1px solid #303d50 !important;
     border-radius: 4px !important;
-    height: 28px !important;
-    min-height: 28px !important;
-    max-height: 28px !important;
-    box-sizing: border-box !important;
-    padding: 0 10px !important;
-    box-shadow: none !important;
     display: flex !important;
     align-items: center !important;
-    overflow: hidden !important;
   }
   :deep(.ant-input-affix-wrapper:hover) {
     border-color: #00a2e8 !important;
@@ -805,10 +773,6 @@ defineExpose({ showModal, closeModal });
     border: none !important;
     color: #ffffff !important;
     font-size: 12px !important;
-    height: 26px !important;
-    line-height: 26px !important;
-    padding: 0 !important;
-    box-shadow: none !important;
   }
   :deep(.ant-input-affix-wrapper > input.ant-input::placeholder) {
     color: #5a6a80 !important;
@@ -1083,7 +1047,7 @@ defineExpose({ showModal, closeModal });
     .ant-form-item {
       width: 100% !important;
       margin-right: 0;
-      margin-bottom: 2px !important;
+      margin-bottom: 12px !important;
     }
 
     .ant-form-item-row {
@@ -1108,7 +1072,6 @@ defineExpose({ showModal, closeModal });
     /* 控件自身铺满（强制 block-level） */
     .ant-input-affix-wrapper,
     .ant-select {
-      display: flex !important;
       width: 100% !important;
       max-width: 100% !important;
       flex: 1 1 auto !important;
@@ -1116,10 +1079,8 @@ defineExpose({ showModal, closeModal });
 
     /* input 是原生元素，用 block 不用 flex */
     .ant-input {
-      display: block !important;
       width: 100% !important;
       max-width: 100% !important;
-      box-sizing: border-box !important;
     }
 
     .ant-form-item-label > label {
@@ -1132,21 +1093,20 @@ defineExpose({ showModal, closeModal });
       color: #ff4d4f !important;
     }
 
-    /* Input 外层包裹器（修复白色间隙） */
+    /* Input 外层包裹器（统一高度 32px，强制锁定，不受 size="small" 与全局样式污染影响） */
     .ant-input-affix-wrapper {
       background: #1b2533 !important;
       border: 1px solid #303d50 !important;
       color: #ffffff !important;
       border-radius: 4px !important;
-      height: 28px !important;
-      min-height: 28px !important;
-      max-height: 28px !important;
-      box-sizing: border-box !important;
-      padding: 0 10px !important;
+      transition: all 0.2s !important;
       display: flex !important;
       align-items: center !important;
-      overflow: hidden !important;
-      transition: all 0.2s !important;
+      height: 32px !important;
+      min-height: 32px !important;
+      max-height: 32px !important;
+      padding: 0 11px !important;
+      box-sizing: border-box !important;
 
       &:hover {
         border-color: #00a2e8 !important;
@@ -1163,10 +1123,9 @@ defineExpose({ showModal, closeModal });
         border: none !important;
         color: #ffffff !important;
         font-size: 12px !important;
-        height: 26px !important;
-        line-height: 26px !important;
+        height: 30px !important;
+        line-height: 30px !important;
         padding: 0 !important;
-        box-shadow: none !important;
 
         &::placeholder {
           color: #5a6a80 !important;
@@ -1190,9 +1149,13 @@ defineExpose({ showModal, closeModal });
       color: #ffffff !important;
       border-radius: 4px !important;
       font-size: 12px !important;
-      height: 28px !important;
-      box-sizing: border-box !important;
       transition: all 0.2s !important;
+      height: 32px !important;
+      min-height: 32px !important;
+      max-height: 32px !important;
+      padding: 0 11px !important;
+      line-height: 30px !important;
+      box-sizing: border-box !important;
 
       &:hover {
         border-color: #00a2e8 !important;
@@ -1210,20 +1173,20 @@ defineExpose({ showModal, closeModal });
     }
 
     /* Select */
-    .ant-select {
-      height: 28px !important;
-      box-sizing: border-box !important;
-    }
-
     .ant-select-selector {
       background: #1b2533 !important;
       border: 1px solid #303d50 !important;
       color: #ffffff !important;
       border-radius: 4px !important;
-      height: 28px !important;
-      box-sizing: border-box !important;
       font-size: 12px !important;
       transition: all 0.2s !important;
+      display: flex !important;
+      align-items: center !important;
+      height: 32px !important;
+      min-height: 32px !important;
+      max-height: 32px !important;
+      padding: 0 11px !important;
+      box-sizing: border-box !important;
 
       &:hover {
         border-color: #00a2e8 !important;
@@ -1244,9 +1207,6 @@ defineExpose({ showModal, closeModal });
       margin-top: 0 !important;
       line-height: 1 !important;
       height: auto !important;
-      display: flex !important;
-      align-items: center !important;
-      justify-content: center !important;
     }
 
     .ant-select-arrow svg,
@@ -1371,5 +1331,85 @@ body .dark-tech-modal {
   .ant-select-item-empty {
     color: #5a6a80 !important;
   }
+}
+
+/* ==================== 终极保险：表单控件高度锁定 ==================== */
+/* 问题：组件卸载/重挂时 scoped data-v-xxx 选择器与 .dark-form 类可能存在瞬时不匹配，*/
+/* 导致切几次页面后下拉框与输入框高度不一致。*/
+/* 解法：用 body 前缀提升特异性到 (0,4,0)，并绕过 .dark-form 直接定位到所有控件。*/
+/* 由于本块位于全局样式末尾，源序优先，叠加 !important + body 前缀确保永远生效。*/
+body .dark-tech-modal .ant-input-affix-wrapper,
+body .dark-tech-modal .ant-input-affix-wrapper-sm,
+body .dark-tech-modal .ant-input-affix-wrapper-lg {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 11px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+body .dark-tech-modal .ant-input-affix-wrapper > input.ant-input,
+body .dark-tech-modal .ant-input-affix-wrapper > input.ant-input-sm,
+body .dark-tech-modal .ant-input-affix-wrapper > input.ant-input-lg {
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  line-height: 30px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  font-size: 12px !important;
+}
+
+body .dark-tech-modal .ant-input:not(.ant-input-affix-wrapper .ant-input):not(.ant-input-group .ant-input),
+body .dark-tech-modal input.ant-input.ant-input-sm,
+body .dark-tech-modal input.ant-input.ant-input-lg {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 11px !important;
+  box-sizing: border-box !important;
+  font-size: 12px !important;
+}
+
+body .dark-tech-modal .ant-select .ant-select-selector,
+body .dark-tech-modal .ant-select .ant-select-selector.ant-select-selector-sm,
+body .dark-tech-modal .ant-select .ant-select-selector.ant-select-selector-lg {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  line-height: 32px !important;
+  padding: 0 11px !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+body .dark-tech-modal .ant-select {
+  height: 32px !important;
+  line-height: 32px !important;
+}
+
+body .dark-tech-modal .ant-select .ant-select-selection-item,
+body .dark-tech-modal .ant-select .ant-select-selection-placeholder {
+  line-height: 30px !important;
+  font-size: 12px !important;
+}
+
+body .dark-tech-modal .ant-input-number,
+body .dark-tech-modal .ant-input-number-input {
+  height: 32px !important;
+  line-height: 32px !important;
+}
+
+/* 防止第一列 a-col 因为 align-items 默认 stretch 导致高度不一致 */
+body .dark-tech-modal .ant-row {
+  align-items: flex-start !important;
 }
 </style>

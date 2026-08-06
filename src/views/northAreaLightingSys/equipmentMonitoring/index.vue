@@ -28,7 +28,7 @@
               <h2 class="panel-title">实时设备监控</h2>
             </div>
             <div class="header-right">
-              <button class="btn btn-primary" @click="onRefreshVideo">
+              <button v-loading="listVideoBtn" class="btn btn-primary" @click="onRefreshVideo('open')">
                 <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="23 4 23 10 17 10"/>
                   <polyline points="1 20 1 14 7 14"/>
@@ -149,14 +149,14 @@
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     </span>
                     <span class="info-label">操作类型</span>
-                    <span class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
+                    <span style="padding-left: 3px;" class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
                   </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </span>
                     <span class="info-label">上次操作</span>
-                    <span class="info-value">{{ s.updateTime || '-' }}</span>
+                    <span style="padding-left: 3px;" class="info-value">{{ s.updateTime || '-' }}</span>
                   </div>
                 </div>
                 <div class="scene-actions">
@@ -499,8 +499,8 @@ import TimerEnableModal from './components/TimerEnableModal.vue';
 import sceneConfirmModal from './components/sceneConfirmModal.vue';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
 import CameraListModal from './components/CameraListModal.vue';
-import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, getCalendarControlApi, getLightingPlanAPiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring';
-import { getAllSpace } from '@/api/baseSettingBqZm';
+import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, getCalendarControlApi, getLightingPlanAPiNew, postSceneSwitchApi, getAllVidoeListApi, deleteSceneItemAPi } from '@/api/equipmentMonitoring';
+import { useTagOptionsStore } from '/@/store/modules/tagOptions';
 import { message } from 'ant-design-vue';
 import VideoPlayer from './components/VideoPlayer.vue'
 
@@ -574,19 +574,14 @@ const filteredMonitorSceneList = computed(() => {
   return data;
 });
 
-/** 加载标签下拉选项 */
+/** 加载标签下拉选项 — 优先走 store 缓存 */
 async function loadSceneTagOptions() {
   if (sceneTagOptions.value.length) return;
   try {
     sceneTagLoading.value = true;
-    const res = await getAllSpace();
-    const data = res?.data || res || [];
-    sceneTagOptions.value = (Array.isArray(data) ? data : []).map((item: any) => ({
-      label: item.spaceName,
-      value: item.spaceName,
-    }));
-  } catch {
-    sceneTagOptions.value = [];
+    const tagOptionsStore = useTagOptionsStore();
+    const tagList = await tagOptionsStore.fetchTagList();
+    sceneTagOptions.value = tagList;
   } finally {
     sceneTagLoading.value = false;
   }
@@ -747,12 +742,13 @@ function onSceneConfirmSuccess(payload: { type: string; scene: any }) {
     "relType": payload.scene.relType
     })
   } else if (payload.type === 'delete') {
-    // TODO: 调用关闭场景接口--关闭
-    postSceneSwitchApiChange({
-      "operationType": "关闭",
-      "relIds": payload.scene.relIds,
-      "relType": payload.scene.relType
-    })
+    // 调用删除场景接口
+    deleteSceneItemAPi({ id: payload.scene.id }).then(() => {
+      message.success('删除场景成功!');
+      fetchSceneList();
+    }).catch((err) => {
+      console.error('删除场景失败：', err);
+    });
   }
 }
 
@@ -1073,26 +1069,40 @@ function goToToday() {
 
 // 视频播放
 const modalLoading = ref(false)
+const listVideoBtn = ref(false)
 const activeCameras = ref<{ id: number; name: string; url: string }[]>([])
 
-// Mock 全量摄像头列表（后续替换为接口）
-const allCameraList = ref<{ id: number; name: string; url: string }[]>([
-  // { id: 1, name: 'A1地块主入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  // { id: 2, name: 'B2滨水绿道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  // { id: 3, name: 'C3停车场入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  // { id: 4, name: 'D4南门监控摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  // { id: 5, name: 'E5北区主干道摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  // { id: 6, name: 'F6西门出入口摄像头', url: '/video-stream/bipbop_adv_example_hevc/master.m3u8' },
-  { id: 1, name: 'A1地块主入口摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
-  { id: 2, name: 'B2滨水绿道摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
-  { id: 3, name: 'C3停车场入口摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
-  { id: 4, name: 'D4南门监控摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
-  { id: 5, name: 'E5北区主干道摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
-  { id: 6, name: 'F6西门出入口摄像头', url: 'http://10.168.47.23:4000/index.html?id=0096142642007010010193b98d3214a64af5b516d49cfbb97160' },
-])
+// 视频列表（接口返回后填充）
+const allCameraList = ref<{ id: number; name: string; url: string; areaName?: string; status?: string }[]>([])
 
-function onRefreshVideo() {
-  cameraModalRef.value?.showModal()
+/** 刷新视频列表：调用接口获取全部摄像头，写入 allCameraList 并取前 2 个进入主页面播放 */
+async function onRefreshVideo(type) {
+  try {
+    listVideoBtn.value = true
+    const res = await getAllVidoeListApi({})
+    const list = (res && (res.data ?? res)) || []
+    const dataArr = Array.isArray(list) ? list : []
+    allCameraList.value = dataArr.map((item: any) => ({
+      id: item.id,
+      name: item.videoName,
+      url: item.videoAddress,
+      areaName: item.areaName,
+      status: item.status,
+    }))
+    if(type === 'init') {
+      // 进入主页面：取前两个用于自动播放
+      activeCameras.value = allCameraList.value.slice(0, 2)
+    }
+    if(type === 'open'){
+      // 打开弹框
+      cameraModalRef.value?.showModal()
+    }
+
+  } catch(err) {
+    console.error('获取视频列表失败：', err)
+  } finally {
+    listVideoBtn.value = false
+  }
 }
 
 /** FIFO 弹框确认：新选中 → 移除最旧的 → push 新的，最多保持 2 个 */
@@ -1112,8 +1122,10 @@ const cameraModalRef = ref<InstanceType<typeof CameraListModal> | null>(null)
 
 onMounted(() => {
   fetchSceneList();
-  // 进入页面：优先展示列表前两个
-  activeCameras.value = allCameraList.value.slice(0, 2)
+  // 进入页面：拉取视频列表并自动播放前两个
+  onRefreshVideo('init');
+  // 预加载标签下拉数据到 store 缓存
+  loadSceneTagOptions();
 });
 </script>
 
@@ -1926,7 +1938,8 @@ onMounted(() => {
 
 .scene-info-item .info-label {
   color: var(--color-muted);
-  min-width: 48px;
+  /* min-width: 48px; */
+  padding-right: 6px;
   flex-shrink: 0;
 }
 

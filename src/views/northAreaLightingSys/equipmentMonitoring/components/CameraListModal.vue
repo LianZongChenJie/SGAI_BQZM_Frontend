@@ -36,7 +36,12 @@
         </div>
         <div class="camera-info">
           <div class="camera-name">{{ item.name }}</div>
-          <div class="camera-url">{{ item.url }}</div>
+          <div class="camera-meta">
+            <span v-if="item.areaName" class="camera-area">{{ item.areaName }}</span>
+            <span class="camera-status" :class="{ online: item.status === '在线', offline: item.status !== '在线' }">
+              {{ item.status || '未知' }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -58,6 +63,8 @@ interface CameraItem {
   id: number;
   name: string;
   url: string;
+  areaName?: string;
+  status?: string;
 }
 
 const props = defineProps({
@@ -205,13 +212,40 @@ defineExpose({ showModal, closeModal });
   text-overflow: ellipsis;
 }
 
-.camera-url {
-  margin-top: 2px;
+.camera-meta {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.camera-area {
   font-size: 11px;
-  color: #5a6a80;
+  color: #7a8ba0;
+  max-width: 200px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.camera-status {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 16px;
+  flex-shrink: 0;
+
+  &.online {
+    background: rgba(82, 196, 26, 0.12);
+    color: #52c41a;
+  }
+
+  &.offline {
+    background: rgba(255, 77, 79, 0.12);
+    color: #ff4d4f;
+  }
 }
 
 /* ==================== 底部按钮 ==================== */
