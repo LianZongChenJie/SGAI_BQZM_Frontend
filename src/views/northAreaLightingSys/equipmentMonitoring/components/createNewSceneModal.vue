@@ -91,7 +91,7 @@
 
         <!-- ==================== 第 3 行：表格 ==================== -->
         <div class="form-section">
-          <div class="section-title">需要勾选的列表</div>
+          <div class="section-title">勾选数据</div>
           <a-row :gutter="10">
             <a-col :span="24">
               <div class="table-wrapper">
