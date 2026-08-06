@@ -127,6 +127,13 @@
               :key="s.id"
               class="scene-card"
             >
+              <span class="scene-corner-tag">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span>金安桥</span>
+              </span>
               <div class="scene-card-inner">
                 <div class="scene-header">
                   <div class="scene-header-left">
@@ -234,26 +241,20 @@
               :key="s.id"
               class="scene-card"
             >
+              <span class="scene-corner-tag">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span>金安桥</span>
+              </span>
               <div class="scene-card-inner">
                 <div class="scene-header">
                   <div class="scene-header-left">
                     <span class="scene-name">{{ s.name }}</span>
                     <span v-if="s.spaceName" class="scene-tag">{{ s.spaceName }}</span>
                   </div>
-                  <div class="scene-top-actions">
-                    <button class="scene-icon-btn" title="编辑" @click="onEditScene(s)">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
-                    </button>
-                    <button class="scene-icon-btn danger" title="删除" @click="onDeleteScene(s)">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                      </svg>
-                    </button>
-                  </div>
+
                 </div>
                 <div class="scene-info">
                   <div class="scene-info-item">
@@ -289,7 +290,21 @@
                       关闭
                     </button>
                   </div>
-                  <button class="btn btn-link" @click="createNewSceneModalRef?.showModal('detail', s)">详情</button>
+                  <div class="scene-actions-right">
+                    <button class="scene-icon-btn" title="编辑" @click="onEditScene(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button class="scene-icon-btn danger" title="删除" @click="onDeleteScene(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                      </svg>
+                    </button>
+                    <button class="btn btn-link" @click="createNewSceneModalRef?.showModal('detail', s)">详情</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1854,6 +1869,47 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+/* ==================== 卡片右上角固定标签 ==================== */
+.scene-corner-tag {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 10px 0 9px;
+  border-radius: 11px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: #00d4ff;
+  white-space: nowrap;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.18) 0%, rgba(0, 162, 232, 0.08) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  box-shadow:
+    0 2px 8px rgba(0, 162, 232, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(2px);
+  transition: all 0.3s ease;
+
+  svg {
+    width: 11px;
+    height: 11px;
+    stroke: #00d4ff;
+  }
+}
+
+.scene-card:hover .scene-corner-tag {
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.32) 0%, rgba(0, 162, 232, 0.18) 100%);
+  border-color: rgba(0, 212, 255, 0.6);
+  box-shadow:
+    0 3px 12px rgba(0, 162, 232, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 0 6px rgba(0, 212, 255, 0.4);
+}
+
 .scene-icon-btn {
   display: inline-flex;
   align-items: center;
@@ -2010,6 +2066,12 @@ onMounted(() => {
 }
 
 .scene-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scene-actions-right {
   display: flex;
   align-items: center;
   gap: 6px;
