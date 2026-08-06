@@ -15,21 +15,32 @@
           <table class="device-table">
             <thead>
               <tr>
-                <th>序号</th>
-                <th>区域</th>
-                <th>名称</th>
-                <th v-if="currentScene?.relType === '回路'">回路名称</th>
+                <th>地块名称</th>
+                <th>区域名称</th>
+                <th>回路名称</th>
+                <th>状态</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(row, idx) in tableData" :key="idx">
-                <td>{{ idx + 1 }}</td>
                 <td>{{ row.spaceName || '-' }}</td>
                 <td>{{ row.areaName || '-' }}</td>
-                <td v-if="currentScene?.relType === '回路'">{{ row.circuitName || '-' }}</td>
+                <td>{{ row.circuitName || row.name || '-' }}</td>
+                <td>
+                  <span class="status-text" :class="row.status === '开启' ? 'status-on' : 'status-off'">
+                    {{ row.status || '关闭' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="row-btn-group">
+                    <button class="row-btn on-btn" @click="handleRowAction(row, '开启')">开启</button>
+                    <button class="row-btn off-btn" @click="handleRowAction(row, '关闭')">关闭</button>
+                  </div>
+                </td>
               </tr>
               <tr v-if="!tableData || tableData.length === 0">
-                <td colspan="4" class="empty-row">暂无数据</td>
+                <td colspan="5" class="empty-row">暂无数据</td>
               </tr>
             </tbody>
           </table>
@@ -41,8 +52,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { planDetailApiNew } from '@/api/equipmentMonitoring'
-import { message } from 'ant-design-vue'
+import { planDetailApiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring'
+import { message, Modal } from 'ant-design-vue'
 
 // 状态
 const visible = ref(false)
@@ -84,6 +95,31 @@ async function showDetail(scene: any) {
   }
 }
 
+/** 行操作：开启/关闭 */
+function handleRowAction(row: any, action: '开启' | '关闭') {
+  const actionText = action === '开启' ? '开启' : '关闭'
+  Modal.confirm({
+    title: '确认操作',
+    content: `确定要${actionText}该回路吗？`,
+    okText: '确认',
+    cancelText: '取消',
+    onOk: async () => {
+      try {
+        await postSceneSwitchApi({
+          operationType: action,
+          relIds: row.circuitId || row.id,
+          relType: '回路'
+        })
+        message.success(`${actionText}成功`)
+        row.status = action
+      } catch (error) {
+        console.error(`回路${actionText}失败:`, error)
+        message.error('操作失败，请重试')
+      }
+    }
+  })
+}
+
 /** 关闭弹窗 */
 function onCancel() {
   visible.value = false
@@ -101,8 +137,8 @@ defineExpose({ showDetail })
 
 /* 详情表格 */
 .table-section {
-  background: rgba(10, 22, 40, 0.08);  /* 从 0.15 降到 0.08 */
-  border: 1px solid rgba(56, 189, 248, 0.1);  /* 从 0.12 降到 0.1 */
+  background: rgba(10, 22, 40, 0.6);
+  border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -128,10 +164,10 @@ defineExpose({ showDetail })
 }
 
 .device-table thead th {
-  background: rgba(27, 37, 51, 0.15);  /* 从 0.3 降到 0.15 */
+  background: rgba(27, 37, 51, 0.85);
   color: #a0aabf;
   font-weight: 500;
-  border-bottom: 1px solid rgba(48, 61, 80, 0.1);  /* 从 0.2 降到 0.1 */
+  border-bottom: 1px solid rgba(48, 61, 80, 0.8);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -155,22 +191,66 @@ defineExpose({ showDetail })
   color: rgba(255, 255, 255, 0.3);
   padding: 40px 0;
 }
+
+/* 状态文字 */
+.status-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* 行操作按钮 */
+.row-btn-group {
+  display: flex;
+  gap: 4px;
+}
+
+.row-btn {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.row-btn.on-btn {
+  background: rgba(0, 200, 120, 0.15);
+  border: 1px solid rgba(0, 200, 120, 0.4);
+  color: #00e676;
+}
+
+.row-btn.on-btn:hover {
+  background: rgba(0, 200, 120, 0.3);
+  border-color: rgba(0, 200, 120, 0.6);
+}
+
+.row-btn.off-btn {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  color: #ff5252;
+}
+
+.row-btn.off-btn:hover {
+  background: rgba(255, 80, 80, 0.3);
+  border-color: rgba(255, 80, 80, 0.6);
+}
 </style>
 
 <style lang="less">
 /* 全局 Modal 样式 - 高透深色科技风（30%不透明度） */
 .scene-detail-modal {
   .ant-modal-content {
-    background: rgba(10, 22, 40, 0.3) !important;  /* 从 0.5 降到 0.3 */
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(56, 189, 248, 0.15) !important;  /* 从 0.2 降到 0.15 */
+    background: rgba(10, 22, 40, 0.85) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(56, 189, 248, 0.35) !important;
     border-radius: 8px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(56, 189, 248, 0.05) !important;  /* 阴影大幅减弱 */
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(56, 189, 248, 0.1) !important;
   }
 
   .ant-modal-header {
-    background: rgba(27, 37, 51, 0.25) !important;  /* 从 0.4 降到 0.25 */
-    border-bottom: 1px solid rgba(56, 189, 248, 0.1) !important;  /* 从 0.15 降到 0.1 */
+    background: rgba(27, 37, 51, 0.9) !important;
+    border-bottom: 1px solid rgba(56, 189, 248, 0.25) !important;
     border-radius: 8px 8px 0 0 !important;
   }
 

@@ -10,28 +10,20 @@
         :class="{ 'is-active': showControlPanel }"
         @click="showControlPanel = !showControlPanel"
       >
-        <!-- 指示灯 -->
-        <span class="indicator-dot"></span>
-        <!-- 闪电/电源图标 - 代表照明控制 -->
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- 小图标 -->
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"
                 stroke-linejoin="round" stroke-linecap="round"></path>
         </svg>
+        <span class="toggle-text">整体管控</span>
       </button>
       
       <!-- 控制面板面板 -->
       <div v-if="showControlPanel" class="control-panel">
-        <!-- 面板头部 -->
-        <div class="panel-header-bar">
-          <div class="header-title">
-            <span>照明控制</span>
-          </div>
-          <button class="close-btn-small" @click="showControlPanel = false">✕</button>
-        </div>
-        
         <div class="panel-body">
-          <!-- 回路统计 -->
-          <div class="stat-section">
+          <!-- 回路模块 -->
+          <div class="module-card stat-section">
+            <div class="section-title">回路</div>
             <div class="stat-row">
               <span class="stat-label">回路已开/回路总数</span>
               <span class="stat-value">
@@ -42,8 +34,9 @@
             </div>
           </div>
           
-          <!-- 一键控制 - 超紧凑 -->
-          <div class="action-section">
+          <!-- 一键开关模块 -->
+          <div class="module-card action-section">
+            <div class="section-title">一键开关</div>
             <div class="mini-action-group">
               <button class="icon-btn with-text" @click="handleAllOn" title="全开">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -61,8 +54,8 @@
             </div>
           </div>
           
-          <!-- 地块列表 - 虚拟滚动容器 -->
-          <div class="space-section">
+          <!-- 场景列表模块 -->
+          <div class="module-card space-section">
             <div class="section-title">场景列表</div>
             <div class="space-list-scroll-container">
               <div class="space-list">
@@ -76,12 +69,11 @@
                   <div class="item-info">
                     <span class="item-name">{{ scene.name }}</span>
                   </div>
-                  <span class="scene-info">{{ scene.circuitCount }}个回路</span>
                   <button class="detail-btn" @click.stop="showSceneDetail(scene)">详情</button>
-                  <label class="toggle-switch">
-                    <input type="checkbox" v-model="scene.enabled" @click.stop="toggleScene(scene)">
-                    <span class="toggle-slider"></span>
-                  </label>
+                  <div class="scene-btn-group">
+                    <button class="scene-action-btn on-btn" @click.stop="handleSceneOn(scene)">开</button>
+                    <button class="scene-action-btn off-btn" @click.stop="handleSceneOff(scene)">关</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -95,7 +87,7 @@
     
     <!-- 右上角统计面板 -->
     <div class="top-right-controls">
-      <button class="stats-toggle-btn" @click="showStatsPanel = !showStatsPanel" title="查看统计数据">
+      <button class="stats-toggle-btn" @click="toggleStatsPanel" title="查看统计数据">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="12" width="4" height="9" rx="1"/>
           <rect x="10" y="8" width="4" height="13" rx="1"/>
@@ -173,10 +165,11 @@
     <!-- 底部控制按钮组 -->
     <div class="bottom-controls">
       <button 
-        class="ctrl-btn" 
+        class="ctrl-btn"
+        :class="{ 'is-active': activeMode === 'area' }"
         @click="handleShowArea"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
           <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
@@ -185,12 +178,12 @@
       
       <button 
         class="ctrl-btn"
+        :class="{ 'is-active': activeMode === 'detail' }"
         @click="handleShowDetails"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="16" x2="12" y2="12"></line>
-          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
         </svg>
         <span>详情模式</span>
       </button>
@@ -202,7 +195,7 @@
 import { ref, onMounted } from 'vue'
 import MapView from './map.vue'
 import SceneDetailModal from './components/SceneDetailModal.vue'
-import { getAllCircuitApi, getAreaRunStatusApi } from '../comprehensivePreview/comprehensivePreview.api'
+import { getAllCircuitApi, getAreaRunStatusApi, getAllSpaceApi, getRunTimeCompareApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { getLightingPlanAPiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring'
 import { message, Modal } from 'ant-design-vue'
 
@@ -211,24 +204,16 @@ const sceneDetailModalRef = ref<any>(null)
 const showSpacePanel = ref(false)
 const showControlPanel = ref(false)
 const showStatsPanel = ref(false)  // 统计面板开关
+const activeMode = ref<'area' | 'detail' | null>(null)  // 当前激活模式
 
-// 统计数据 - 各地块运行时长（本月）柱状图 - 科技蓝主题
-const runtimeData = ref([
-  { label: 'A1', value: '5.8k', height: 45, color: 'rgba(0, 200, 255, 0.85)' },
-  { label: 'A2', value: '8.6k', height: 68, color: 'rgba(0, 180, 255, 0.85)' },
-  { label: 'B1', value: '4.2k', height: 33, color: 'rgba(0, 160, 255, 0.85)' },
-  { label: 'B2', value: '7.9k', height: 62, color: 'rgba(0, 140, 255, 0.85)' },
-  { label: 'C1', value: '12.4k', height: 98, color: 'rgba(0, 120, 255, 0.85)' }
-])
+// 统计数据 - 各地块运行时长（本月）柱状图 - 科技蓝主题（由接口填充）
+const runtimeData = ref<any[]>([])
 
-// 运行时按下对拜 - 数据表格
-const runtimeTableData = ref([
-  { area: 'C1-科技大厦', circuits: 56, total: '12,480', avg: '8.2 h/日', change: 5 },
-  { area: 'A2-服贸会场馆', circuits: 36, total: '8,640', avg: '8.0 h/日', change: 2 },
-  { area: 'B2-滨水绿道', circuits: 42, total: '7,920', avg: '7.5 h/日', change: -3 },
-  { area: 'A1-冬奥广场', circuits: 24, total: '5,760', avg: '8.0 h/日', change: 1 },
-  { area: 'B1-工业遗址公园', circuits: 18, total: '4,320', avg: '7.8 h/日', change: 4 }
-])
+// 运行时按下对拜 - 数据表格（由接口填充）
+const runtimeTableData = ref<any[]>([])
+
+// 所有地块 ID 列表（用于运行时长查询）
+const allSpaceIdList = ref<string[]>([])
 const spaceList = ref<any[]>([])
 const sceneList = ref<any[]>([])  // 场景配置列表
 
@@ -244,14 +229,17 @@ const circuitStats = ref({
 function handleShowArea() {
   console.log('地块模式按钮点击')
   
+  // 切换激活状态（再点一次取消）
+  activeMode.value = activeMode.value === 'area' ? null : 'area'
+  
   // 先清除所有绘制（包括标点、地块边框、标记点等）
   if (mapViewRef.value?.clearAllDrawings) {
     mapViewRef.value.clearAllDrawings()
     console.log('已清除地图上的所有绘制')
   }
   
-  // 在地图上绘制所有地块边框（排除首钢园北区）
-  if (mapViewRef.value?.drawAllSpacesExceptNorth) {
+  // 激活时绘制地块边框
+  if (activeMode.value === 'area' && mapViewRef.value?.drawAllSpacesExceptNorth) {
     mapViewRef.value.drawAllSpacesExceptNorth()
     console.log('已添加地块边框')
   }
@@ -340,6 +328,110 @@ function initSpaceList() {
   })
 }
 
+// 获取所有地块 ID（用于运行时长查询）
+async function fetchAllSpaceIds() {
+  try {
+    const res: any = await getAllSpaceApi()
+    const list = Array.isArray(res) ? res : []
+    allSpaceIdList.value = list.map((item: any) => item.spaceId || item.id).filter(Boolean)
+    console.log('所有地块 ID:', allSpaceIdList.value)
+    return allSpaceIdList.value
+  } catch (error) {
+    console.error('获取地块 ID 失败:', error)
+    return []
+  }
+}
+
+// 获取各地块运行时长对比（本月）
+async function fetchRunTimeCompare() {
+  try {
+    // 确保地块 ID 已加载
+    if (allSpaceIdList.value.length === 0) {
+      await fetchAllSpaceIds()
+    }
+    if (allSpaceIdList.value.length === 0) {
+      console.warn('无地块 ID，跳过运行时长查询')
+      return
+    }
+
+    // 计算本月起止时间
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const startTime = `${year}-${String(month + 1).padStart(2, '0')}-01 00:00:00`
+    const endTime = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay} 23:59:59`
+
+    // 手动拼接查询字符串，避免 axios 数组序列化为 areaIds[] 导致 Tomcat 报错
+    const areaQuery = allSpaceIdList.value.map((id) => `areaIds=${encodeURIComponent(id)}`).join('&')
+    const queryStr =
+      `?${areaQuery}` +
+      `&startTime=${encodeURIComponent(startTime)}` +
+      `&endTime=${encodeURIComponent(endTime)}`
+
+    const res: any = await getRunTimeCompareApi(queryStr)
+
+    console.log('运行时长对比数据:', res)
+
+    const data = Array.isArray(res) ? res : res?.result || res?.data || []
+    if (!Array.isArray(data)) {
+      console.warn('运行时长返回数据格式异常:', data)
+      return
+    }
+
+    // 柱状图颜色
+    const colors = [
+      'rgba(0, 200, 255, 0.85)',
+      'rgba(0, 180, 255, 0.85)',
+      'rgba(0, 160, 255, 0.85)',
+      'rgba(0, 140, 255, 0.85)',
+      'rgba(0, 120, 255, 0.85)'
+    ]
+
+    // 计算最大时长用于柱状图高度
+    const totals = data.map((item: any) => Number(item.totalRunTime ?? item.total ?? item.runTime ?? 0))
+    const maxTotal = Math.max(...totals, 1)
+
+    // 填充柱状图数据
+    runtimeData.value = data.map((item: any, index: number) => {
+      const total = Number(item.totalRunTime ?? item.total ?? item.runTime ?? 0)
+      const height = Math.round((total / maxTotal) * 98)
+      return {
+        label: item.spaceName || item.areaName || item.name || '未知',
+        value: formatRuntime(total),
+        height,
+        color: colors[index % colors.length]
+      }
+    })
+
+    // 填充表格数据
+    runtimeTableData.value = data.map((item: any) => ({
+      area: item.spaceName || item.areaName || item.name || '-',
+      circuits: item.circuitCount ?? item.circuits ?? 0,
+      total: formatRuntime(Number(item.totalRunTime ?? item.total ?? item.runTime ?? 0)),
+      avg: item.avgRunTime != null ? `${item.avgRunTime} h/日` : '-',
+      change: Number(item.yoy ?? item.change ?? item.changeRate ?? 0)
+    }))
+  } catch (error) {
+    console.error('获取运行时长对比失败:', error)
+  }
+}
+
+// 格式化运行时长：小时转 "x.yk" 或 "x,xxx"
+function formatRuntime(hours: number) {
+  if (!hours && hours !== 0) return '0'
+  if (hours >= 1000) return (hours / 1000).toFixed(1) + 'k'
+  return hours.toLocaleString()
+}
+
+// 统计面板开关（展开时刷新数据）
+function toggleStatsPanel() {
+  showStatsPanel.value = !showStatsPanel.value
+  if (showStatsPanel.value) {
+    fetchRunTimeCompare()
+  }
+}
+
 // 选择地块并绘制边框（粗红线）
 function selectSpace(spaceName: string) {
   console.log('选择地块:', spaceName)
@@ -382,6 +474,49 @@ async function showSceneDetail(scene: any) {
   
   // 打开详情弹窗（显示表格数据）
   sceneDetailModalRef.value?.showDetail(scene)
+}
+
+// 场景开/关通用操作
+async function handleSceneAction(scene: any, action: '开启' | '关闭') {
+  const actionText = action === '开启' ? '开' : '关'
+  return new Promise<void>((resolve, reject) => {
+    Modal.confirm({
+      title: '确认操作',
+      content: `确定要${actionText}场景“${scene.name}”吗？`,
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await postSceneSwitchApi({
+            operationType: action,
+            relIds: scene.relIds || scene.id,
+            relType: scene.relType || '回路'
+          })
+          message.success(`${actionText}成功`)
+          scene.enabled = action === '开启'
+          await fetchCircuitStats()
+          resolve()
+        } catch (error) {
+          console.error(`场景${actionText}失败:`, error)
+          message.error('操作失败，请重试')
+          reject(error)
+        }
+      },
+      onCancel: () => {
+        resolve()
+      }
+    })
+  })
+}
+
+// 场景开启
+function handleSceneOn(scene: any) {
+  return handleSceneAction(scene, '开启')
+}
+
+// 场景关闭
+function handleSceneOff(scene: any) {
+  return handleSceneAction(scene, '关闭')
 }
 
 // 切换场景状态（开/关）
@@ -488,14 +623,17 @@ async function fetchSceneList() {
 function handleShowDetails() {
   console.log('详情模式按钮点击')
   
+  // 切换激活状态（再点一次取消）
+  activeMode.value = activeMode.value === 'detail' ? null : 'detail'
+  
   // 先清除地块绘制（如果存在）
   if (mapViewRef.value?.clearAllDrawings) {
     mapViewRef.value.clearAllDrawings()
     console.log('已清除地图上的地块绘制')
   }
   
-  // 直接添加标点（数据已在初始化时加载）
-  if (mapViewRef.value?.AddLightingMarker) {
+  // 激活时添加标点（数据已在初始化时加载）
+  if (activeMode.value === 'detail' && mapViewRef.value?.AddLightingMarker) {
     mapViewRef.value.AddLightingMarker()
     console.log('✅ 已添加标点')
   }
@@ -507,6 +645,8 @@ onMounted(() => {
   fetchCircuitStats()
   // 获取场景配置列表
   fetchSceneList()
+  // 获取各地块运行时长对比
+  fetchRunTimeCompare()
 })
 </script>
 
@@ -526,7 +666,7 @@ onMounted(() => {
   left: 50%;
   bottom: 32px;
   transform: translateX(-50%);
-  z-index: 100;
+  z-index: 60000;  /* 高于地图标点，确保不被遮挡 */
   display: flex;
   gap: 12px;
 }
@@ -535,19 +675,23 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
-  padding: 14px 20px;
-  min-width: 120px;
-  background: rgba(10, 22, 40, 0.25);  /* 低透明度，与面板一致 */
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 4px;
+  gap: 8px;
+  padding: 10px 16px;
+  min-width: 104px;
+  background: linear-gradient(135deg, rgba(0, 200, 255, 0.6) 0%, rgba(0, 130, 255, 0.55) 100%);
+  border: 1.5px solid rgba(0, 240, 255, 0.85);
+  border-radius: 6px;
   color: #fff;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
+  box-shadow: 
+    0 4px 20px rgba(0, 180, 255, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  text-shadow: 0 0 8px rgba(0, 217, 255, 0.7);
 }
 
 /* 外边框光晕层 */
@@ -556,10 +700,10 @@ onMounted(() => {
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, 
-    rgba(56, 189, 248, 0.2) 0%,
-    rgba(56, 189, 248, 0.15) 100%
+    rgba(0, 217, 255, 0.2) 0%,
+    rgba(0, 150, 255, 0.1) 100%
   );
-  opacity: 0.6;  /* 保持光晕效果 */
+  opacity: 0.5;
 }
 
 /* 内发光和高光层 */
@@ -568,34 +712,58 @@ onMounted(() => {
   position: absolute;
   inset: 1px;
   background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.08) 0%, 
+    rgba(255, 255, 255, 0.15) 0%, 
     rgba(255, 255, 255, 0) 50%,
-    rgba(255, 255, 255, 0.03) 100%
+    rgba(255, 255, 255, 0.05) 100%
   );
   pointer-events: none;
 }
 
 /* 图标样式 */
 .ctrl-btn svg {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 6px rgba(0, 217, 255, 0.5));
 }
 
 /* Hover 效果 */
 .ctrl-btn:hover {
-  background: rgba(56, 189, 248, 0.3);
-  border-color: rgba(56, 189, 248, 0.4);
-  transform: translateY(-2px);
+  background: linear-gradient(135deg, rgba(0, 220, 255, 0.75) 0%, rgba(0, 160, 255, 0.7) 100%);
+  border-color: rgba(0, 240, 255, 1);
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 28px rgba(0, 180, 255, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .ctrl-btn:hover::before {
-  opacity: 0.9;
+  opacity: 1;
 }
 
 .ctrl-btn:hover svg {
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 12px rgba(0, 217, 255, 0.8));
+}
+
+/* 激活状态 - 高亮效果 */
+.ctrl-btn.is-active {
+  background: linear-gradient(135deg, rgba(0, 220, 255, 0.9) 0%, rgba(0, 160, 255, 0.85) 100%);
+  border-color: rgba(255, 255, 255, 0.9);
+  color: #fff;
+  box-shadow: 
+    0 6px 26px rgba(0, 220, 255, 0.75),
+    0 0 16px rgba(0, 220, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.ctrl-btn.is-active::before {
+  opacity: 1;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(0, 220, 255, 0.15) 100%);
+}
+
+.ctrl-btn.is-active svg {
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(0, 220, 255, 1));
+  transform: scale(1.05);
 }
 
 /* 左上角控制按钮 */
@@ -603,23 +771,39 @@ onMounted(() => {
   position: absolute;
   left: 20px;
   top: 90px;  /* 调整位置：从20px改为90px */
-  z-index: 90;
+  z-index: 60000;  /* 高于地图标点（最高50000），确保不被遮挡 */
 }
 
-/* 控制开关按钮 - toggle风格 */
+/* 控制开关按钮 - 矩形风格 */
 .control-toggle-btn {
-  width: 40px;
-  height: 40px;
-  background: rgba(10, 22, 40, 0.6);
-  border: 2px solid rgba(56, 189, 248, 0.4);
-  border-radius: 50%;
-  color: #38bdf8;
-  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(0, 30, 60, 0.85) 0%, rgba(0, 20, 40, 0.75) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 150, 255, 0.4);
+  border-radius: 6px;
+  color: #00d9ff;
+  cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  box-shadow: 
+    0 4px 16px rgba(0, 100, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.control-toggle-btn .toggle-text {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+}
+
+.control-toggle-btn svg {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(0, 217, 255, 0.6));
 }
 
 /* 指示灯 - 未激活时暗淡 */
@@ -637,27 +821,29 @@ onMounted(() => {
 
 /* Hover效果 */
 .control-toggle-btn:hover {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: rgba(56, 189, 248, 0.6);
-  transform: scale(1.08);
-  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.3);
+  background: linear-gradient(135deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 30, 60, 0.85) 100%);
+  border-color: rgba(0, 217, 255, 0.6);
+  box-shadow: 
+    0 6px 24px rgba(0, 150, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
 }
 
 /* 激活状态 - 指示灯亮起 */
 .control-toggle-btn.is-active {
-  background: rgba(56, 189, 248, 0.25);
-  border-color: rgba(56, 189, 248, 0.8);
-  color: #fff;
+  background: linear-gradient(135deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 30, 60, 0.85) 100%);
+  border-color: rgba(0, 217, 255, 0.7);
+  color: #00d9ff;
 }
 
 .control-toggle-btn.is-active .indicator-dot {
-  background: #38bdf8;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.8), 0 0 4px rgba(56, 189, 248, 1);
+  background: #00d9ff;
+  box-shadow: 0 0 8px rgba(0, 217, 255, 0.8), 0 0 4px rgba(0, 217, 255, 1);
 }
 
 /* Click效果 */
 .control-toggle-btn:active {
-  transform: scale(0.95);
+  transform: translateY(0);
 }
 
 /* 控制面板面板 */
@@ -666,12 +852,13 @@ onMounted(() => {
   left: 0;
   top: 55px;  /* 相对于父容器，确保在图标下方 */
   width: 280px;  /* 缩小宽度 */
+  z-index: 60000;  /* 高于地图标点，确保不被遮挡 */
   max-height: calc(100vh - 70px);
-  background: rgba(10, 22, 40, 0.25);  /* 大幅降低透明度，参考图风格 */
-  border: 1px solid rgba(56, 189, 248, 0.25);  /* 降低边框透明度 */
-  border-radius: 4px;  /* 更小的圆角，参考图风格 */
-  backdrop-filter: blur(4px);  /* 减弱模糊效果 */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0 0 1px rgba(56, 189, 248, 0.1);  /* 更柔和的阴影 */
+  background: rgba(10, 22, 40, 0.7);  /* 提高不透明度 */
+  border: 1px solid rgba(56, 189, 248, 0.35);  /* 边框透明度提高 */
+  border-radius: 4px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(56, 189, 248, 0.15);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -788,9 +975,52 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
   overflow-y: auto;
+}
+
+/* 三个独立模块卡片 - 统一风格 */
+.module-card {
+  background: rgba(0, 30, 60, 0.5);
+  border: 1px solid rgba(0, 150, 255, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 模块顶部高光线 */
+.module-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 200, 255, 0.4), transparent);
+}
+
+/* 覆盖原有的 stat-section / action-section 透明样式 */
+.stat-section.module-card {
+  background: rgba(0, 30, 60, 0.5);
+  border: 1px solid rgba(0, 150, 255, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.action-section.module-card {
+  background: rgba(0, 30, 60, 0.5);
+  border: 1px solid rgba(0, 150, 255, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.space-section.module-card {
+  background: rgba(0, 30, 60, 0.5);
+  border: 1px solid rgba(0, 150, 255, 0.2);
+  border-radius: 6px;
+  padding: 10px 12px;
 }
 
 /* 统计区域 */
@@ -900,12 +1130,13 @@ onMounted(() => {
   color: #00d9ff;  /* 青色，科技发光 */
   font-size: 13px;
   font-weight: 600;
-  padding: 8px 0 8px 8px;
+  padding: 0 0 8px 8px;
   margin-bottom: 8px;
   border-left: 2px solid rgba(0, 150, 255, 0.6);
   text-transform: none;
   letter-spacing: normal;
   text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  border-bottom: 1px dashed rgba(0, 150, 255, 0.2);
 }
 
 /* 虚拟滚动容器 - 限制高度，支持滚动 */
@@ -913,7 +1144,7 @@ onMounted(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  max-height: 350px;  /* 限制最大高度 */
+  max-height: 320px;  /* 限制最大高度 */
   padding-right: 4px;  /* 留出滚动条空间 */
 }
 
@@ -946,8 +1177,8 @@ onMounted(() => {
 .space-item-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;  /* 减小高度 */
+  gap: 6px;
+  padding: 7px 6px;  /* 减小高度和左右内边距 */
   background: transparent;  /* 完全透明 */
   border: none;  /* 移除边框 */
   border-radius: 0;
@@ -1030,13 +1261,14 @@ onMounted(() => {
 
 /* 详情按钮 */
 .detail-btn {
-  padding: 4px 12px;
+  padding: 3px 6px;
   height: auto;
+  min-width: 30px;
   background: rgba(0, 80, 150, 0.2);
   border: 1px solid rgba(0, 150, 255, 0.4);
   border-radius: 4px;
   color: #00d9ff;  /* 青色 */
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -1044,7 +1276,7 @@ onMounted(() => {
   justify-content: center;
   transition: all 0.2s ease;
   flex-shrink: 0;
-  margin-right: 6px;
+  margin-right: 4px;
   text-shadow: 0 0 6px rgba(0, 217, 255, 0.5);
 }
 
@@ -1053,6 +1285,51 @@ onMounted(() => {
   border-color: rgba(56, 189, 248, 0.5);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
+}
+
+/* 场景开/关按钮组 */
+.scene-btn-group {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.scene-action-btn {
+  padding: 3px 7px;
+  height: auto;
+  min-width: 24px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.scene-action-btn.on-btn {
+  background: rgba(0, 200, 120, 0.15);
+  border: 1px solid rgba(0, 200, 120, 0.4);
+  color: #00e676;
+}
+
+.scene-action-btn.on-btn:hover {
+  background: rgba(0, 200, 120, 0.3);
+  border-color: rgba(0, 200, 120, 0.6);
+  box-shadow: 0 0 10px rgba(0, 200, 120, 0.3);
+}
+
+.scene-action-btn.off-btn {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.4);
+  color: #ff5252;
+}
+
+.scene-action-btn.off-btn:hover {
+  background: rgba(255, 80, 80, 0.3);
+  border-color: rgba(255, 80, 80, 0.6);
+  box-shadow: 0 0 10px rgba(255, 80, 80, 0.3);
 }
 
 /* 现代开关 - 更简洁 */
@@ -1115,7 +1392,7 @@ onMounted(() => {
   border-radius: 8px;
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.2);
-  z-index: 90;
+  z-index: 60000;  /* 高于地图标点，确保不被遮挡 */
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1223,9 +1500,9 @@ onMounted(() => {
 /* ========== 右上角统计面板 - 科技蓝主题 ========== */
 .top-right-controls {
   position: absolute;
-  top: 80px;  /* 往下移动，避免被顶部导航栏遮挡 */
+  top: 90px;  /* 与左上角整体管控按钮对齐 */
   right: 24px;
-  z-index: 999;  /* 提高层级，确保在最上层 */
+  z-index: 60000;  /* 高于地图标点（最高50000），确保统计面板不被遮挡 */
   display: flex;
   flex-direction: column;
   align-items: flex-end;

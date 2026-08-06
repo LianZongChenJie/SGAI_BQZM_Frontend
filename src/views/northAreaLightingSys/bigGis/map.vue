@@ -62,6 +62,9 @@ import lightOffImg from '/@/assets/images/lightOff.png'
 const map = ref<any>(null);
 // 当前展开的成员列表（点击地图空白时自动关闭）
 let openedListEl: HTMLElement | null = null;
+// 展开列表时对应 marker 容器的原始 z-index（关闭时还原）
+let openedMarkerEl: HTMLElement | null = null;
+let openedMarkerOriginalZ: string = '';
 
 /**
  * 关闭当前展开的成员列表
@@ -70,6 +73,12 @@ function closeAllMarkerLists() {
   if (openedListEl) {
     openedListEl.style.display = 'none';
     openedListEl = null;
+  }
+  // 还原之前展开的 marker 容器 z-index
+  if (openedMarkerEl) {
+    openedMarkerEl.style.zIndex = openedMarkerOriginalZ;
+    openedMarkerEl = null;
+    openedMarkerOriginalZ = '';
   }
 }
 
@@ -128,6 +137,10 @@ const initMap = async () => {
       console.log("地图加载完成");
       // 设置缩放范围：最小10级，最大23级
       map.value.setZoomLevelRange(10, 23);
+      // 地图移动/缩放结束后，重新按屏幕 y 排序标点层级（前面的盖住后面的）
+      ['moveend', 'dragend', 'zoomend'].forEach((evt) => {
+        map.value.on(evt, () => setTimeout(() => sortMarkerZByY(), 50));
+      });
       buildingInfo.value = map.value.getBuildingInfo(buildingID);
       // 获取当前楼层ID（标点需绑定楼层场景，flid 为空会导致 SDK addToMap 报错）
       await initFloorId();
@@ -327,8 +340,36 @@ function drawAllSpacesExceptNorth() {
 function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number, color: string) {
   if (!map.value) return;
   
-  // 创建标记点（使用圆形图标，尺寸从 16px 增大到 28px）
-  const markerHTML = `<div class="space-marker" style="background: ${color}; width: 28px; height: 28px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.4); cursor: pointer;" title="${spaceName}"></div>`;
+  // 创建标记点：发光科技圆点 + 外层脉冲光环，hover 时放大并增强光晕，极具点击感
+  const markerHTML = `
+    <div class="space-marker" style="
+      position: relative;
+      width: 44px;
+      height: 44px;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+    " title="${spaceName}">
+      <!-- 外层脉冲光环 -->
+      <span style="
+        position: absolute; inset: 0; border-radius: 50%;
+        background: ${color}; opacity: 0.35;
+        animation: spaceMarkerPulse 1.8s ease-out infinite;
+      "></span>
+      <!-- 主圆点 -->
+      <span style="
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 22px; height: 22px; border-radius: 50%;
+        background: ${color};
+        border: 2px solid #fff;
+        box-shadow: 0 0 10px ${color}, 0 4px 14px rgba(0,0,0,0.45);
+      "></span>
+      <!-- 中心小亮点 -->
+      <span style="
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 6px; height: 6px; border-radius: 50%;
+        background: #fff; box-shadow: 0 0 6px #fff;
+      "></span>
+    </div>`;
   
   try {
     const marker = customizeMarker(
@@ -460,8 +501,48 @@ function highlightOneSpaceFromPath(spaceName: string, path: number[][], color: s
   // 使用指定的颜色创建线条，线宽从 2 增加到 5
   const polyline = createBaseLine(linePoints, color, 5);
   allHighlightLines.push(polyline);
+
+  // 给地块添加半透明遮罩层（地块模式批量绘制时也显示）
+  createSpaceMask(spaceName, linePoints);
   
   console.log(`地块 [${spaceName}] 边框已绘制`, `共 ${path.length} 个顶点`, `颜色: ${color}`, `线宽: 5px`);
+}
+
+/**
+ * 给地块创建半透明遮罩层（不会盖住边框线，只填充地块内部高亮）
+ * @param spaceName 地块名（用于唯一标识）
+ * @param linePoints 闭合多边形顶点 [[lon, lat], ...]
+ */
+function createSpaceMask(spaceName: string, linePoints: number[][]) {
+  try {
+    if (!map.value || !map.value.createPolygon) return;
+    // 蒙层颜色与透明度（可在此统一调整）
+    const maskFillColor = '#00e676';          // 科技绿
+    const maskOpacity = 0.4;
+    const mask = map.value.createPolygon({
+      bdid: buildingID,
+      floorId: flid,
+      features: [{
+        type: 'Feature',
+        properties: {
+          id: `space-mask-${spaceName}`,
+          fillColor: maskFillColor,
+          opacity: maskOpacity,
+          outlineColor: 'transparent'
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [[...linePoints.map((p: number[]) => [p[0], p[1]]), linePoints[0]]]
+        }
+      }],
+      fillColor: maskFillColor,              // 半透明绿色填充（兜底）
+      opacity: maskOpacity,
+      outlineColor: 'transparent',           // 描边透明，避免与边框线冲突
+    });
+    if (mask) allSpaceMasks.push(mask);
+  } catch (error) {
+    console.warn(`地块 [${spaceName}] 遮罩层创建失败:`, error);
+  }
 }
 
 /**
@@ -477,6 +558,15 @@ function clearAllHighlights() {
   });
   allHighlightLines = [];
   highlightLine = null;
+  // 清除所有地块遮罩层
+  allSpaceMasks.forEach((mask: any) => {
+    try {
+      mask.removeFromMap && mask.removeFromMap();
+    } catch (error) {
+      console.warn('移除地块遮罩失败:', error);
+    }
+  });
+  allSpaceMasks = [];
 }
 
 /**
@@ -532,7 +622,10 @@ function highlightSpaceBySelected(spaceName: string) {
   const redColor = 'rgba(255, 0, 0, 1.0)';
   const polyline = createBaseLine(linePoints, redColor, 4);
   allHighlightLines.push(polyline);
-  
+
+  // 🎨 给选中地块添加半透明遮罩层（不会盖住边框线，只填充地块内部高亮）
+  createSpaceMask(spaceName, linePoints);
+
   console.log(`🔴 地块 [${spaceName}] 已用粗红线绘制`, `共 ${path.length} 个顶点`);
   console.log(`🎯 地块中心点: (${centerLon.toFixed(6)}, ${centerLat.toFixed(6)})`);
   
@@ -572,6 +665,8 @@ function focusOnSpaceBoundary(centerLon: number, centerLat: number, spaceName: s
 
 // 存储所有地块边框的折线对象
 let allHighlightLines: any[] = [];
+// 存储所有地块遮罩层（半透明填充多边形）
+let allSpaceMasks: any[] = [];
 const dialogVisible = ref(false);
 const currentLight = ref<any>(null);
 const lightingLoading = ref(false);
@@ -676,12 +771,19 @@ const handleMarkerMainClick = (data: any, group: any[]) => {
     const el = document.getElementById(`light-${String(data.type)}-${String(data.id)}`);
     const listEl = el?.querySelector<HTMLElement>('.marker-list');
     if (listEl) {
-      // 关闭其他已展开的列表
+      // 关闭其他已展开的列表（同时还原它们的 marker z-index）
       closeAllMarkerLists();
       // 切换当前列表显隐
       const isHidden = listEl.style.display === 'none';
       listEl.style.display = isHidden ? 'block' : 'none';
       openedListEl = isHidden ? listEl : null;
+      // 展开时将 marker 容器（含 SDK wrapper）提升到最高层级，确保弹框列表不被其他标点遮挡
+      if (isHidden && el) {
+        const wrapper = (el.parentElement && el.parentElement !== document.body) ? el.parentElement : el;
+        openedMarkerEl = wrapper;
+        openedMarkerOriginalZ = wrapper.style.zIndex;
+        wrapper.style.zIndex = '50000';
+      }
     }
     return;
   }
@@ -802,7 +904,9 @@ function buildMarkerDom(item: any, group: any[] = []): string {
     background-image: url('${lightIcon}');
     background-size: contain;
     background-repeat: no-repeat;
+    background-position: center top;
     position: relative;
+    opacity: 1;
   ">
     ${badgeHtml}
     ${listHtml}
@@ -871,6 +975,40 @@ async function AddLightingMarker() {
     lightingMarkerArr.value.push(marker);
   });
   if (markerFail) console.warn(`标点创建失败 ${markerFail} 条`);
+
+  // 等待标点 DOM 渲染完成后，按屏幕 y 坐标排序层级（前面的盖住后面的）
+  setTimeout(() => {
+    sortMarkerZByY();
+  }, 300);
+}
+
+/**
+ * 按屏幕 y 坐标排序标点层级：
+ * - y 越大（越靠下/越靠前）z-index 越高，前面的电线杆盖住后面的
+ * - 弹框列表 .marker-list 的 z-index 恒高于所有标点（样式层已设 10000）
+ *
+ * 重要：DaxiMap SDK 为每个 marker 创建一个外层 wrapper 容器，wrapper 才是真正的
+ * 叠放上下文。直接给 .light-marker（内层）设 z-index 容易被外层 wrapper 覆盖，
+ * 因此优先操作 wrapper，找不到时退化到 .light-marker 本身。
+ */
+function sortMarkerZByY() {
+  if (!document) return;
+  const markers: { el: HTMLElement; y: number }[] = [];
+  document.querySelectorAll<HTMLElement>('.light-marker').forEach((el) => {
+    // 跳过展开列表中的容器（展开时由 handleMarkerMainClick 提升到 50000）
+    if (el.style.zIndex === '50000') return;
+    // 优先取外层 SDK wrapper 容器（如果有），否则用内层
+    const parent = el.parentElement as HTMLElement | null;
+    const wrapper = parent && parent.contains(el) && parent !== document.body ? parent : el;
+    const rect = wrapper.getBoundingClientRect();
+    markers.push({ el: wrapper, y: rect.top + rect.height / 2 });
+  });
+  // 按 y 升序排序，y 大（靠下/前面）→ 分配更高 z-index
+  markers.sort((a, b) => a.y - b.y);
+  markers.forEach((m, index) => {
+    // 基础 2000 + 排名，确保前面的（y 大）盖住后面的
+    m.el.style.zIndex = String(2000 + index);
+  });
 }
 
 /**
@@ -1173,7 +1311,8 @@ onUnmounted(() => {
   border: 1px solid #2a4a6f;
   border-radius: 6px;
   padding: 4px;
-  z-index: 1000;
+  /* 列表在 marker 容器内最上层（容器展开时 z-index:50000，列表自身再 +1） */
+  z-index: 10000;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
@@ -1242,5 +1381,34 @@ onUnmounted(() => {
 
 .dark-dialog .btn-dark:hover {
   background-color: #2a4a6f !important;
+}
+
+/* 地块模式标点 - 点击提示效果 */
+@keyframes spaceMarkerPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  70% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+.space-marker {
+  transition: transform 0.25s ease;
+}
+
+.space-marker:hover {
+  transform: translate(-50%, -50%) scale(1.25) !important;
+  z-index: 10;
+}
+
+.space-marker:hover span:nth-child(2) {
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.6), 0 6px 18px rgba(0, 0, 0, 0.5) !important;
 }
 </style>
