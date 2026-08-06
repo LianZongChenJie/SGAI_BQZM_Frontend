@@ -329,7 +329,7 @@ const onOpenRow = async (row) => {
 /** 单行--全关 */
 const onCloseRow = async (row) => {
   await setCircuitCloseApi({
-      id: formObj.id,
+      id: row.id,
     }).then((res) => {
       console.log('res', res);
       message.success('关闭成功！');

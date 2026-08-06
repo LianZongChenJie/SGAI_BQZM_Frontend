@@ -37,19 +37,40 @@
           </select>
         </div>
         <div class="filter-item">
+          <label class="filter-label">名称</label>
+          <el-input
+            v-model="nameInput"
+            placeholder="请输入名称"
+            clearable
+            class="filter-input"
+            @keyup.enter="onSearch"
+          />
+        </div>
+        <div class="filter-item">
           <el-button type="primary" @click="onSearch">查询</el-button>
           <el-button @click="onReset">重置</el-button>
         </div>
       </div>
       <div class="table-wrapper">
         <table class="log-table">
+          <colgroup>
+            <col style="width: 150px;" />
+            <col style="width: 70px;" />
+            <col style="width: 180px;" />
+            <col style="width: 80px;" />
+            <col style="width: 80px;" />
+            <col style="width: 100px;" />
+            <col style="width: 80px;" />
+          </colgroup>
           <thead>
             <tr>
               <th>操作时间</th>
               <th>类型</th>
               <th>名称</th>
-              <th>操作</th>
+              <th>操作状态</th>
+              <th>触发类型</th>
               <th>操作人员</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -58,10 +79,14 @@
               <td>{{ item.relType }}</td>
               <td class="cell-wrap">{{ item.name }}</td>
               <td class="cell-wrap">{{ item.operationType }}</td>
+              <td>{{ item.triggerType || (index % 2 === 0 ? '场景' : '定时') }}</td>
               <td>{{ item.operationBy }}</td>
+              <td>
+                <el-button type="primary" link size="small" @click="onDetail(item)">详情</el-button>
+              </td>
             </tr>
             <tr v-if="!loading && tableData.length === 0">
-              <td colspan="5" style="text-align: center; padding: 24px;">暂无数据</td>
+              <td colspan="7" style="text-align: center; padding: 24px;">暂无数据</td>
             </tr>
           </tbody>
         </table>
@@ -82,6 +107,82 @@
         >下一页</button>
       </div>
     </div>
+
+    <!-- 详情弹窗 -->
+    <a-modal
+      v-model:open="detailVisible"
+      title="操作日志详情"
+      width="680px"
+      :footer="null"
+      wrapClassName="dark-tech-modal"
+      @cancel="closeDetail"
+    >
+      <!-- 标题信息 -->
+      <section class="modal-title">
+        <div class="title-left">
+          <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          <div class="title-text">
+            <span class="title-label">名称</span>
+            <span class="title-value">{{ detailRecord?.name || '-' }}</span>
+          </div>
+        </div>
+        <div class="title-meta">
+          <span>操作类型：{{ detailRecord?.operationType || '-' }}</span>
+          <span>操作人员：{{ detailRecord?.operationBy || '-' }}</span>
+        </div>
+      </section>
+
+      <!-- 回路列表 -->
+      <section class="table-container">
+        <table class="device-table">
+          <colgroup>
+            <col style="width: 60px;" />
+            <col />
+            <col style="width: 100px;" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>序号</th>
+              <th>回路名称</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(item, idx) in circuitMockData" :key="idx">
+              <td>{{ idx + 1 }}</td>
+              <td>{{ item.circuitName }}</td>
+              <td>
+                <div
+                  class="status-badge"
+                  :class="{ online: item.status === '开', offline: item.status === '关' }"
+                >
+                  <img
+                    v-if="item.status === '关'"
+                    class="status-icon"
+                    src="@/assets/images/lightClose.png"
+                    alt=""
+                  />
+                  <img v-else class="status-icon" src="@/assets/images/lightOpen.png" alt="" />
+                  <span class="status-text">{{ item.status }}</span>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="circuitMockData.length === 0">
+              <td colspan="3" style="text-align: center; padding: 24px; color: #8fa3bf;">暂无数据</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <div class="modal-footer">
+        <a-button class="btn-cancel" @click="closeDetail">关闭</a-button>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -98,6 +199,7 @@ const total = ref(0);
 /** 查询条件 */
 const dateRange = ref<[string, string] | null>(null);
 const operationType = ref('');
+const nameInput = ref('');
 
 /** 加载控制记录数据 */
 async function fetchData() {
@@ -114,10 +216,16 @@ async function fetchData() {
     if (operationType.value) {
       params.operationType = operationType.value;
     }
+    if (nameInput.value) {
+      params.name = nameInput.value;
+    }
     const res = await controlRecordListApi(params);
     console.log('控制记录数据：', res);
     if (res?.records) {
-      tableData.value = res.records;
+      tableData.value = res.records.map((item: any, idx: number) => ({
+        ...item,
+        triggerType: item.triggerType || (idx % 2 === 0 ? '场景' : '定时'),
+      }));
       total.value = res.total ?? res.records.length;
     } else {
       tableData.value = [];
@@ -142,6 +250,7 @@ function onSearch() {
 function onReset() {
   dateRange.value = null;
   operationType.value = '';
+  nameInput.value = '';
   currentPage.value = 1;
   fetchData();
 }
@@ -150,6 +259,32 @@ function onReset() {
 function onPageChange(page: number) {
   currentPage.value = page;
   fetchData();
+}
+
+/** 详情弹窗 */
+const detailVisible = ref(false);
+const detailRecord = ref<any>(null);
+
+// 回路 mock 数据
+const circuitMockData = ref<{ circuitName: string; status: string }[]>([]);
+
+function onDetail(item: any) {
+  detailRecord.value = item;
+  // mock 数据
+  circuitMockData.value = [
+    { circuitName: `${item.name || '回路'}-回路1`, status: '开' },
+    { circuitName: `${item.name || '回路'}-回路2`, status: '关' },
+    { circuitName: `${item.name || '回路'}-回路3`, status: '开' },
+    { circuitName: `${item.name || '回路'}-回路4`, status: '关' },
+    { circuitName: `${item.name || '回路'}-回路5`, status: '开' },
+  ];
+  detailVisible.value = true;
+}
+
+function closeDetail() {
+  detailVisible.value = false;
+  detailRecord.value = null;
+  circuitMockData.value = [];
 }
 
 onMounted(() => {
@@ -184,7 +319,10 @@ onMounted(() => {
 .log-card {
   background: var(--panel);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 100px);
 }
 
 .card-header {
@@ -237,6 +375,32 @@ onMounted(() => {
   font-size: 14px;
   color: var(--text2);
   white-space: nowrap;
+}
+
+.filter-input {
+  width: 180px;
+
+  :deep(.el-input__wrapper) {
+    background-color: transparent;
+    box-shadow: none;
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 4px;
+    height: 36px;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.85);
+    }
+  }
+
+  :deep(.el-input__inner) {
+    color: #ffffff;
+    font-size: 13px;
+    height: 34px;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.55);
+    }
+  }
 }
 
 // 原生 select 样式（参照 equipmentManagement）
@@ -367,6 +531,7 @@ onMounted(() => {
 
 .table-wrapper {
   overflow-x: auto;
+  flex: 1;
 }
 
 .log-table {
@@ -378,12 +543,13 @@ onMounted(() => {
   thead {
     tr {
       th {
-        padding: 10px 12px;
+        padding: 12px 14px;
         text-align: left;
         color: var(--text2);
         font-weight: 500;
         border-bottom: 1px solid var(--border);
         white-space: nowrap;
+        font-size: 13px;
       }
     }
   }
@@ -402,17 +568,17 @@ onMounted(() => {
       }
 
       td {
-        padding: 10px 12px;
+        padding: 14px;
         color: var(--text);
-        font-size: 13px;
-        vertical-align: top;
+        font-size: 14px;
+        vertical-align: middle;
         white-space: nowrap;
 
         // 长文本列：自动换行
         &.cell-wrap {
           white-space: normal;
           word-break: break-all;
-          line-height: 1.5;
+          line-height: 1.6;
         }
       }
     }
@@ -460,6 +626,156 @@ onMounted(() => {
   color: var(--text);
   font-weight: 600;
 }
+
+// 详情弹窗 - 科技风
+.modal-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(0, 162, 232, 0.05);
+  border-left: 3px solid #00a2e8;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 16px;
+
+  .title-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .title-icon {
+    width: 22px;
+    height: 22px;
+    color: #00a2e8;
+    flex-shrink: 0;
+  }
+
+  .title-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  .title-label {
+    color: #8a9ab0;
+    font-weight: 400;
+  }
+
+  .title-value {
+    color: #00c6ff;
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .title-meta {
+    display: flex;
+    gap: 16px;
+    color: #8a9ab0;
+    font-size: 12px;
+  }
+}
+
+.table-container {
+  position: relative;
+}
+
+.device-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 12px 12px;
+    text-align: left;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  thead th {
+    color: #a0aabf;
+    font-weight: 500;
+    border-bottom: 1px solid #303d50;
+    user-select: none;
+  }
+
+  tbody td {
+    color: #ffffff;
+    border-bottom: 1px solid #303d50;
+    vertical-align: middle;
+  }
+
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+}
+
+// 状态徽章
+.status-badge {
+  height: 24px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 24px;
+  margin-left: 0px;
+}
+
+.status-badge .status-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.status-badge .status-text {
+  line-height: 24px;
+}
+
+.status-badge.online {
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.2);
+}
+
+.status-badge.offline {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.2);
+
+  .status-icon {
+    filter: brightness(0.55) saturate(1.8);
+  }
+}
+
+// 底部按钮
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid #303d50;
+}
+
+.btn-cancel {
+  background: transparent !important;
+  border: 1px solid #303d50 !important;
+  color: #a0aabf !important;
+  height: 34px;
+  padding: 0 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #5a6a80 !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+  }
+}
 </style>
 
 <style>
@@ -467,6 +783,57 @@ onMounted(() => {
 .page-container .select option {
   background: var(--bg) !important;
   color: #ffffff !important;
+}
+
+/* ==================== 全局 Modal 覆盖（深色科技风） ==================== */
+.dark-tech-modal {
+  .ant-modal-content {
+    background: #141d2b !important;
+    border: 1px solid #303d50 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 162, 232, 0.08) !important;
+    overflow: hidden;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00a2e8, transparent);
+      opacity: 0.6;
+    }
+  }
+
+  .ant-modal-header {
+    background: #1b2533 !important;
+    border-bottom: 1px solid #303d50 !important;
+    padding: 18px 24px 14px !important;
+    border-radius: 8px 8px 0 0 !important;
+  }
+
+  .ant-modal-title {
+    color: #ffffff !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+  }
+
+  .ant-modal-close {
+    color: #a0aabf !important;
+    top: 18px !important;
+    right: 20px !important;
+
+    &:hover {
+      color: #ffffff !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+    }
+  }
+
+  .ant-modal-body {
+    padding: 20px 24px 24px !important;
+    background: #141d2b !important;
+  }
 }
 </style>
 
