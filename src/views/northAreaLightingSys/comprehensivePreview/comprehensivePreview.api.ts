@@ -11,6 +11,7 @@ enum Api {
   closeArea = '/sgai-bqzm/bems/lighting/area/close',
   allArea = '/sgai-bqzm/bems/lighting/area/all',
   areaRunStatus = '/sgai-bqzm/bems/lighting/home/areaRunStatus',
+  runTimeCompare = '/sgai-bqzm/bems/lighting/analysis/runTimeCompare',
 }
 
 /** 获取总览统计数据 */
@@ -42,4 +43,7 @@ export const getAllAreaApi = () => defHttp.get({ url: Api.allArea });
 
 /** 获取地块运行状态统计（正常/告警/离线） */
 export const getAreaRunStatusApi = () => defHttp.get({ url: Api.areaRunStatus });
+
+/** 获取各地块运行时长对比（本月） */
+export const getRunTimeCompareApi = (queryStr = '') => defHttp.get({ url: `${Api.runTimeCompare}${queryStr}` });
 
