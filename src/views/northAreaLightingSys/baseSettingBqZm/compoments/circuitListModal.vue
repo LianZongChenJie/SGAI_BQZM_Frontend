@@ -4,7 +4,7 @@
       v-model:open="open"
       title="回路控制"
       :footer="null"
-      width="1200px"
+      width="1300px"
       :destroyOnClose="true"
       :maskClosable="false"
       wrapClassName="dark-tech-modal"
@@ -87,9 +87,15 @@
                   <span class="arr-down" :class="{ active: sortKey === 'allDuration' && sortOrder === 'desc' }">▼</span>
                 </span>
               </th>
+              <th>
+                <span class="th-label">电流</span>
+                <span class="th-btn-wrap sort-btn" @click="toggleSort('powerFactor')">
+                  <span class="arr-up" :class="{ active: sortKey === 'powerFactor' && sortOrder === 'asc' }">▲</span>
+                  <span class="arr-down" :class="{ active: sortKey === 'powerFactor' && sortOrder === 'desc' }">▼</span>
+                </span>
+              </th>
               <th>操作人</th>
               <th>操作时间</th>
-              
               <th>操作</th>
             </tr>
           </thead>
@@ -107,11 +113,16 @@
                       online: row.status === '开启',
                       offline: row.status === '关闭',
                     }"
-                  >{{ row.status }}</span>
+                  >
+                    <img v-if="row.status === '关闭'" style="width: 16px; height: 16px; filter: brightness(0.55) saturate(1.8);" src="@/assets/images/lightClose.png" alt="" />
+                    <img v-else style="width: 16px; height: 16px" src="@/assets/images/lightOpen.png" alt="" />
+                    &nbsp;{{ row.status }}
+                  </span>
                 </td>
                 <td>{{ row.startTime }}</td>
                 <td>{{ row.closingTime }}</td>
                 <td>{{ formatSeconds(row.allDuration, { showHoursAlways: true }) }}</td>
+                <td>{{ row.powerFactor != null ? row.powerFactor + ' A' : '-' }}</td>
                 <td>{{ row.operatorBy }}</td>
                 <td>{{ row.operatorTime }}</td>
                 <td class="actions">
@@ -713,20 +724,20 @@ defineExpose({
   font-weight: 600;
 }
 
-/* 列宽比例分配 — 9列 */
+/* 列宽比例分配 — 10列 */
 .device-table th:nth-child(1),
 .device-table td:nth-child(1) {
-  width: 5%;
+  width: 4%;
 }
 
 .device-table th:nth-child(2),
 .device-table td:nth-child(2) {
-  width: 14%;
+  width: 9%;
 }
 
 .device-table th:nth-child(3),
 .device-table td:nth-child(3) {
-  width: 8%;
+  width: 9%;
 }
 
 .device-table th:nth-child(4),
@@ -751,12 +762,17 @@ defineExpose({
 
 .device-table th:nth-child(8),
 .device-table td:nth-child(8) {
-  width: 14%;
+  width: 9%;
 }
 
 .device-table th:nth-child(9),
 .device-table td:nth-child(9) {
-  width: 13%;
+  width: 11%;
+}
+
+.device-table th:nth-child(10),
+.device-table td:nth-child(10) {
+  width: 12%;
 }
 
 /* 复选框列居中对齐 */

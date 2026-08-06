@@ -95,7 +95,11 @@
                   online: row.status === '开启',
                   offline: row.status === '关闭',
                 }"
-              >{{ row.status }}</span>
+              >
+                <img v-if="row.status === '关闭'" style="width: 20px; height: 20px; filter: brightness(0.55) saturate(1.8);" src="@/assets/images/lightClose.png" alt="" />
+                <img v-else style="width: 20px; height: 20px" src="@/assets/images/lightOpen.png" alt="" />
+                &nbsp;{{ row.status }}
+              </span>
             </template>
           </vxe-column>
           <vxe-column title="操作" width="310" fixed="right" header-align="left" align="left">

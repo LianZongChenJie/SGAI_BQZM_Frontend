@@ -26,12 +26,6 @@
                 <line x1="12" y1="17" x2="12" y2="21"/>
               </svg>
               <h2 class="panel-title">实时设备监控</h2>
-              <button class="btn-collapse" :class="{ collapsed: monitorCollapsed }" @click="toggleMonitor">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-                <span>折叠</span>
-              </button>
             </div>
             <div class="header-right">
               <button class="btn btn-primary" @click="onRefreshVideo">
@@ -41,6 +35,12 @@
                   <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
                 </svg>
                 获取视频列表
+              </button>
+              <button class="btn-collapse" :class="{ collapsed: monitorCollapsed }" @click="toggleMonitor">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+                <span>折叠</span>
               </button>
             </div>
           </header>
@@ -80,6 +80,38 @@
                 <line x1="12" y1="22.08" x2="12" y2="12"/>
               </svg>
               <h2 class="panel-title">场景控制面板</h2>
+              <span class="panel-count">
+                <span class="count-label">已查</span>
+                <span class="count-filtered">{{ filteredMonitorSceneList.length }}</span>
+                <span class="count-sep">/</span>
+                <span class="count-label">共</span>
+                <span class="count-total">{{ sceneList.length }}</span>
+                <span class="count-label">条</span>
+              </span>
+            </div>
+            <div class="header-right">
+              <div class="scene-search-bar" v-show="!sceneCollapsed">
+                <a-select
+                  v-model:value="monitorSearchTag"
+                  placeholder="标签"
+                  :options="sceneTagOptions"
+                  :loading="sceneTagLoading"
+                  allowClear
+                  show-search
+                  :filter-option="(input, option) => (option.label || '').toLowerCase().includes(input.toLowerCase())"
+                  style="width: 120px"
+                />
+                <a-input
+                  v-model:value="monitorSearchName"
+                  placeholder="请输入名称"
+                  allowClear
+                  autocomplete="off"
+                  style="width: 160px"
+                  @pressEnter="onMonitorSearch"
+                />
+                <button class="btn btn-primary btn-sm" @click="onMonitorSearch">查询</button>
+                <button class="btn btn-outline btn-sm" @click="onMonitorSearchReset">重置</button>
+              </div>
               <button class="btn-collapse" :class="{ collapsed: sceneCollapsed }" @click="toggleScene">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="6 9 12 15 18 9"/>
@@ -91,33 +123,53 @@
 
           <div class="scene-grid" v-show="!sceneCollapsed" v-loading="loadingSceneList">
             <div
-              v-for="s in sceneList"
+              v-for="s in filteredMonitorSceneList"
               :key="s.id"
               class="scene-card"
             >
-              <div class="scene-header">
-                <span class="scene-name">{{ s.name }}</span>
-                <div class="scene-top-actions">
+              <div class="scene-card-inner">
+                <div class="scene-header">
+                  <div class="scene-header-left">
+                    <span class="scene-name">{{ s.name }}</span>
+                    <span v-if="s.spaceName" class="scene-tag">{{ s.spaceName }}</span>
+                  </div>
+                  <div class="scene-top-actions">
+                  </div>
                 </div>
-              </div>
-              <div class="scene-info">
-                <div class="scene-info-item">
-                  <span class="info-label">包含</span>
-                  <span class="info-value">{{ s.circuitCount }} 个{{ s.relType }}</span>
+                <div class="scene-info">
+                  <div class="scene-info-item">
+                    <span class="info-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 3v4M16 3v4M2 13h20"/></svg>
+                    </span>
+                    <span class="info-label">包含</span>
+                    <span class="info-value">{{ s.circuitCount }} 个{{ s.relType }}</span>
+                  </div>
+                  <div class="scene-info-item">
+                    <span class="info-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </span>
+                    <span class="info-label">操作类型</span>
+                    <span class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
+                  </div>
+                  <div class="scene-info-item">
+                    <span class="info-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </span>
+                    <span class="info-label">上次操作</span>
+                    <span class="info-value">{{ s.updateTime || '-' }}</span>
+                  </div>
                 </div>
-                <div class="scene-info-item">
-                  <span class="info-label">操作类型</span>
-                  <span class="info-value">{{ s.operationType || '-' }}</span>
-                </div>
-                <div class="scene-info-item">
-                  <span class="info-label">上次操作</span>
-                  <span class="info-value">{{ s.updateTime || '-' }}</span>
-                </div>
-              </div>
-              <div class="scene-actions">
-                <div class="scene-actions-left">
-                  <button class="btn btn-primary" @click="onExecute(s)">开启</button>
-                  <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
+                <div class="scene-actions">
+                  <div class="scene-actions-left">
+                    <button class="btn btn-primary btn-sm" @click="onExecute(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      开启
+                    </button>
+                    <button class="btn btn-danger btn-sm" @click="onDeleteScene(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      关闭
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -129,66 +181,116 @@
       <template v-if="activeTab === 'scene'">
         <section class="panel panel-scene">
           <header class="panel-header panel-header--fixed">
-            <div class="left">
+            <div class="left" v-loading="sceneSearchLoading">
               <svg class="panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
                 <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
                 <line x1="12" y1="22.08" x2="12" y2="12"/>
               </svg>
               <h2 class="panel-title">场景配置</h2>
+              <span class="panel-count">
+                <span class="count-label">已查</span>
+                <span class="count-filtered">{{ filteredSceneList.length }}</span>
+                <span class="count-sep">/</span>
+                <span class="count-label">共</span>
+                <span class="count-total">{{ sceneList.length }}</span>
+                <span class="count-label">条</span>
+              </span>
             </div>
-            <button class="btn btn-primary" @click="onAddScene">
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              新建场景
-            </button>
+            <div class="header-right">
+              <a-select
+                v-model:value="sceneSearchTag"
+                placeholder="标签"
+                :options="sceneTagOptions"
+                :loading="sceneTagLoading"
+                allowClear
+                show-search
+                :filter-option="(input, option) => (option.label || '').toLowerCase().includes(input.toLowerCase())"
+                style="width: 140px"
+              />
+              <a-input
+                v-model:value="sceneSearchName"
+                placeholder="请输入名称"
+                allowClear
+                autocomplete="off"
+                style="width: 180px"
+                @pressEnter="onSceneSearch"
+              />
+              <button class="btn btn-primary" @click="onSceneSearch">查询</button>
+              <button class="btn btn-outline" @click="onSceneSearchReset" style="margin-right: 5%;">重置</button>
+              <button class="btn btn-primary" @click="onAddScene">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                新建场景
+              </button>
+            </div>
           </header>
 
           <div class="scene-grid">
             <div
-              v-for="s in sceneList"
+              v-for="s in filteredSceneList"
               :key="s.id"
               class="scene-card"
             >
-              <div class="scene-header">
-                <span class="scene-name">{{ s.name }}</span>
-                <div class="scene-top-actions">
-                  <button class="scene-icon-btn" title="编辑" @click="onEditScene(s)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button class="scene-icon-btn danger" title="删除" @click="onDeleteScene(s)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                    </svg>
-                  </button>
+              <div class="scene-card-inner">
+                <div class="scene-header">
+                  <div class="scene-header-left">
+                    <span class="scene-name">{{ s.name }}</span>
+                    <span v-if="s.spaceName" class="scene-tag">{{ s.spaceName }}</span>
+                  </div>
+                  <div class="scene-top-actions">
+                    <button class="scene-icon-btn" title="编辑" @click="onEditScene(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button class="scene-icon-btn danger" title="删除" @click="onDeleteScene(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div class="scene-info">
-                <div class="scene-info-item">
-                  <span class="info-label">包含</span>
-                  <span class="info-value">{{ s.circuitCount }} 个{{ s.relType }}</span>
+                <div class="scene-info">
+                  <div class="scene-info-item">
+                    <span class="info-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 3v4M16 3v4M2 13h20"/></svg>
+                    </span>
+                    <span class="info-label">包含</span>
+                    <span class="info-value">{{ s.circuitCount }} 个{{ s.relType }}</span>
+                  </div>
+                  <div class="scene-info-item">
+                    <span class="info-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </span>
+                    <span class="info-label">操作类型</span>
+                    <span class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
+                  </div>
+                  <div class="scene-info-item">
+                    <span class="info-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </span>
+                    <span class="info-label">上次操作</span>
+                    <span class="info-value">{{ s.updateTime || '-' }}</span>
+                  </div>
                 </div>
-                <div class="scene-info-item">
-                  <span class="info-label">操作类型</span>
-                  <span class="info-value">{{ s.operationType || '-' }}</span>
+                <div class="scene-actions">
+                  <div class="scene-actions-left">
+                    <button class="btn btn-primary btn-sm" @click="onExecute(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                      开启
+                    </button>
+                    <button class="btn btn-danger btn-sm" @click="onDeleteScene(s)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                      关闭
+                    </button>
+                  </div>
+                  <button class="btn btn-link" @click="createNewSceneModalRef?.showModal('detail', s)">详情</button>
                 </div>
-                <div class="scene-info-item">
-                  <span class="info-label">上次操作</span>
-                  <span class="info-value">{{ s.updateTime || '-' }}</span>
-                </div>
-              </div>
-              <div class="scene-actions">
-                <div class="scene-actions-left">
-                  <button class="btn btn-primary" @click="onExecute(s)">开启</button>
-                  <button class="btn btn-danger" @click="onDeleteScene(s)">关闭</button>
-                </div>
-                <button class="btn btn-link" @click="createNewSceneModalRef?.showModal('detail', s)">详情</button>
               </div>
             </div>
           </div>
@@ -205,19 +307,16 @@
                 <polyline points="12 6 12 12 16 14"/>
               </svg>
               <h2 class="panel-title">定时控制</h2>
+              <span class="panel-count">
+                <span class="count-label">已查</span>
+                <span class="count-filtered">{{ filteredTimerList.length }}</span>
+                <span class="count-sep">/</span>
+                <span class="count-label">共</span>
+                <span class="count-total">{{ timerTotal }}</span>
+                <span class="count-label">条</span>
+              </span>
             </div>
-            <button class="btn btn-primary" @click="onAddTimer">
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              新建定时任务
-            </button>
-          </header>
-
-          <!-- 搜索栏 -->
-          <section class="filter-bar">
-            <div class="filter-left">
+            <div class="header-right">
               <a-select
                 v-model:value="timerFilters.relType"
                 placeholder="控制类型"
@@ -239,9 +338,16 @@
                 style="width: 160px"
               />
               <button class="btn btn-primary" @click="onTimerSearch">查询</button>
-              <button class="btn btn-outline" @click="onTimerReset">重置</button>
+              <button class="btn btn-outline" @click="onTimerReset" style="margin-right: 5%;">重置</button>
+              <button class="btn btn-primary" @click="onAddTimer">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                新建定时任务
+              </button>
             </div>
-          </section>
+          </header>
 
           <!-- 表格 -->
           <div class="table-wrapper" v-loading="timerLoading">
@@ -254,13 +360,13 @@
                   <th style="width: 9%">时间</th>
                   <th style="width: 18%">时间范围</th>
                   <th style="width: 13%">周期</th>
-                  <th style="width: 10%">控制指令</th>
+                  <th style="width: 8%">控制指令</th>
                   <th style="width: 7%">状态</th>
-                  <th style="width: 15%">操作</th>
+                  <th style="width: 17%">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, idx) in timerList" :key="row.id">
+                <tr v-for="(row, idx) in filteredTimerList" :key="row.id">
                   <td><span class="cell-text">{{ idx + 1 }}</span></td>
                   <td><span class="cell-text" :title="row.relType">{{ row.relType }}</span></td>
                   <td><span class="cell-text" :title="row.planName">{{ row.planName }}</span></td>
@@ -394,6 +500,7 @@ import sceneConfirmModal from './components/sceneConfirmModal.vue';
 import CalendarEventDetailModal from './components/CalendarEventDetailModal.vue';
 import CameraListModal from './components/CameraListModal.vue';
 import { getLightingPlanAPi, deleteLightingPlanAPi, disableApi, executeNow, getCalendarControlApi, getLightingPlanAPiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring';
+import { getAllSpace } from '@/api/baseSettingBqZm';
 import { message } from 'ant-design-vue';
 import VideoPlayer from './components/VideoPlayer.vue'
 
@@ -429,6 +536,100 @@ function toggleScene() {
 /* --------------------- 场景数据 --------------------- */
 const sceneList = ref<any[]>([]);
 
+/* --------------------- 场景搜索（场景配置 tab） --------------------- */
+const sceneTagOptions = ref<{ label: string; value: string }[]>([]);
+const sceneTagLoading = ref(false);
+const sceneSearchTag = ref<string | undefined>(undefined);
+const sceneSearchName = ref('');
+const sceneSearchLoading = ref(false);
+
+/** 已过滤的场景列表（场景配置 tab 本地筛选） */
+const filteredSceneList = computed(() => {
+  let data = sceneList.value;
+  if (sceneSearchTag.value) {
+    data = data.filter((item) => item.spaceName === sceneSearchTag.value);
+  }
+  if (sceneSearchName.value) {
+    const kw = sceneSearchName.value.toLowerCase();
+    data = data.filter((item) => (item.name || '').toLowerCase().includes(kw));
+  }
+  return data;
+});
+
+/* --------------------- 场景搜索（实时设备监控 tab） --------------------- */
+const monitorSearchTag = ref<string | undefined>(undefined);
+const monitorSearchName = ref('');
+const monitorSearchLoading = ref(false);
+
+/** 已过滤的场景列表（监控 tab 本地筛选） */
+const filteredMonitorSceneList = computed(() => {
+  let data = sceneList.value;
+  if (monitorSearchTag.value) {
+    data = data.filter((item) => item.spaceName === monitorSearchTag.value);
+  }
+  if (monitorSearchName.value) {
+    const kw = monitorSearchName.value.toLowerCase();
+    data = data.filter((item) => (item.name || '').toLowerCase().includes(kw));
+  }
+  return data;
+});
+
+/** 加载标签下拉选项 */
+async function loadSceneTagOptions() {
+  if (sceneTagOptions.value.length) return;
+  try {
+    sceneTagLoading.value = true;
+    const res = await getAllSpace();
+    const data = res?.data || res || [];
+    sceneTagOptions.value = (Array.isArray(data) ? data : []).map((item: any) => ({
+      label: item.spaceName,
+      value: item.spaceName,
+    }));
+  } catch {
+    sceneTagOptions.value = [];
+  } finally {
+    sceneTagLoading.value = false;
+  }
+}
+
+/** 场景搜索（防抖） */
+let sceneSearchTimer: ReturnType<typeof setTimeout> | null = null;
+function onSceneSearch() {
+  if (sceneSearchTimer) clearTimeout(sceneSearchTimer);
+  sceneSearchLoading.value = true;
+  sceneSearchTimer = setTimeout(() => {
+    if (!sceneSearchTag.value && !sceneSearchName.value) {
+      fetchSceneList();
+    }
+    sceneSearchLoading.value = false;
+  }, 300);
+}
+
+/** 场景搜索重置（场景配置 tab） */
+function onSceneSearchReset() {
+  sceneSearchTag.value = undefined;
+  sceneSearchName.value = '';
+}
+
+/** 场景搜索（监控 tab 防抖） */
+let monitorSearchTimer: ReturnType<typeof setTimeout> | null = null;
+function onMonitorSearch() {
+  if (monitorSearchTimer) clearTimeout(monitorSearchTimer);
+  monitorSearchLoading.value = true;
+  monitorSearchTimer = setTimeout(() => {
+    if (!monitorSearchTag.value && !monitorSearchName.value) {
+      fetchSceneList();
+    }
+    monitorSearchLoading.value = false;
+  }, 300);
+}
+
+/** 场景搜索重置（监控 tab） */
+function onMonitorSearchReset() {
+  monitorSearchTag.value = undefined;
+  monitorSearchName.value = '';
+}
+
 /* --------------------- Loading --------------------- */
 const pageLoading = ref(false);
 
@@ -440,6 +641,7 @@ async function handleTabChange(key: string) {
 
   if (key === 'scene') {
     pageLoading.value = true;
+    loadSceneTagOptions();
     try {
       await fetchSceneList();
     } finally {
@@ -449,6 +651,7 @@ async function handleTabChange(key: string) {
       }, 200);
     }
   } else if (key === 'monitor') {
+    loadSceneTagOptions();
     await fetchSceneList();
   } else if (key === 'timer') {
     await fetchTimerList();
@@ -574,6 +777,7 @@ const postSceneSwitchApiChange = async (params) =>{
 }
 /* --------------------- 定时任务数据 --------------------- */
 const timerList = ref<any[]>([]);
+const allTimerList = ref<any[]>([]); // 本地过滤前的全量数据
 const timerLoading = ref(false);
 const timerTotal = ref(0);
 
@@ -581,6 +785,29 @@ const timerFilters = ref({
   relType: undefined as string | undefined,
   startTime: null as Dayjs | null,
   endTime: null as Dayjs | null,
+});
+
+/** 本地过滤后的定时任务列表 */
+const filteredTimerList = computed(() => {
+  let data = allTimerList.value;
+  if (timerFilters.value.relType) {
+    data = data.filter((item) => item.relType === timerFilters.value.relType);
+  }
+  if (timerFilters.value.startTime) {
+    const start = timerFilters.value.startTime.format('HH:mm:ss');
+    data = data.filter((item) => {
+      const t = item.executionLocalTime || item.executionTime || '';
+      return t >= start;
+    });
+  }
+  if (timerFilters.value.endTime) {
+    const end = timerFilters.value.endTime.format('HH:mm:ss');
+    data = data.filter((item) => {
+      const t = item.executionLocalTime || item.executionTime || '';
+      return t <= end;
+    });
+  }
+  return data;
 });
 
 const relTypeFilterOptions = [
@@ -593,21 +820,18 @@ const weekDayMap: Record<string, string> = {
   '5': '周五', '6': '周六', '7': '周日',
 };
 
-/** 获取定时控制列表 */
+/** 获取定时控制列表（全量数据，本地过滤） */
 async function fetchTimerList() {
   timerLoading.value = true;
   try {
     const params: Record<string, any> = {
       pageSize: 9999,
     };
-    if (timerFilters.value.relType) params.relType = timerFilters.value.relType;
-    if (timerFilters.value.startTime) params.startTime = timerFilters.value.startTime.format('HH:mm:ss');
-    if (timerFilters.value.endTime) params.endTime = timerFilters.value.endTime.format('HH:mm:ss');
 
     const data = await getLightingPlanAPi(params);
     console.log('定时控制列表：', data);
     if (data?.records) {
-      timerList.value = (data.records as any[]).map((item) => ({
+      const mapped = (data.records as any[]).map((item) => ({
         ...item,
         id: item.id,
         planName: item.planName || '',
@@ -626,13 +850,17 @@ async function fetchTimerList() {
               .join('、')
           : '',
       }));
-      timerTotal.value = data.total ?? data.records.length;
+      allTimerList.value = mapped;
+      timerList.value = mapped;
+      timerTotal.value = data.total ?? mapped.length;
     } else {
+      allTimerList.value = [];
       timerList.value = [];
       timerTotal.value = 0;
     }
   } catch (err) {
     console.error('获取定时控制列表失败：', err);
+    allTimerList.value = [];
     timerList.value = [];
     timerTotal.value = 0;
   } finally {
@@ -664,7 +892,7 @@ const handleDisable = async (row) => {
       console.log('禁用定时任务成功', res);
       message.success('禁用成功！');
     });
-    await onTimerSearch();
+    await fetchTimerList();
 }
 // 立即执行
 const handleExecuteNow = async (row) => {
@@ -675,7 +903,7 @@ const handleExecuteNow = async (row) => {
       message.success('立即执行成功！');
     });
     // 刷新
-    await onTimerSearch();
+    await fetchTimerList();
 }
 // 删除
 const handleDelete = async (record) => {
@@ -685,20 +913,26 @@ const handleDelete = async (record) => {
       console.log('删除定时任务成功', res);
     });
     // 刷新
-    await onTimerSearch();
+    await fetchTimerList();
   };
 /** 新建定时任务成功回调 */
 async function createNewTimerModalSuccess() {
-  await onTimerSearch();
+  await fetchTimerList();
 }
 
 /** 启用定时任务成功回调 */
 async function onTimerEnableSuccess() {
-  await onTimerSearch();
+  await fetchTimerList();
 }
 
+/** 查询：搜索项都为空时调接口刷新，否则本地过滤 */
 function onTimerSearch() {
-  fetchTimerList();
+  const hasFilter = timerFilters.value.relType || timerFilters.value.startTime || timerFilters.value.endTime;
+  if (!hasFilter) {
+    fetchTimerList();
+  } else {
+    timerList.value = filteredTimerList.value;
+  }
 }
 
 function onTimerReset() {
@@ -1042,31 +1276,159 @@ onMounted(() => {
   gap: 8px;
 }
 
-/* 折叠按钮 */
+/* 场景搜索栏 */
+.scene-search-bar,
+.panel-header .header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scene-search-bar :deep(.ant-select-selector),
+.panel-header .header-right :deep(.ant-select-selector) {
+  background: #243447 !important;
+  border: 1px solid #4a6380 !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+  height: 32px !important;
+  padding: 0 28px 0 11px !important;
+  display: flex !important;
+  align-items: center !important;
+  position: relative !important;
+}
+
+.scene-search-bar :deep(.ant-select-selector:hover),
+.panel-header .header-right :deep(.ant-select-selector:hover) {
+  border-color: #00a2e8 !important;
+}
+
+.scene-search-bar :deep(.ant-select-selection-item),
+.scene-search-bar :deep(.ant-select-selection-placeholder),
+.panel-header .header-right :deep(.ant-select-selection-item),
+.panel-header .header-right :deep(.ant-select-selection-placeholder) {
+  line-height: 30px !important;
+  font-size: 13px !important;
+}
+
+.scene-search-bar :deep(.ant-select-selection-item),
+.panel-header .header-right :deep(.ant-select-selection-item) {
+  color: #ffffff !important;
+}
+
+.scene-search-bar :deep(.ant-select-selection-placeholder),
+.panel-header .header-right :deep(.ant-select-selection-placeholder) {
+  color: #c0d0e0 !important;
+  font-size: 13px !important;
+}
+
+.scene-search-bar :deep(.ant-select-arrow),
+.panel-header .header-right :deep(.ant-select-arrow) {
+  color: #c0d0e0 !important;
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin-top: 0 !important;
+  line-height: 1 !important;
+  height: auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.scene-search-bar :deep(.ant-select-clear),
+.panel-header .header-right :deep(.ant-select-clear) {
+  background: #243447 !important;
+  color: #c0d0e0 !important;
+}
+
+.scene-search-bar :deep(.ant-input-affix-wrapper),
+.panel-header .header-right :deep(.ant-input-affix-wrapper) {
+  background: #243447 !important;
+  border: 1px solid #4a6380 !important;
+  border-radius: 4px !important;
+  height: 32px !important;
+  padding: 0 11px !important;
+  box-shadow: none !important;
+}
+
+.scene-search-bar :deep(.ant-input-affix-wrapper:hover),
+.panel-header .header-right :deep(.ant-input-affix-wrapper:hover) {
+  border-color: #00a2e8 !important;
+}
+
+.scene-search-bar :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused),
+.panel-header .header-right :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
+  border-color: #00a2e8 !important;
+  box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.scene-search-bar :deep(.ant-input-affix-wrapper > input),
+.panel-header .header-right :deep(.ant-input-affix-wrapper > input) {
+  background: transparent !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+}
+
+.scene-search-bar :deep(.ant-input-affix-wrapper > input::placeholder),
+.panel-header .header-right :deep(.ant-input-affix-wrapper > input::placeholder) {
+  color: #c0d0e0 !important;
+}
+
+.scene-search-bar .btn-sm {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 32px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+    border: 1px solid var(--color-primary);
+    &:hover { background: #008ecf; border-color: #008ecf; }
+  }
+
+  &.btn-outline {
+    background: transparent;
+    color: #6ecfef;
+    border: 1px solid rgba(0, 162, 232, 0.4);
+    &:hover { background: rgba(0, 162, 232, 0.1); border-color: #00a2e8; color: #fff; }
+  }
+}
 .btn-collapse {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 162, 232, 0.5);
+  background: rgba(0, 162, 232, 0.15);
+  color: #6ecfef;
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 13px;
+  margin-left: 20px;
 
   svg {
-    width: 12px;
-    height: 12px;
+    width: 18px;
+    height: 18px;
     transition: transform 0.3s ease;
   }
 
   &:hover {
     border-color: var(--color-primary);
-    color: var(--color-primary);
+    color: #ffffff;
+    background: rgba(0, 162, 232, 0.45);
   }
 
   &.collapsed svg {
@@ -1085,6 +1447,104 @@ onMounted(() => {
   gap: 8px;
 }
 
+.panel-header .left :deep(.ant-select-selector) {
+  background: #1b2533 !important;
+  border: 1px solid #303d50 !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+  height: 32px !important;
+  padding: 0 11px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.panel-header .left :deep(.ant-select-selection-item),
+.panel-header .left :deep(.ant-select-selection-placeholder) {
+  line-height: 30px !important;
+  font-size: 13px !important;
+}
+
+.panel-header .left :deep(.ant-select-selection-item) {
+  color: #ffffff !important;
+}
+
+.panel-header .left :deep(.ant-select-selection-placeholder) {
+  color: #5a6a80 !important;
+  font-size: 13px !important;
+}
+
+.panel-header .left :deep(.ant-select-arrow) {
+  color: #5a6a80 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  margin-top: 0 !important;
+}
+
+.panel-header .left :deep(.ant-select-clear) {
+  background: #1b2533 !important;
+  color: #5a6a80 !important;
+}
+
+.panel-header .left :deep(.ant-select-selector:hover) {
+  border-color: #00a2e8 !important;
+}
+
+.panel-header .left :deep(.ant-select-focused .ant-select-selector) {
+  border-color: #00a2e8 !important;
+  box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.panel-header .left :deep(.ant-input-affix-wrapper) {
+  background: #1b2533 !important;
+  border: 1px solid #303d50 !important;
+  border-radius: 4px !important;
+  height: 32px !important;
+  padding: 0 11px !important;
+  box-shadow: none !important;
+}
+
+.panel-header .left :deep(.ant-input-affix-wrapper > input) {
+  background: transparent !important;
+  border: none !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  height: 30px !important;
+  line-height: 30px !important;
+}
+
+.panel-header .left :deep(.ant-input-affix-wrapper > input::placeholder) {
+  color: #5a6a80 !important;
+}
+
+.panel-header .left :deep(.ant-input-affix-wrapper:hover) {
+  border-color: #00a2e8 !important;
+}
+
+.panel-header .left :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
+  border-color: #00a2e8 !important;
+  box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.panel-header .left :deep(.ant-input-outlined) {
+  background: #1b2533 !important;
+  border-color: #303d50 !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+}
+
+.panel-header .left :deep(.ant-input-outlined:hover) {
+  border-color: #00a2e8 !important;
+}
+
+.panel-header .left :deep(.ant-input-outlined > input) {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+.panel-header .left :deep(.ant-input-outlined > input::placeholder) {
+  color: #5a6a80 !important;
+}
+
 .panel-icon {
   width: 20px;
   height: 20px;
@@ -1100,16 +1560,48 @@ onMounted(() => {
   color: var(--color-text);
 }
 
+.panel-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 10px;
+  padding: 2px 8px;
+  background: rgba(0, 162, 232, 0.1);
+  border: 1px solid rgba(0, 162, 232, 0.3);
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1;
+  height: 20px;
+}
+
+.count-label {
+  color: #8fa3bf;
+}
+
+.count-filtered {
+  color: #00a2e8;
+  font-weight: 600;
+}
+
+.count-sep {
+  color: #5a6a80;
+  margin: 0 1px;
+}
+
+.count-total {
+  color: #8fa3bf;
+}
+
 /* ------------------- 按钮 ------------------- */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  height: 28px;
-  padding: 0 12px;
+  height: 32px;
+  padding: 0 14px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   transition: background 0.2s, opacity 0.2s;
@@ -1257,18 +1749,55 @@ onMounted(() => {
 }
 
 .scene-card {
-  background: var(--bg-card);
+  background: linear-gradient(135deg, rgba(20, 35, 55, 0.95) 0%, rgba(15, 25, 42, 0.95) 100%);
   border-radius: 8px;
-  padding: 14px 16px;
+  border: 1px solid rgba(0, 162, 232, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  border: 1px solid transparent;
-  transition: border-color 0.2s;
+}
+
+.scene-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: linear-gradient(180deg, #00a2e8 0%, #00d4ff 50%, #00a2e8 100%);
+  box-shadow: 0 0 8px rgba(0, 162, 232, 0.6);
+  border-radius: 8px 0 0 8px;
+}
+
+.scene-card::after {
+  content: '';
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 12px;
+  height: 12px;
+  border-right: 1px solid rgba(0, 162, 232, 0.35);
+  border-bottom: 1px solid rgba(0, 162, 232, 0.35);
+  pointer-events: none;
 }
 
 .scene-card:hover {
-  border-color: rgba(0, 162, 232, 0.3);
+  border-color: rgba(0, 162, 232, 0.5);
+  box-shadow: 0 0 0 1px rgba(0, 162, 232, 0.2), 0 8px 24px rgba(0, 162, 232, 0.15);
+  transform: translateY(-2px);
+}
+
+.scene-card:hover::before {
+  box-shadow: 0 0 12px rgba(0, 162, 232, 0.8);
+}
+
+.scene-card-inner {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
 }
 
 .scene-card.scene-default {
@@ -1278,13 +1807,39 @@ onMounted(() => {
 .scene-header {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.scene-header-left {
+  display: flex;
   align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.scene-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  color: #6ecfef;
+  background: rgba(0, 162, 232, 0.12);
+  border: 1px solid rgba(0, 162, 232, 0.25);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .scene-top-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  flex-shrink: 0;
 }
 
 .scene-icon-btn {
@@ -1297,12 +1852,12 @@ onMounted(() => {
   background: transparent;
   color: var(--color-muted);
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 5px;
   transition: all 0.2s;
 
   svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 
   &:hover {
@@ -1328,27 +1883,50 @@ onMounted(() => {
 }
 
 .scene-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .scene-info {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  background: rgba(0, 162, 232, 0.05);
+  border: 1px solid rgba(0, 162, 232, 0.1);
+  border-radius: 6px;
+  padding: 8px 10px;
 }
 
 .scene-info-item {
   display: flex;
   align-items: center;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.4;
+}
+
+.scene-info-item .info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--color-muted);
+  flex-shrink: 0;
+  margin-right: 5px;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
 }
 
 .scene-info-item .info-label {
   color: var(--color-muted);
-  min-width: 56px;
+  min-width: 48px;
   flex-shrink: 0;
 }
 
@@ -1358,6 +1936,16 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.scene-info-item .info-value.val-on {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.scene-info-item .info-value.val-off {
+  color: #ef4444;
+  font-weight: 500;
 }
 
 .scene-default-tag {
@@ -1402,16 +1990,42 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
   margin-top: auto;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .scene-actions-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.btn-sm {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  line-height: 32px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &.btn-primary {
+    background: var(--color-primary);
+    color: #fff;
+    border: 1px solid var(--color-primary);
+    &:hover { background: #008ecf; border-color: #008ecf; }
+  }
+
+  &.btn-danger {
+    background: #ff4d4f;
+    color: #fff;
+    border: 1px solid #ff4d4f;
+    &:hover { background: #e04345; border-color: #e04345; }
+  }
 }
 
 .btn-link {
@@ -1469,26 +2083,48 @@ onMounted(() => {
 }
 
 /* 搜索栏时间选择器深色适配 */
-.filter-bar :deep(.ant-picker) {
-  background: var(--bg-card) !important;
-  border-color: var(--color-border) !important;
+.filter-bar :deep(.ant-picker),
+.panel-header .header-right :deep(.ant-picker) {
+  background: #243447 !important;
+  border: 1px solid #4a6380 !important;
+  border-radius: 4px !important;
+  height: 32px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
-.filter-bar :deep(.ant-picker-input > input) {
-  color: var(--color-text) !important;
+.filter-bar :deep(.ant-picker-input > input),
+.panel-header .header-right :deep(.ant-picker-input > input) {
+  color: #ffffff !important;
+  font-size: 13px !important;
 }
 
-.filter-bar :deep(.ant-picker-input > input::placeholder) {
-  color: var(--color-muted) !important;
+.filter-bar :deep(.ant-picker-input > input::placeholder),
+.panel-header .header-right :deep(.ant-picker-input > input::placeholder) {
+  color: #c0d0e0 !important;
 }
 
-.filter-bar :deep(.ant-picker-suffix) {
-  color: var(--color-muted) !important;
+.filter-bar :deep(.ant-picker-suffix),
+.panel-header .header-right :deep(.ant-picker-suffix) {
+  color: #c0d0e0 !important;
 }
 
-.filter-bar :deep(.ant-picker-clear) {
-  background: var(--bg-card) !important;
-  color: var(--color-muted) !important;
+.filter-bar :deep(.ant-picker-clear),
+.panel-header .header-right :deep(.ant-picker-clear) {
+  background: #243447 !important;
+  color: #c0d0e0 !important;
+}
+
+.filter-bar :deep(.ant-picker:hover),
+.panel-header .header-right :deep(.ant-picker:hover) {
+  border-color: #00a2e8 !important;
+}
+
+.filter-bar :deep(.ant-picker-focused),
+.panel-header .header-right :deep(.ant-picker-focused) {
+  border-color: #00a2e8 !important;
+  box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15) !important;
 }
 
 /* 搜索栏 a-select 深色适配 */

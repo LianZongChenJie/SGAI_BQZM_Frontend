@@ -17,7 +17,7 @@
         :model="formData"
         :rules="formRules"
         class="dark-form"
-        :label-col="{ style: { width: '80px' } }"
+        :label-col="{ style: { width: '72px' } }"
         :disabled="isDetail"
         autocomplete="off"
       >
@@ -25,7 +25,7 @@
         <div class="search-section">
           <div class="section-title">搜索项</div>
           <!-- 第 1 行：控制类型 / 区域 / 名称 -->
-          <a-row :gutter="16">
+          <a-row :gutter="10">
             <a-col :span="8">
               <a-form-item label="控制类型" name="relType">
                 <div style="width:100%">
@@ -70,7 +70,7 @@
             </a-col>
           </a-row>
           <!-- 第 2 行：回路名称 -->
-          <a-row :gutter="16">
+          <a-row :gutter="10">
             <a-col :span="8" v-if="formData.relType === '回路'">
               <a-form-item label="回路名称">
                 <div style="width:100%">
@@ -89,59 +89,65 @@
         </div>
 
         <!-- ==================== 第 3 行：表格（vxe-table） ==================== -->
-        <a-row :gutter="16">
-          <a-col :span="24">
-            <div class="table-wrapper">
-              <vxe-table
-                ref="tableRef"
-                :data="filteredTableData"
-                :loading="tableLoading || tableFilterLoading"
-                :row-config="{ keyField: 'id', height: 32 }"
-                :checkbox-config="{ checkField: '_checked' }"
-                max-height="420"
-                border="none"
-                @checkbox-change="onCheckboxChange"
-                @checkbox-all="onCheckboxAll"
-              >
-                <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
-                <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
-                <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
-                <vxe-column field="areaName" title="名称"></vxe-column>
-                <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
-              </vxe-table>
-            </div>
-          </a-col>
-        </a-row>
+        <div class="form-section">
+          <div class="section-title">需要勾选的列表</div>
+          <a-row :gutter="10">
+            <a-col :span="24">
+              <div class="table-wrapper">
+                <vxe-table
+                  ref="tableRef"
+                  :data="filteredTableData"
+                  :loading="tableLoading || tableFilterLoading"
+                  :row-config="{ keyField: 'id', height: 32 }"
+                  :checkbox-config="{ checkField: '_checked' }"
+                  max-height="420"
+                  border="none"
+                  @checkbox-change="onCheckboxChange"
+                  @checkbox-all="onCheckboxAll"
+                >
+                  <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
+                  <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
+                  <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
+                  <vxe-column field="areaName" title="名称"></vxe-column>
+                  <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
+                </vxe-table>
+              </div>
+            </a-col>
+          </a-row>
+        </div>
 
         <!-- ==================== 第 4 行：操控类型 / 名称（放在表格下方） ==================== -->
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="操控类型" name="operationType">
-              <div style="width:100%">
-                <a-select
-                  style="width:100%"
-                  v-model:value="formData.operationType"
-                  placeholder="请选择操控类型"
-                  :options="operationTypeOptions"
-                  allowClear
-                />
-              </div>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="名称" name="planName">
-              <div style="width:100%">
-                <a-input
-                  style="width:100%"
-                  v-model:value="formData.planName"
-                  placeholder="请输入名称"
-                  allowClear
-                  autocomplete="off"
-                />
-              </div>
-            </a-form-item>
-          </a-col>
-        </a-row>
+        <div class="form-section">
+          <div class="section-title">定时任务信息</div>
+          <a-row :gutter="10">
+            <a-col :span="12">
+              <a-form-item label="操控类型" name="operationType">
+                <div style="width:100%">
+                  <a-select
+                    style="width:100%"
+                    v-model:value="formData.operationType"
+                    placeholder="请选择操控类型"
+                    :options="operationTypeOptions"
+                    allowClear
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="名称" name="planName">
+                <div style="width:100%">
+                  <a-input
+                    style="width:100%"
+                    v-model:value="formData.planName"
+                    placeholder="请输入名称"
+                    allowClear
+                    autocomplete="off"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
       </a-form>
     </div>
 
@@ -559,20 +565,21 @@ defineExpose({ showModal, closeModal });
 <style scoped lang="less">
 /* ==================== 搜索项分组 ==================== */
 .search-section {
-  margin-bottom: 10px;
-  padding: 8px 16px 0;
+  margin-bottom: 4px;
+  padding: 4px 10px 6px;
   background: rgba(20, 29, 43, 0.6);
   border: 1px solid #1f2b3d;
   border-radius: 6px;
 
-  .section-title {
-    margin-bottom: 6px;
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+  :deep(.section-title) {
+    margin-bottom: 3px;
+    color: #6ecfef !important;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
     position: relative;
     padding-left: 10px;
+    text-transform: uppercase;
 
     &::before {
       content: '';
@@ -581,14 +588,246 @@ defineExpose({ showModal, closeModal });
       top: 50%;
       transform: translateY(-50%);
       width: 3px;
-      height: 12px;
+      height: 10px;
       background: linear-gradient(180deg, #00a2e8, #0078c8);
       border-radius: 2px;
     }
   }
 
   :deep(.ant-form-item) {
-    margin-bottom: 8px;
+    margin-bottom: 2px;
+  }
+
+  /* 深色主题 - select */
+  :deep(.ant-select-selector) {
+    background: #1b2533 !important;
+    border: 1px solid #303d50 !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    height: 28px !important;
+    box-sizing: border-box !important;
+    padding: 0 26px 0 10px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  :deep(.ant-select-selector:hover) {
+    border-color: #00a2e8 !important;
+  }
+  :deep(.ant-select-selection-item),
+  :deep(.ant-select-selection-placeholder) {
+    line-height: 26px !important;
+    font-size: 12px !important;
+  }
+  :deep(.ant-select-selection-item) { color: #ffffff !important; }
+  :deep(.ant-select-selection-placeholder) { color: #5a6a80 !important; font-size: 12px !important; }
+  :deep(.ant-select-arrow) {
+    color: #5a6a80 !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin-top: 0 !important;
+    line-height: 1 !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  :deep(.ant-select-arrow svg),
+  :deep(.ant-select-arrow i) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  :deep(.ant-select-clear) {
+    background: #1b2533 !important;
+    color: #5a6a80 !important;
+  }
+
+  /* 深色主题 - input */
+  :deep(.ant-input-affix-wrapper) {
+    background: #1b2533 !important;
+    border: 1px solid #303d50 !important;
+    border-radius: 4px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    box-sizing: border-box !important;
+    padding: 0 10px !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: hidden !important;
+  }
+  :deep(.ant-input-affix-wrapper:hover) {
+    border-color: #00a2e8 !important;
+  }
+  :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
+    border-color: #00a2e8 !important;
+    box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15) !important;
+  }
+  :deep(.ant-input-affix-wrapper > input.ant-input) {
+    background: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    height: 26px !important;
+    line-height: 26px !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  :deep(.ant-input-affix-wrapper > input.ant-input::placeholder) {
+    color: #5a6a80 !important;
+  }
+  :deep(.ant-input-affix-wrapper .ant-input-clear-icon) {
+    height: auto !important;
+    line-height: 1 !important;
+    font-size: 12px !important;
+    color: #5a6a80 !important;
+  }
+
+  /* 表单label */
+  :deep(.ant-form-item-label > label) {
+    color: #8fa3bf !important;
+    font-size: 12px !important;
+    height: 28px !important;
+  }
+  :deep(.ant-form-item-required::before) {
+    color: #ff4d4f !important;
+  }
+}
+
+/* ==================== 表单分组（表格区/信息区） ==================== */
+.form-section {
+  margin-bottom: 4px;
+  padding: 4px 10px 8px;
+  background: rgba(20, 29, 43, 0.6);
+  border: 1px solid #1f2b3d;
+  border-radius: 6px;
+
+  :deep(.section-title) {
+    margin-bottom: 4px;
+    color: #6ecfef !important;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    position: relative;
+    padding-left: 10px;
+    text-transform: uppercase;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 10px;
+      background: linear-gradient(180deg, #00a2e8, #0078c8);
+      border-radius: 2px;
+    }
+  }
+
+  :deep(.ant-form-item) {
+    margin-bottom: 2px;
+  }
+
+  /* 深色主题 - select */
+  :deep(.ant-select-selector) {
+    background: #1b2533 !important;
+    border: 1px solid #303d50 !important;
+    color: #ffffff !important;
+    border-radius: 4px !important;
+    height: 28px !important;
+    box-sizing: border-box !important;
+    padding: 0 26px 0 10px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  :deep(.ant-select-selector:hover) {
+    border-color: #00a2e8 !important;
+  }
+  :deep(.ant-select-selection-item),
+  :deep(.ant-select-selection-placeholder) {
+    line-height: 26px !important;
+    font-size: 12px !important;
+  }
+  :deep(.ant-select-selection-item) { color: #ffffff !important; }
+  :deep(.ant-select-selection-placeholder) { color: #5a6a80 !important; font-size: 12px !important; }
+  :deep(.ant-select-arrow) {
+    color: #5a6a80 !important;
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin-top: 0 !important;
+    line-height: 1 !important;
+    height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  :deep(.ant-select-arrow svg),
+  :deep(.ant-select-arrow i) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  :deep(.ant-select-clear) {
+    background: #1b2533 !important;
+    color: #5a6a80 !important;
+  }
+
+  /* 深色主题 - input */
+  :deep(.ant-input-affix-wrapper) {
+    background: #1b2533 !important;
+    border: 1px solid #303d50 !important;
+    border-radius: 4px !important;
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    box-sizing: border-box !important;
+    padding: 0 10px !important;
+    box-shadow: none !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: hidden !important;
+  }
+  :deep(.ant-input-affix-wrapper:hover) {
+    border-color: #00a2e8 !important;
+  }
+  :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
+    border-color: #00a2e8 !important;
+    box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15) !important;
+  }
+  :deep(.ant-input-affix-wrapper > input.ant-input) {
+    background: transparent !important;
+    border: none !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    height: 26px !important;
+    line-height: 26px !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+  :deep(.ant-input-affix-wrapper > input.ant-input::placeholder) {
+    color: #5a6a80 !important;
+  }
+  :deep(.ant-input-affix-wrapper .ant-input-clear-icon) {
+    height: auto !important;
+    line-height: 1 !important;
+    font-size: 12px !important;
+    color: #5a6a80 !important;
+  }
+
+  /* 表单label */
+  :deep(.ant-form-item-label > label) {
+    color: #8fa3bf !important;
+    font-size: 12px !important;
+    height: 28px !important;
+  }
+  :deep(.ant-form-item-required::before) {
+    color: #ff4d4f !important;
   }
 }
 
@@ -596,8 +835,8 @@ defineExpose({ showModal, closeModal });
 .detail-info-section {
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
-  padding: 8px 14px;
+  margin-bottom: 8px;
+  padding: 4px 10px;
   background: rgba(27, 37, 51, 0.4);
   border: 1px solid #303d50;
   border-radius: 4px;
@@ -645,7 +884,6 @@ defineExpose({ showModal, closeModal });
 /* ==================== 表格区域 —— vxe-table 深色主题 ==================== */
 .table-wrapper {
   overflow: hidden;
-  margin-bottom: 16px;
 }
 
 .table-wrapper :deep(.vxe-table) {
@@ -724,14 +962,15 @@ defineExpose({ showModal, closeModal });
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  padding-top: 16px;
+  gap: 10px;
+  padding: 8px 0 0;
   border-top: 1px solid #303d50;
+  margin-top: 8px;
 }
 
 .btn {
-  height: 36px;
-  padding: 0 20px;
+  height: 32px;
+  padding: 0 18px;
   border: none;
   border-radius: 4px;
   font-size: 13px;
@@ -792,7 +1031,7 @@ defineExpose({ showModal, closeModal });
   .ant-modal-header {
     background: #1b2533 !important;
     border-bottom: 1px solid #303d50 !important;
-    padding: 18px 24px 14px !important;
+    padding: 10px 20px 8px !important;
     border-radius: 8px 8px 0 0 !important;
   }
 
@@ -806,8 +1045,8 @@ defineExpose({ showModal, closeModal });
 
   .ant-modal-close {
     color: #a0aabf !important;
-    top: 18px !important;
-    right: 20px !important;
+    top: 8px !important;
+    right: 14px !important;
     width: 28px !important;
     height: 28px !important;
     display: flex !important;
@@ -823,7 +1062,7 @@ defineExpose({ showModal, closeModal });
   }
 
   .ant-modal-body {
-    padding: 20px 24px 24px !important;
+    padding: 8px 16px 10px !important;
     background: #141d2b !important;
   }
 
@@ -833,7 +1072,7 @@ defineExpose({ showModal, closeModal });
 
   /* ==================== 表单覆盖 ==================== */
   .dark-form {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 
     /* Row 撑满整列 */
     .ant-row {
@@ -844,7 +1083,7 @@ defineExpose({ showModal, closeModal });
     .ant-form-item {
       width: 100% !important;
       margin-right: 0;
-      margin-bottom: 10px !important;
+      margin-bottom: 2px !important;
     }
 
     .ant-form-item-row {
@@ -884,8 +1123,8 @@ defineExpose({ showModal, closeModal });
     }
 
     .ant-form-item-label > label {
-      color: #a0aabf !important;
-      font-size: 13px !important;
+      color: #8fa3bf !important;
+      font-size: 12px !important;
       font-weight: 400 !important;
     }
 
@@ -899,10 +1138,14 @@ defineExpose({ showModal, closeModal });
       border: 1px solid #303d50 !important;
       color: #ffffff !important;
       border-radius: 4px !important;
-      min-height: 36px !important;
-      padding: 0 11px !important;
+      height: 28px !important;
+      min-height: 28px !important;
+      max-height: 28px !important;
+      box-sizing: border-box !important;
+      padding: 0 10px !important;
       display: flex !important;
       align-items: center !important;
+      overflow: hidden !important;
       transition: all 0.2s !important;
 
       &:hover {
@@ -919,9 +1162,9 @@ defineExpose({ showModal, closeModal });
         background: transparent !important;
         border: none !important;
         color: #ffffff !important;
-        font-size: 13px !important;
-        height: 34px !important;
-        line-height: 34px !important;
+        font-size: 12px !important;
+        height: 26px !important;
+        line-height: 26px !important;
         padding: 0 !important;
         box-shadow: none !important;
 
@@ -946,8 +1189,9 @@ defineExpose({ showModal, closeModal });
       border: 1px solid #303d50 !important;
       color: #ffffff !important;
       border-radius: 4px !important;
-      font-size: 13px !important;
-      height: 36px !important;
+      font-size: 12px !important;
+      height: 28px !important;
+      box-sizing: border-box !important;
       transition: all 0.2s !important;
 
       &:hover {
@@ -966,13 +1210,19 @@ defineExpose({ showModal, closeModal });
     }
 
     /* Select */
+    .ant-select {
+      height: 28px !important;
+      box-sizing: border-box !important;
+    }
+
     .ant-select-selector {
       background: #1b2533 !important;
       border: 1px solid #303d50 !important;
       color: #ffffff !important;
       border-radius: 4px !important;
-      min-height: 36px !important;
-      font-size: 13px !important;
+      height: 28px !important;
+      box-sizing: border-box !important;
+      font-size: 12px !important;
       transition: all 0.2s !important;
 
       &:hover {
@@ -987,6 +1237,23 @@ defineExpose({ showModal, closeModal });
 
     .ant-select-arrow {
       color: #5a6a80 !important;
+      position: absolute !important;
+      right: 8px !important;
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      margin-top: 0 !important;
+      line-height: 1 !important;
+      height: auto !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    .ant-select-arrow svg,
+    .ant-select-arrow i {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
     }
 
     .ant-select-clear {
@@ -1005,7 +1272,7 @@ defineExpose({ showModal, closeModal });
     /* 单选 / 多选 选中文字统一高亮（仅文字色，无背景） */
     .ant-select-selection-item {
       color: #00c6ff !important;
-      font-size: 13px !important;
+      font-size: 12px !important;
     }
 
     /* 多选 Tag 专属样式（背景+边框，仅多选模式） */
@@ -1081,9 +1348,9 @@ body .dark-tech-modal {
 
   .ant-select-item {
     color: #c0c8d4 !important;
-    font-size: 13px !important;
-    min-height: 32px !important;
-    line-height: 32px !important;
+    font-size: 12px !important;
+    min-height: 28px !important;
+    line-height: 28px !important;
     transition: background 0.15s !important;
 
     &:hover {
