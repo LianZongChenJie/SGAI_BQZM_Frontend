@@ -17,14 +17,11 @@
       <div class="filter-bar">
         <div class="filter-item">
           <label class="filter-label">操作时间</label>
-          <el-date-picker
-            v-model="dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+          <a-range-picker
+            v-model:value="dateRange"
+            format="YYYY-MM-DD"
             value-format="YYYY-MM-DD"
-            :teleported="false"
+            :placeholder="['开始日期', '结束日期']"
             class="filter-date-picker"
           />
         </div>
@@ -128,52 +125,63 @@
           </svg>
           <div class="title-text">
             <span class="title-label">名称</span>
-            <span class="title-value">{{ detailRecord?.name || '-' }}</span>
+            <span class="title-value">{{ detailData?.name || detailRecord?.name || '-' }}</span>
           </div>
         </div>
         <div class="title-meta">
-          <span>操作类型：{{ detailRecord?.operationType || '-' }}</span>
-          <span>操作人员：{{ detailRecord?.operationBy || '-' }}</span>
+          <span>类型：{{ detailData?.relType || detailRecord?.relType || '-' }}</span>
+          <span>操作类型：{{ detailData?.operationType || detailRecord?.operationType || '-' }}</span>
+          <span>操作人员：{{ detailData?.operationBy || detailRecord?.operationBy || '-' }}</span>
+          <span>操作时间：{{ detailData?.operationTime || detailRecord?.operationTime || '-' }}</span>
         </div>
       </section>
 
-      <!-- 回路列表 -->
-      <section class="table-container">
+      <!-- 详情列表 -->
+      <section class="table-container" v-loading="detailLoading">
         <table class="device-table">
           <colgroup>
             <col style="width: 60px;" />
             <col />
+            <col style="width: 90px;" />
+            <col style="width: 90px;" />
             <col style="width: 100px;" />
+            <col style="width: 90px;" />
           </colgroup>
           <thead>
             <tr>
               <th>序号</th>
               <th>回路名称</th>
+              <th>类型</th>
+              <th>操作类型</th>
               <th>状态</th>
+              <th>操作人员</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(item, idx) in circuitMockData" :key="idx">
+            <tr v-for="(item, idx) in circuitDetailList" :key="idx">
               <td>{{ idx + 1 }}</td>
-              <td>{{ item.circuitName }}</td>
+              <td>{{ item.name || '-' }}</td>
+              <td>{{ item.relType || '-' }}</td>
+              <td>{{ item.operationType || '-' }}</td>
               <td>
                 <div
-                  class="status-badge"
-                  :class="{ online: item.status === '开', offline: item.status === '关' }"
+                  class="status-badge-fu-cu"
+                  :class="{ online: item.operationType === '开', offline: item.operationType === '关' }"
                 >
                   <img
-                    v-if="item.status === '关'"
+                    v-if="item.operationType === '关'"
                     class="status-icon"
                     src="@/assets/images/lightClose.png"
                     alt=""
                   />
                   <img v-else class="status-icon" src="@/assets/images/lightOpen.png" alt="" />
-                  <span class="status-text">{{ item.status }}</span>
+                  <span class="status-text">{{ item.operationType || '-' }}</span>
                 </div>
               </td>
+              <td>{{ item.operationBy || '-' }}</td>
             </tr>
-            <tr v-if="circuitMockData.length === 0">
-              <td colspan="3" style="text-align: center; padding: 24px; color: #8fa3bf;">暂无数据</td>
+            <tr v-if="circuitDetailList.length === 0">
+              <td colspan="6" style="text-align: center; padding: 24px; color: #8fa3bf;">暂无数据</td>
             </tr>
           </tbody>
         </table>
@@ -187,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { controlRecordListApi, getLogDetailApi } from '@/api/equipmentMonitoring';
 
 const loading = ref(false);
@@ -264,25 +272,38 @@ function onPageChange(page: number) {
 /** 详情弹窗 */
 const detailVisible = ref(false);
 const detailRecord = ref<any>(null);
+const detailData = ref<any>(null);
+const detailLoading = ref(false);
 
-// 回路 mock 数据
-const circuitMockData = ref<{ circuitName: string; status: string }[]>([]);
+/** 详情列表：优先使用 children，为空则用主记录包裹成数组 */
+const circuitDetailList = computed(() => {
+  if (!detailData.value) return [];
+  const children = detailData.value.children;
+  if (Array.isArray(children) && children.length > 0) {
+    return children;
+  }
+  return [detailData.value];
+});
 
 function onDetail(item: any) {
   detailRecord.value = item;
+  detailData.value = null;
   detailVisible.value = true;
-  circuitMockData.value = [];
+  detailLoading.value = true;
   getLogDetailApi({ id: item.id }).then((res: any) => {
-    circuitMockData.value = res?.records ?? [];
+    console.log(res)
+    detailData.value = res ?? null;
   }).catch((err) => {
     console.error('获取日志详情失败：', err);
+  }).finally(() => {
+    detailLoading.value = false;
   });
 }
 
 function closeDetail() {
   detailVisible.value = false;
   detailRecord.value = null;
-  circuitMockData.value = [];
+  detailData.value = null;
 }
 
 onMounted(() => {
@@ -294,9 +315,9 @@ onMounted(() => {
 .page-container {
   --bg: #0f172a;
   --panel: #1e293b;
-  --accent: #0ea5e9;
-  --accent2: #10b981;
-  --accent3: #f59e0b;
+  // --accent: #0ea5e9;
+  // --accent2: #10b981;
+  // --accent3: #f59e0b;
   --danger: #ef4444;
   --text: #f1f5f9;
   --text2: #94a3b8;
@@ -430,98 +451,50 @@ onMounted(() => {
 .filter-date-picker {
   width: 260px;
 
-  // daterange 根元素
-  &.el-range-editor {
+  // Ant Design RangePicker 根元素
+  :deep(.ant-picker) {
     height: 36px;
     background-color: transparent;
     box-shadow: none;
     border: 1px solid rgba(255, 255, 255, 0.55);
     border-radius: 4px;
     font-size: 13px;
+    padding: 0 11px;
 
-    &:hover,
-    &.is-active {
+    &:hover {
       border-color: rgba(255, 255, 255, 0.85);
       box-shadow: none;
     }
-  }
 
-  :deep(.el-range-input) {
-    background-color: transparent;
-    color: #ffffff;
-    font-size: 13px;
-
-    &::placeholder {
-      color: rgba(255, 255, 255, 0.55);
-    }
-  }
-
-  :deep(.el-range-separator) {
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  :deep(.el-range__icon),
-  :deep(.el-range__close-icon) {
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  // ✅ 日期面板（teleported=false，渲染在组件内部）
-  :deep(.el-picker-panel) {
-    background-color: var(--panel);
-    color: #ffffff;
-    border: 1px solid var(--border);
-  }
-
-  :deep(.el-date-range-picker__content),
-  :deep(.el-picker-panel__body),
-  :deep(.el-picker-panel__footer),
-  :deep(.el-picker-panel__sidebar) {
-    background-color: var(--panel);
-  }
-
-  :deep(.el-date-table) {
-    th {
-      color: var(--text2);
-      border-bottom-color: var(--border);
+    &.ant-picker-focused {
+      border-color: rgba(255, 255, 255, 0.85);
+      box-shadow: none;
     }
 
-    td {
-      &.available .el-date-table-cell {
-        color: var(--text);
-      }
+    .ant-picker-input {
+      input {
+        background-color: transparent;
+        color: #ffffff;
+        font-size: 13px;
 
-      &.prev-month .el-date-table-cell,
-      &.next-month .el-date-table-cell {
-        color: var(--text2);
-      }
-
-      &.available:hover .el-date-table-cell {
-        background-color: rgba(255, 255, 255, 0.06);
-      }
-
-      &.today:not(.start-date):not(.end-date) .el-date-table-cell__text {
-        box-shadow: none;
-        border: 1px solid var(--primary);
-        color: var(--primary);
-      }
-
-      // 选中起止日期：白底黑字
-      &.start-date,
-      &.end-date {
-        .el-date-table-cell {
-          background-color: transparent;
-        }
-        .el-date-table-cell__text {
-          background-color: #ffffff !important;
-          color: #000000 !important;
-          font-weight: 600;
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.55);
         }
       }
+    }
 
-      // 区间内日期
-      &.in-range .el-date-table-cell {
-        background-color: rgba(255, 255, 255, 0.12) !important;
+    .ant-picker-range-separator {
+      color: rgba(255, 255, 255, 0.7);
+
+      .ant-picker-separator {
+        color: rgba(255, 255, 255, 0.7);
       }
+    }
+
+    .ant-picker-suffix,
+    .ant-picker-clear {
+      color: rgba(255, 255, 255, 0.7);
+      background: transparent;
     }
   }
 }
@@ -628,9 +601,8 @@ onMounted(() => {
 // 详情弹窗 - 科技风
 .modal-title {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   padding: 12px 16px;
   background: rgba(0, 162, 232, 0.05);
   border-left: 3px solid #00a2e8;
@@ -670,23 +642,51 @@ onMounted(() => {
 
   .title-meta {
     display: flex;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 8px 20px;
     color: #8a9ab0;
     font-size: 12px;
+    padding-left: 34px;
   }
 }
 
 .table-container {
   position: relative;
+  max-height: 400px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.5);
+    border-radius: 6px;
+
+    &:hover {
+      background: rgba(0, 212, 255, 0.8);
+    }
+  }
 }
 
 .device-table {
   width: 100%;
   border-collapse: collapse;
 
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
   th,
   td {
-    padding: 12px 12px;
+    padding: 10px 12px;
     text-align: left;
     font-size: 13px;
     white-space: nowrap;
@@ -697,6 +697,7 @@ onMounted(() => {
     font-weight: 500;
     border-bottom: 1px solid #303d50;
     user-select: none;
+    background: #0f1823;
   }
 
   tbody td {
@@ -715,38 +716,38 @@ onMounted(() => {
   }
 }
 
-// 状态徽章
-.status-badge {
-  height: 24px;
-  border-radius: 12px;
-  font-size: 12px;
-  line-height: 24px;
-  margin-left: 0px;
+// 状态指示器 —— 图标与文字分离，灰色系
+.status-badge-fu-cu {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  line-height: 1;
 }
 
-.status-badge .status-icon {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  display: block;
+.status-badge-fu-cu .status-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
 }
 
-.status-badge .status-text {
-  line-height: 24px;
+.status-badge-fu-cu .status-text {
+  line-height: 1;
 }
 
-.status-badge.online {
-  color: #52c41a;
-  background: rgba(82, 196, 26, 0.2);
+.status-badge-fu-cu.online {
+  color: rgb(244, 234, 42);
 }
 
-.status-badge.offline {
-  color: #ff4d4f;
-  background: rgba(255, 77, 79, 0.2);
+.status-badge-fu-cu.online .status-icon {
+  filter: none;
+}
 
-  .status-icon {
-    filter: brightness(0.55) saturate(1.8);
-  }
+.status-badge-fu-cu.offline {
+  color: #8a99ab;
+}
+
+.status-badge-fu-cu.offline .status-icon {
+  filter: grayscale(1) brightness(1.4) contrast(0.8);
 }
 
 // 底部按钮

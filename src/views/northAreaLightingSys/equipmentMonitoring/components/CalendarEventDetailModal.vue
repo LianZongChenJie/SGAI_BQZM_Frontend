@@ -32,8 +32,26 @@
         <div class="detail-row">
           <span class="detail-label">操作类型</span>
           <span class="detail-value">
-            <span class="operation-badge" :class="(detailData?.status || eventData?.status) === '待执行' ? 'badge-pending' : 'badge-done'">
-              {{ detailData?.operationType || eventData?.operationType || '-' }}
+            <span
+              class="operation-indicator"
+              :class="{
+                online: (detailData?.operationType || eventData?.operationType) === '开启',
+                offline: (detailData?.operationType || eventData?.operationType) === '关闭',
+              }"
+            >
+              <img
+                v-if="(detailData?.operationType || eventData?.operationType) === '关闭'"
+                class="indicator-icon"
+                src="@/assets/images/lightClose.png"
+                alt=""
+              />
+              <img
+                v-else
+                class="indicator-icon"
+                src="@/assets/images/lightOpen.png"
+                alt=""
+              />
+              <span class="indicator-text">{{ detailData?.operationType || eventData?.operationType || '-' }}</span>
             </span>
           </span>
         </div>
@@ -156,8 +174,8 @@ const logColumns = [
   { key: 'name', title: '名称', width: '14%' },
   { key: 'relType', title: '类型', width: '8%' },
   { key: 'operationType', title: '操控', width: '8%' },
-  { key: 'openTime', title: '开启时间', width: '16%' },
-  { key: 'closeTime', title: '关闭时间', width: '16%' },
+  // { key: 'openTime', title: '开启时间', width: '16%' },
+  // { key: 'closeTime', title: '关闭时间', width: '16%' },
   { key: 'operationTime', title: '操作时间', width: '16%' },
   { key: 'operationBy', title: '操作人', width: '10%' },
   { key: 'ipAddress', title: 'IP', width: '12%' },
@@ -285,21 +303,37 @@ defineExpose({ showModal, closeModal });
   word-break: break-all;
 }
 
-.operation-badge {
-  display: inline-block;
-  padding: 2px 10px;
-  border-radius: 3px;
-  font-size: 12px;
+.operation-indicator {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  line-height: 1;
+}
 
-  &.badge-done {
-    background: rgba(0, 162, 232, 0.15);
-    color: #00a2e8;
-  }
+.operation-indicator .indicator-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+}
 
-  &.badge-pending {
-    background: rgba(255, 77, 79, 0.15);
-    color: #ff4d4f;
-  }
+.operation-indicator .indicator-text {
+  line-height: 1;
+}
+
+.operation-indicator.online {
+  color: rgb(244, 234, 42);
+}
+
+.operation-indicator.online .indicator-icon {
+  filter: none;
+}
+
+.operation-indicator.offline {
+  color: #8a99ab;
+}
+
+.operation-indicator.offline .indicator-icon {
+  filter: grayscale(1) brightness(1.4) contrast(0.8);
 }
 
 /* ==================== 表格区域 ==================== */

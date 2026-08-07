@@ -39,7 +39,7 @@ const cameraName = ref('');
 const currentUrl = ref('');
 
 function showModal(row: { monitorAdr?: string; monitorName?: string }) {
-  cameraName.value = '监控名称：' +  row.monitorName || '摄像头';
+  cameraName.value = '监控名称：' + (row.monitorName || '摄像头');
   currentUrl.value = row.monitorAdr || '';
   open.value = true;
 }

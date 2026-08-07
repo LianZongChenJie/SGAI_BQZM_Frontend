@@ -5,6 +5,7 @@ import { getAreaListAllTagApi } from '/@/api/equipmentMonitoring';
 interface TagOption {
   label: string;
   value: string;
+  tagId: string;
 }
 
 interface TagOptionsState {
@@ -56,6 +57,7 @@ export const useTagOptionsStore = defineStore({
         this.tagList = (Array.isArray(data) ? data : []).map((item: any) => ({
           label: item.districtName,
           value: item.districtName,
+          tagId: item.id+''
         }));
         this.loaded = true;
         return this.tagList;

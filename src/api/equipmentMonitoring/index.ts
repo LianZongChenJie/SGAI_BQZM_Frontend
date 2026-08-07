@@ -18,6 +18,7 @@ enum Api {
   getLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/listPage',
   planDetailApiNew = '/sgai-bqzm/bems/lighting/scene/detail',
   addLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/add',
+  editLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/edit',
   postSceneSwitchApi = '/sgai-bqzm/bems/lighting/plan/control',
   getCalendarControlDetailApi = '/sgai-bqzm/bems/lighting/calendar/detail',
   getAreaListAllTagApi = '/sgai-bqzm/bems/lighting/district/all',
@@ -98,7 +99,10 @@ export const planDetailApiNew = (params) => defHttp.get({ url: Api.planDetailApi
  * 新增场景
  */
 export const addLightingPlanAPiNew = (params) => defHttp.post({ url: Api.addLightingPlanAPiNew, params });
-
+/**
+ * 编辑场景
+ */
+export const editLightingPlanAPiNew = (params) => defHttp.post({ url: Api.editLightingPlanAPiNew, params });
 // 删除场景
 export const deleteSceneItemAPi = (params) => defHttp.delete({ url: Api.deleteSceneItemAPi, params }, { joinParamsToUrl: true });
 

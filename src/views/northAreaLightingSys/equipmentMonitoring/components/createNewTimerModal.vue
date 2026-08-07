@@ -22,7 +22,7 @@
         autocomplete="off"
       >
         <!-- ==================== 搜索项分组 ==================== -->
-        <div class="search-section">
+        <div class="search-section" v-if="!isDetail">
           <div class="section-title">搜索项</div>
           <!-- 第 1 行：控制类型 / 区域 / 名称 -->
           <a-row :gutter="10">

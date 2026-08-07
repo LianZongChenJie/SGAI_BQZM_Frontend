@@ -22,7 +22,7 @@
         autocomplete="off"
       >
         <!-- ==================== 搜索项分组 ==================== -->
-        <div class="search-section">
+        <div class="search-section" v-if="!isDetail">
           <div class="section-title">搜索项</div>
           <!-- 第 1 行：控制类型 / 区域 / 名称 -->
           <a-row :gutter="10">
@@ -122,11 +122,11 @@
           <div class="section-title">场景信息</div>
           <a-row :gutter="10">
             <a-col :span="12">
-              <a-form-item label="标签" name="spaceId">
+              <a-form-item label="标签" name="tagName">
                 <div style="width:100%">
                   <a-select
                     style="width:100%"
-                    v-model:value="formData.spaceId"
+                    v-model:value="formData.tagName"
                     placeholder="请选择标签"
                     :options="tagOptions"
                     allowClear
@@ -166,7 +166,7 @@
 import { ref, reactive, computed, nextTick, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring'
+import { getAreaListAll, getCircuitListAll, editLightingPlanAPiNew, addLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring'
 import { getAllSpace } from '@/api/baseSettingBqZm';
 import { useTagOptionsStore } from '/@/store/modules/tagOptions';
 
@@ -189,7 +189,7 @@ const isDetail = computed(() => mode.value === 'detail');
 const formData = reactive({
   relType: '',
   operationType: '',
-  spaceId: undefined as string | undefined,
+  tagName: undefined as string | undefined,
   planName: '',
 });
 
@@ -197,7 +197,7 @@ const formData = reactive({
 const formRules = {
   relType: [{ required: true, message: '请选择控制类型' }],
   operationType: [{ required: true, message: '请选择操控类型' }],
-  spaceId: [{ required: true, message: '请选择标签' }],
+  tagName: [{ required: true, message: '请选择标签' }],
   planName: [{ required: true, message: '请输入名称' }],
 };
 
@@ -218,7 +218,7 @@ const spaceOptions = ref<{ label: string; value: string }[]>([]);
 const spaceLoading = ref(false);
 
 // 标签下拉选项（优先走 store 缓存）
-const tagOptions = ref<{ label: string; value: string }[]>([]);
+const tagOptions = ref<{ label: string; value: string, tagId: string}[]>([]);
 const tagLoading = ref(false);
 
 // 表格过滤 loading
@@ -228,7 +228,7 @@ const tableFilterLoading = ref(false);
 const defaultForm = {
   relType: '',
   operationType: '',
-  spaceId: undefined as string | undefined,
+  tagName: undefined as string | undefined,
   planName: '',
 };
 
@@ -325,15 +325,19 @@ async function onSubmit() {
   try {
     await formRef.value!.validate();
     if (!selectedRowKeys.value.length) {
-      // 如果没有选中行，提交时仅传空数组
+      message.warning('请至少勾选一条数据');
+      return;
     }
     if(submitLoading.value) {
       return;
     }
     submitLoading.value = true;
-     const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(',')};
+    // 根据选中的标签value值，查找下拉数组tagOptions对应的tagId，赋值给let tagId到submitData
+    const selectedTag = tagOptions.value.find((item) => item.value === formData.tagName);
+    const tagId = selectedTag?.tagId || '';
+    const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(','), tagId, id: editRecord.value.id };
      // 根据类型调用对应 API
-    const api = mode.value === 'add' ? addLightingPlanAPiNew : editLightingPlanAPi;
+    const api = mode.value === 'add' ? addLightingPlanAPiNew : editLightingPlanAPiNew;
     await api(submitData).then(res => {
       console.log('接口返回');
       console.log('res', res);
@@ -377,6 +381,7 @@ async function loadTagOptions() {
     tagLoading.value = true;
     const tagOptionsStore = useTagOptionsStore();
     const tagList = await tagOptionsStore.fetchTagList();
+    console.log('获取标签，',tagList)
     tagOptions.value = tagList;
   } finally {
     tagLoading.value = false;
@@ -426,7 +431,7 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     // 回填表单数据
     formData.relType = record.relType || '';
     formData.planName = record.planName || '';
-    formData.spaceId = record.spaceId || '';
+    formData.tagName = record.tagName || '';
     // relIds 是逗号分隔的字符串，转数组
     const relIdArr = record.relIds ? String(record.relIds).split(',').filter(Boolean) : [];
     selectedRowKeys.value = [...relIdArr];

@@ -92,7 +92,7 @@
             <div class="header-right">
               <div class="scene-search-bar" v-show="!sceneCollapsed">
                 <a-select
-                  v-model:value="monitorSearchTag"
+                  v-model:value="tagName"
                   placeholder="标签"
                   :options="sceneTagOptions"
                   :loading="sceneTagLoading"
@@ -127,23 +127,24 @@
               :key="s.id"
               class="scene-card"
             >
-              <span class="scene-corner-tag">
+              <span class="scene-corner-tag" v-show="s.tagName">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
                   <circle cx="12" cy="10" r="3"/>
                 </svg>
-                <span>金安桥</span>
+                <span>{{ s.tagName }}</span>
               </span>
               <div class="scene-card-inner">
                 <div class="scene-header">
                   <div class="scene-header-left">
                     <span class="scene-name">{{ s.name }}</span>
-                    <span v-if="s.spaceName" class="scene-tag">{{ s.spaceName }}</span>
                   </div>
                   <div class="scene-top-actions">
                   </div>
                 </div>
                 <div class="scene-info">
+                  <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId">节目</span>
+                  <span class="scene-info-tag scene-info-tag--scene" v-else>场景</span>
                   <div class="scene-info-item">
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 3v4M16 3v4M2 13h20"/></svg>
@@ -241,22 +242,23 @@
               :key="s.id"
               class="scene-card"
             >
-              <span class="scene-corner-tag">
+              <span class="scene-corner-tag" v-show="s.tagName">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
                   <circle cx="12" cy="10" r="3"/>
                 </svg>
-                <span>金安桥</span>
+                <span>{{ s.tagName }}</span>
               </span>
               <div class="scene-card-inner">
                 <div class="scene-header">
                   <div class="scene-header-left">
                     <span class="scene-name">{{ s.name }}</span>
-                    <span v-if="s.spaceName" class="scene-tag">{{ s.spaceName }}</span>
                   </div>
 
                 </div>
                 <div class="scene-info">
+                  <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId">节目</span>
+                  <span class="scene-info-tag scene-info-tag--scene" v-else>场景</span>
                   <div class="scene-info-item">
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 3v4M16 3v4M2 13h20"/></svg>
@@ -290,7 +292,7 @@
                       关闭
                     </button>
                   </div>
-                  <div class="scene-actions-right">
+                  <div class="scene-actions-right" v-if="!s.groupId">
                     <button class="scene-icon-btn" title="编辑" @click="onEditScene(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -463,7 +465,7 @@
               <h2 class="panel-title">控制日历 - {{ calendarYear }}年{{ calendarMonth + 1 }}月</h2>
             </div>
             <div class="calendar-legend">
-              <span class="legend-item"><i class="legend-dot" style="background:#00a2e8"></i>未执行</span>
+              <span class="legend-item"><i class="legend-dot" style="background:#00a2e8"></i>待执行</span>
               <span class="legend-item"><i class="legend-dot" style="background:#ff4d4f"></i>执行失败</span>
               <span class="legend-item"><i class="legend-dot" style="background:#52c41a"></i>执行成功</span>
             </div>
@@ -558,7 +560,7 @@ function toggleScene() {
 const sceneList = ref<any[]>([]);
 
 /* --------------------- 场景搜索（场景配置 tab） --------------------- */
-const sceneTagOptions = ref<{ label: string; value: string }[]>([]);
+const sceneTagOptions = ref<{ label: string; value: string, tagId: string }[]>([]);
 const sceneTagLoading = ref(false);
 const sceneSearchTag = ref<string | undefined>(undefined);
 const sceneSearchName = ref('');
@@ -568,7 +570,7 @@ const sceneSearchLoading = ref(false);
 const filteredSceneList = computed(() => {
   let data = sceneList.value;
   if (sceneSearchTag.value) {
-    data = data.filter((item) => item.spaceName === sceneSearchTag.value);
+    data = data.filter((item) => item.tagName === sceneSearchTag.value);
   }
   if (sceneSearchName.value) {
     const kw = sceneSearchName.value.toLowerCase();
@@ -578,15 +580,15 @@ const filteredSceneList = computed(() => {
 });
 
 /* --------------------- 场景搜索（实时设备监控 tab） --------------------- */
-const monitorSearchTag = ref<string | undefined>(undefined);
+const tagName = ref<string | undefined>(undefined);
 const monitorSearchName = ref('');
 const monitorSearchLoading = ref(false);
 
 /** 已过滤的场景列表（监控 tab 本地筛选） */
 const filteredMonitorSceneList = computed(() => {
   let data = sceneList.value;
-  if (monitorSearchTag.value) {
-    data = data.filter((item) => item.spaceName === monitorSearchTag.value);
+  if (tagName.value) {
+    data = data.filter((item) => item.tagName === tagName.value);
   }
   if (monitorSearchName.value) {
     const kw = monitorSearchName.value.toLowerCase();
@@ -633,7 +635,7 @@ function onMonitorSearch() {
   if (monitorSearchTimer) clearTimeout(monitorSearchTimer);
   monitorSearchLoading.value = true;
   monitorSearchTimer = setTimeout(() => {
-    if (!monitorSearchTag.value && !monitorSearchName.value) {
+    if (!tagName.value && !monitorSearchName.value) {
       fetchSceneList();
     }
     monitorSearchLoading.value = false;
@@ -642,7 +644,7 @@ function onMonitorSearch() {
 
 /** 场景搜索重置（监控 tab） */
 function onMonitorSearchReset() {
-  monitorSearchTag.value = undefined;
+  tagName.value = undefined;
   monitorSearchName.value = '';
 }
 
@@ -1015,7 +1017,9 @@ const calendarLoading = ref(false);
 
 /** tag 颜色：已执行→蓝色，待执行→红色 */
 function getEventTagClass(event: CalendarEventItem) {
-  return event.status === '待执行' ? 'tag-red' : 'tag-blue';
+  if (event.status === '执行成功') return 'tag-success';
+  if (event.status === '执行失败') return 'tag-danger';
+  return 'tag-pending';
 }
 
 /** 点击日历标签打开详情弹框 */
@@ -2052,6 +2056,40 @@ onMounted(() => {
   border: 1px solid rgba(0, 162, 232, 0.1);
   border-radius: 6px;
   padding: 8px 10px;
+  position: relative;
+}
+
+/* 右上角场景/节目类型标签 */
+.scene-info-tag {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.scene-info-tag--scene {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.12);
+  border: 1px solid rgba(0, 212, 255, 0.45);
+  box-shadow: inset 0 0 6px rgba(0, 212, 255, 0.15);
+}
+
+.scene-info-tag--program {
+  color: #d8b4fe;
+  background: rgba(192, 132, 252, 0.12);
+  border: 1px solid rgba(192, 132, 252, 0.45);
+  box-shadow: inset 0 0 6px rgba(192, 132, 252, 0.15);
 }
 
 .scene-info-item {
@@ -2585,11 +2623,15 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.tag-blue {
+.tag-pending {
   background: var(--color-primary);
 }
 
-.tag-red {
+.tag-success {
+  background: var(--color-success);
+}
+
+.tag-danger {
   background: var(--color-danger);
 }
 
