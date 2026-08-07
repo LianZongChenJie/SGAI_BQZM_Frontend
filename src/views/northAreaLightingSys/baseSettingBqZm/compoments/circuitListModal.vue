@@ -105,7 +105,7 @@
             <tbody>
               <tr v-for="(row, idx) in displayData" :key="row.id">
                 <td>{{ idx + 1 }}</td>
-                <td>{{ row.circuitName }}</td>
+                <td class="ellipsis-cell" :title="row.circuitName">{{ row.circuitName }}</td>
                 <td class="status-cell">
                   <span
                     class="status-indicator"
@@ -615,6 +615,7 @@ defineExpose({
 
 .device-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -742,12 +743,12 @@ defineExpose({
 
 .device-table th:nth-child(2),
 .device-table td:nth-child(2) {
-  width: 9%;
+  width: 17%;
 }
 
 .device-table th:nth-child(3),
 .device-table td:nth-child(3) {
-  width: 9%;
+  width: 7%;
 }
 
 .device-table th:nth-child(4),
@@ -767,12 +768,12 @@ defineExpose({
 
 .device-table th:nth-child(7),
 .device-table td:nth-child(7) {
-  width: 10%;
+  width: 8%;
 }
 
 .device-table th:nth-child(8),
 .device-table td:nth-child(8) {
-  width: 9%;
+  width: 7%;
 }
 
 .device-table th:nth-child(9),
@@ -782,7 +783,7 @@ defineExpose({
 
 .device-table th:nth-child(10),
 .device-table td:nth-child(10) {
-  width: 12%;
+  width: 10%;
 }
 
 /* 复选框列居中对齐 */
@@ -817,6 +818,13 @@ defineExpose({
 /* 状态列强制左对齐 */
 .status-cell {
   text-align: left !important;
+}
+
+/* 回路名称省略显示 */
+.ellipsis-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 状态指示器 —— 图标与文字分离，灰色系 */

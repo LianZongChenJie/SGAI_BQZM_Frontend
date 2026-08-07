@@ -324,6 +324,7 @@ function onCancel() {
 async function onSubmit() {
   try {
     await formRef.value!.validate();
+    console.log('提交触发---')
     if (!selectedRowKeys.value.length) {
       message.warning('请至少勾选一条数据');
       return;
@@ -335,7 +336,12 @@ async function onSubmit() {
     // 根据选中的标签value值，查找下拉数组tagOptions对应的tagId，赋值给let tagId到submitData
     const selectedTag = tagOptions.value.find((item) => item.value === formData.tagName);
     const tagId = selectedTag?.tagId || '';
-    const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(','), tagId, id: editRecord.value.id };
+    const submitData = {
+      ...formData,
+      relIds: Array.from(selectedRowKeys.value).join(','),
+      tagId,
+      ...(editRecord.value?.id ? { id: editRecord.value.id } : {}),
+    };
      // 根据类型调用对应 API
     const api = mode.value === 'add' ? addLightingPlanAPiNew : editLightingPlanAPiNew;
     await api(submitData).then(res => {
@@ -351,6 +357,7 @@ async function onSubmit() {
    
   } catch (err: any) {
     // 表单校验失败由 antd 自带提示，不作额外处理
+    console.log(err)
     if (err?.errorFields) return;
   } finally {
     submitLoading.value = false;
