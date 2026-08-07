@@ -89,9 +89,9 @@
               </th>
               <th>
                 <span class="th-label">电流</span>
-                <span class="th-btn-wrap sort-btn" @click="toggleSort('powerFactor')">
-                  <span class="arr-up" :class="{ active: sortKey === 'powerFactor' && sortOrder === 'asc' }">▲</span>
-                  <span class="arr-down" :class="{ active: sortKey === 'powerFactor' && sortOrder === 'desc' }">▼</span>
+                <span class="th-btn-wrap sort-btn" @click="toggleSort('electricCurrent')">
+                  <span class="arr-up" :class="{ active: sortKey === 'electricCurrent' && sortOrder === 'asc' }">▲</span>
+                  <span class="arr-down" :class="{ active: sortKey === 'electricCurrent' && sortOrder === 'desc' }">▼</span>
                 </span>
               </th>
               <th>操作人</th>
@@ -132,7 +132,7 @@
                 <td>{{ row.startTime }}</td>
                 <td>{{ row.closingTime }}</td>
                 <td>{{ formatSeconds(row.allDuration, { showHoursAlways: true }) }}</td>
-                <td>{{ row.powerFactor != null ? row.powerFactor + ' A' : '-' }}</td>
+                <td>{{ row.electricCurrent != null ? row.electricCurrent : '-' }}</td>
                 <td>{{ row.operatorBy }}</td>
                 <td>{{ row.operatorTime }}</td>
                 <td class="actions">
