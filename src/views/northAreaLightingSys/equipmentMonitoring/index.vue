@@ -766,14 +766,16 @@ function onSceneConfirmSuccess(payload: { type: string; scene: any }) {
     postSceneSwitchApiChange({
       "operationType": "开启",
       "relIds": payload.scene.relIds,
-      "relType": payload.scene.relType
+      "relType": payload.scene.relType,
+      "sceneId": payload.scene.id
     })
   } else if (payload.type === 'delete') {
     // 调用 关闭 场景接口
     postSceneSwitchApiChange({
       "operationType": "关闭",
       "relIds": payload.scene.relIds,
-      "relType": payload.scene.relType
+      "relType": payload.scene.relType,
+      "sceneId": payload.scene.id
     })
   } else if (payload.type === 'deleteBtn') {
     // 调用 删除 场景接口/
