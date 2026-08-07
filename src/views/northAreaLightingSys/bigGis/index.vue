@@ -167,6 +167,7 @@
       <button 
         class="ctrl-btn"
         :class="{ 'is-active': activeMode === 'area' }"
+        :aria-pressed="activeMode === 'area'"
         @click="handleShowArea"
       >
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -179,6 +180,7 @@
       <button 
         class="ctrl-btn"
         :class="{ 'is-active': activeMode === 'detail' }"
+        :aria-pressed="activeMode === 'detail'"
         @click="handleShowDetails"
       >
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -1358,10 +1360,10 @@ onMounted(() => {
   gap: 8px;
   padding: 10px 16px;
   min-width: 104px;
-  background: linear-gradient(135deg, rgba(0, 200, 255, 0.6) 0%, rgba(0, 130, 255, 0.55) 100%);
-  border: 1.5px solid rgba(0, 240, 255, 0.85);
+  background: linear-gradient(135deg, rgba(10, 34, 60, 0.92) 0%, rgba(4, 20, 42, 0.92) 100%);
+  border: 1.5px solid rgba(0, 217, 255, 0.55);
   border-radius: 6px;
-  color: #fff;
+  color: #8fe8ff;
   font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -1369,9 +1371,9 @@ onMounted(() => {
   transition: all 0.3s ease;
   position: relative;
   box-shadow: 
-    0 4px 20px rgba(0, 180, 255, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.7);
+    0 4px 16px rgba(0, 150, 230, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  text-shadow: 0 0 8px rgba(0, 217, 255, 0.5);
 }
 
 /* 外边框光晕层 */
@@ -1380,10 +1382,11 @@ onMounted(() => {
   position: absolute;
   inset: 0;
   background: linear-gradient(135deg, 
-    rgba(0, 217, 255, 0.2) 0%,
-    rgba(0, 150, 255, 0.1) 100%
+    rgba(0, 217, 255, 0.14) 0%,
+    rgba(0, 150, 255, 0.07) 100%
   );
-  opacity: 0.5;
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 /* 内发光和高光层 */
@@ -1392,9 +1395,9 @@ onMounted(() => {
   position: absolute;
   inset: 1px;
   background: linear-gradient(135deg, 
-    rgba(255, 255, 255, 0.15) 0%, 
+    rgba(255, 255, 255, 0.1) 0%, 
     rgba(255, 255, 255, 0) 50%,
-    rgba(255, 255, 255, 0.05) 100%
+    rgba(255, 255, 255, 0.04) 100%
   );
   pointer-events: none;
 }
@@ -1404,17 +1407,27 @@ onMounted(() => {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 6px rgba(0, 217, 255, 0.5));
+  transition: all 0.3s ease;
 }
 
-/* Hover 效果 */
+/* 文字提升层级，避免被光晕层覆盖 */
+.ctrl-btn span {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hover 效果（未激活时也可感知可点击） */
 .ctrl-btn:hover {
-  background: linear-gradient(135deg, rgba(0, 220, 255, 0.75) 0%, rgba(0, 160, 255, 0.7) 100%);
-  border-color: rgba(0, 240, 255, 1);
+  background: linear-gradient(135deg, rgba(13, 46, 82, 0.95) 0%, rgba(6, 30, 60, 0.95) 100%);
+  border-color: rgba(0, 240, 255, 0.95);
+  color: #fff;
   transform: translateY(-3px);
   box-shadow: 
-    0 8px 28px rgba(0, 180, 255, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    0 8px 24px rgba(0, 180, 255, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .ctrl-btn:hover::before {
@@ -1422,28 +1435,57 @@ onMounted(() => {
 }
 
 .ctrl-btn:hover svg {
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 12px rgba(0, 217, 255, 0.8));
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 12px rgba(0, 217, 255, 0.9));
 }
 
-/* 激活状态 - 高亮效果 */
+/* 激活状态 - 亮青实心填充 + 发光 + 底部指示条，与未激活深底形成强烈反差 */
 .ctrl-btn.is-active {
-  background: linear-gradient(135deg, rgba(0, 220, 255, 0.9) 0%, rgba(0, 160, 255, 0.85) 100%);
-  border-color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, #00d9ff 0%, #00a6ff 100%);
+  border-color: rgba(255, 255, 255, 0.95);
   color: #fff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 20px rgba(0, 217, 255, 0.7);
   box-shadow: 
-    0 6px 26px rgba(0, 220, 255, 0.75),
-    0 0 16px rgba(0, 220, 255, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    0 6px 28px rgba(0, 220, 255, 0.8),
+    0 0 18px rgba(0, 220, 255, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 0 #ffffff;
+  animation: ctrlBtnActivePulse 2.2s ease-in-out infinite;
+}
+
+/* 激活状态呼吸发光动画 */
+@keyframes ctrlBtnActivePulse {
+  0%, 100% {
+    box-shadow: 
+      0 6px 28px rgba(0, 220, 255, 0.8),
+      0 0 14px rgba(0, 220, 255, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -3px 0 #ffffff;
+  }
+  50% {
+    box-shadow: 
+      0 6px 32px rgba(0, 220, 255, 1),
+      0 0 26px rgba(0, 220, 255, 0.75),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      inset 0 -3px 0 #ffffff;
+  }
 }
 
 .ctrl-btn.is-active::before {
   opacity: 1;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(0, 220, 255, 0.15) 100%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(0, 220, 255, 0.2) 100%);
+}
+
+.ctrl-btn.is-active::after {
+  opacity: 0.7;
 }
 
 .ctrl-btn.is-active svg {
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(0, 220, 255, 1));
-  transform: scale(1.05);
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 16px rgba(0, 220, 255, 1));
+  transform: scale(1.08);
+}
+
+.ctrl-btn.is-active span {
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.95), 0 0 24px rgba(0, 230, 255, 0.8);
 }
 
 /* 左上角控制按钮 */
