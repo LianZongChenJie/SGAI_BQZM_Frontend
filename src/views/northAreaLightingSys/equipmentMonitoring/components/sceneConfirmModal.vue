@@ -39,13 +39,20 @@ const emit = defineEmits<{
 
 /* ==================== 弹框状态 ==================== */
 const open = ref(false);
-const type = ref<'execute' | 'delete'>('execute');
+const type = ref<'execute' | 'delete' | 'deleteBtn'>('execute');
 const sceneData = ref<any>(null);
 const loading = ref(false);
 
 const contenMessage = computed(() => {
   const name = sceneData.value?.name || '';
-  const action = type.value === 'execute' ? '打开' : '关闭';
+  const action = type.value === 'execute' ? '打开' : type.value === 'deleteBtn' ? '删除': '关闭';
+  if(type.value === 'deleteBtn') {
+    return {
+      prefix: '确定要 ',
+      action,
+      suffix: ` 【${name}】场景吗？`,
+    };
+  }
   return {
     prefix: '确定要 ',
     action,
@@ -53,7 +60,7 @@ const contenMessage = computed(() => {
   };
 });
 
-function showModal(mode: 'execute' | 'delete', scene: any) {
+function showModal(mode: 'execute' | 'delete' | 'deleteBtn', scene: any) {
   type.value = mode;
   sceneData.value = scene;
   open.value = true;

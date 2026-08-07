@@ -121,16 +121,32 @@ defineExpose({ showModal, closeModal });
 <style lang="less">
 .video-monitor-modal {
   .ant-modal-content {
-    background: #141d2b !important;
+    background: linear-gradient(135deg, rgba(15, 24, 35, 0.98) 0%, rgba(10, 18, 28, 0.98) 100%) !important;
     border-radius: 8px !important;
-    border: 1px solid #19283d !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+    border: 1px solid rgba(0, 212, 255, 0.4) !important;
+    box-shadow:
+      0 0 20px rgba(0, 212, 255, 0.15),
+      0 0 40px rgba(0, 212, 255, 0.08),
+      0 8px 32px rgba(0, 0, 0, 0.6) !important;
     overflow: hidden !important;
+    position: relative !important;
+
+    /* 顶部高光线 */
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.8), transparent);
+      z-index: 1;
+    }
   }
 
   .ant-modal-header {
-    background: #0d1520 !important;
-    border-bottom: 1px solid #19283d !important;
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.06) 0%, transparent 100%) !important;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.2) !important;
     padding: 16px 24px 14px !important;
     border-radius: 8px 8px 0 0 !important;
     margin: 0 !important;
@@ -145,12 +161,12 @@ defineExpose({ showModal, closeModal });
     font-size: 16px !important;
     font-weight: 700 !important;
     letter-spacing: 1.5px !important;
-    filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.3)) !important;
+    filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.4)) !important;
   }
 
   .ant-modal-body {
     padding: 20px 24px 24px !important;
-    background: #141d2b !important;
+    background: transparent !important;
   }
 
   .ant-modal-footer {
@@ -164,7 +180,8 @@ defineExpose({ showModal, closeModal });
 
     &:hover {
       color: #00d4ff !important;
-      background: rgba(0, 212, 255, 0.06) !important;
+      background: rgba(0, 212, 255, 0.08) !important;
+      text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
     }
   }
 }

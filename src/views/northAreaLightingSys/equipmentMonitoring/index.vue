@@ -168,11 +168,11 @@
                 </div>
                 <div class="scene-actions">
                   <div class="scene-actions-left">
-                    <button class="btn btn-primary btn-sm" @click="onExecute(s)">
+                    <button :loading="btnCloseOpenLoaidng" class="btn btn-primary btn-sm" @click="onExecute(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                       开启
                     </button>
-                    <button class="btn btn-danger btn-sm" @click="onDeleteScene(s)">
+                    <button :loading="btnCloseOpenLoaidng" class="btn btn-danger btn-sm" @click="onDeleteScene(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                       关闭
                     </button>
@@ -281,11 +281,11 @@
                 </div>
                 <div class="scene-actions">
                   <div class="scene-actions-left">
-                    <button class="btn btn-primary btn-sm" @click="onExecute(s)">
+                    <button :loading="btnCloseOpenLoaidng" class="btn btn-primary btn-sm" @click="onExecute(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                       开启
                     </button>
-                    <button class="btn btn-danger btn-sm" @click="onDeleteScene(s)">
+                    <button :loading="btnCloseOpenLoaidng" class="btn btn-danger btn-sm" @click="onDeleteScene(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12" style="margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                       关闭
                     </button>
@@ -297,7 +297,7 @@
                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                       </svg>
                     </button>
-                    <button class="scene-icon-btn danger" title="删除" @click="onDeleteScene(s)">
+                    <button class="scene-icon-btn danger" title="删除" @click="onDeleteSceneBtn(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
@@ -332,6 +332,12 @@
               </span>
             </div>
             <div class="header-right">
+              <a-input
+                v-model:value="timerFilters.planName"
+                placeholder="名称"
+                allowClear
+                style="width: 160px"
+              />
               <a-select
                 v-model:value="timerFilters.relType"
                 placeholder="控制类型"
@@ -736,13 +742,17 @@ async function fetchSceneList() {
 }
 
 
-
+// 打开--场景
 function onExecute(s) {
   sceneConfirmModalRef.value?.showModal('execute', s);
 }
-
+// 关闭
 function onDeleteScene(s) {
   sceneConfirmModalRef.value?.showModal('delete', s);
+}
+// 单个删除场景
+const onDeleteSceneBtn = async (s) =>{
+  sceneConfirmModalRef.value?.showModal('deleteBtn', s);
 }
 
 
@@ -752,12 +762,19 @@ function onSceneConfirmSuccess(payload: { type: string; scene: any }) {
   if (payload.type === 'execute') {
     // TODO: 调用执行场景接口--开启
     postSceneSwitchApiChange({
-    "operationType": "开启",
-    "relIds": payload.scene.relIds,
-    "relType": payload.scene.relType
+      "operationType": "开启",
+      "relIds": payload.scene.relIds,
+      "relType": payload.scene.relType
     })
   } else if (payload.type === 'delete') {
-    // 调用删除场景接口
+    // 调用 关闭 场景接口
+    postSceneSwitchApiChange({
+      "operationType": "关闭",
+      "relIds": payload.scene.relIds,
+      "relType": payload.scene.relType
+    })
+  } else if (payload.type === 'deleteBtn') {
+    // 调用 删除 场景接口/
     deleteSceneItemAPi({ id: payload.scene.id }).then(() => {
       message.success('删除场景成功!');
       fetchSceneList();
@@ -766,14 +783,20 @@ function onSceneConfirmSuccess(payload: { type: string; scene: any }) {
     });
   }
 }
-
+// 开启关闭，总接口
+const btnCloseOpenLoaidng = ref(false)
 const postSceneSwitchApiChange = async (params) =>{
+  if(btnCloseOpenLoaidng.value) {
+    return;
+  }
+  btnCloseOpenLoaidng.value = true
   await postSceneSwitchApi(params).then(res => {
     console.log('postSceneSwitchApiChange', res);
     message.success(`${params.operationType}成功!`);
   }).catch(err => {
     console.error('postSceneSwitchApiChange', err);
   });
+  btnCloseOpenLoaidng.value = false
   // 刷新场景列表
   pageLoading.value = true;
   try {
@@ -793,6 +816,7 @@ const timerLoading = ref(false);
 const timerTotal = ref(0);
 
 const timerFilters = ref({
+  planName: '' as string,
   relType: undefined as string | undefined,
   startTime: null as Dayjs | null,
   endTime: null as Dayjs | null,
@@ -801,6 +825,10 @@ const timerFilters = ref({
 /** 本地过滤后的定时任务列表 */
 const filteredTimerList = computed(() => {
   let data = allTimerList.value;
+  if (timerFilters.value.planName) {
+    const kw = timerFilters.value.planName.toLowerCase();
+    data = data.filter((item) => (item.planName || '').toLowerCase().includes(kw));
+  }
   if (timerFilters.value.relType) {
     data = data.filter((item) => item.relType === timerFilters.value.relType);
   }
@@ -938,7 +966,7 @@ async function onTimerEnableSuccess() {
 
 /** 查询：搜索项都为空时调接口刷新，否则本地过滤 */
 function onTimerSearch() {
-  const hasFilter = timerFilters.value.relType || timerFilters.value.startTime || timerFilters.value.endTime;
+  const hasFilter = timerFilters.value.planName || timerFilters.value.relType || timerFilters.value.startTime || timerFilters.value.endTime;
   if (!hasFilter) {
     fetchTimerList();
   } else {
@@ -948,6 +976,7 @@ function onTimerSearch() {
 
 function onTimerReset() {
   timerFilters.value = {
+    planName: '',
     relType: undefined,
     startTime: null,
     endTime: null,
@@ -1743,8 +1772,36 @@ onMounted(() => {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 4px;
+  padding-right: 6px;
   align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 160, 0.85) rgba(255, 255, 255, 0.1);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 229, 160, 0.85);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 180, 0.35);
+    box-shadow: 0 0 8px rgba(0, 229, 160, 0.5);
+
+    &:hover {
+      background: rgba(0, 255, 180, 1);
+      box-shadow: 0 0 12px rgba(0, 255, 180, 0.8);
+    }
+  }
+
+  &::-webkit-scrollbar-thumb:active {
+    background: rgba(0, 255, 180, 1);
+    box-shadow: 0 0 14px rgba(0, 255, 180, 0.9);
+  }
 }
 
 /* ------------------- 场景配置 ------------------- */
@@ -1771,8 +1828,36 @@ onMounted(() => {
   gap: 16px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-right: 4px;
+  padding-right: 6px;
   align-content: start;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 160, 0.85) rgba(255, 255, 255, 0.1);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 229, 160, 0.85);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 180, 0.35);
+    box-shadow: 0 0 8px rgba(0, 229, 160, 0.5);
+
+    &:hover {
+      background: rgba(0, 255, 180, 1);
+      box-shadow: 0 0 12px rgba(0, 255, 180, 0.8);
+    }
+  }
+
+  &::-webkit-scrollbar-thumb:active {
+    background: rgba(0, 255, 180, 1);
+    box-shadow: 0 0 14px rgba(0, 255, 180, 0.9);
+  }
 }
 
 .scene-card {
@@ -1914,18 +1999,18 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border: none;
   background: transparent;
   color: var(--color-muted);
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 6px;
   transition: all 0.2s;
 
   svg {
-    width: 13px;
-    height: 13px;
+    width: 16px;
+    height: 16px;
   }
 
   &:hover {

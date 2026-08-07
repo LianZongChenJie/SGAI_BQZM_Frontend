@@ -13,6 +13,7 @@ enum Api {
   enablePlanApi = '/sgai-bqzm/bems/lighting/plan/enable',
   executeNowApi = '/sgai-bqzm/bems/lighting/plan/executeNow',
   controlRecordListApi = '/sgai-bqzm/bems/lighting/operationLog/listPage',
+  getLogDetailApi = '/sgai-bqzm/bems/lighting/operationLog/detail',
   getCalendarControlApi = '/sgai-bqzm/bems/lighting/calendar/events',
   getLightingPlanAPiNew = '/sgai-bqzm/bems/lighting/scene/listPage',
   planDetailApiNew = '/sgai-bqzm/bems/lighting/scene/detail',
@@ -21,7 +22,7 @@ enum Api {
   getCalendarControlDetailApi = '/sgai-bqzm/bems/lighting/calendar/detail',
   getAreaListAllTagApi = '/sgai-bqzm/bems/lighting/district/all',
   getAllVidoeListApi = '/sgai-bqzm/bems/lighting/videoMonitor/list',
-  deleteSceneItemAPi = '/sgai-bqzm/bems/lighting/scene/delete'
+  deleteSceneItemAPi = '/sgai-bqzm/bems/lighting/scene/delete',
 }
 
 /**
@@ -78,6 +79,8 @@ export const executeNow = (params) => defHttp.post({ url: Api.executeNowApi, par
  * 控制记录列表
  */
 export const controlRecordListApi = (params) => defHttp.get({ url: Api.controlRecordListApi, params }, { joinParamsToUrl: true });
+// 获取日志详情--回路信息
+export const getLogDetailApi = (params) => defHttp.get({ url: Api.getLogDetailApi, params }, { joinParamsToUrl: true });
 
 // 日历显示定时任务接口
 export const getCalendarControlApi = (params) => defHttp.get({ url: Api.getCalendarControlApi, params }, { joinParamsToUrl: true });

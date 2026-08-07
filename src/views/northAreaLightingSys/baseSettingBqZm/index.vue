@@ -90,15 +90,25 @@
           <vxe-column field="status" title="状态" width="130">
             <template #default="{ row }">
               <span
-                class="status-badge-table"
+                class="status-indicator"
                 :class="{
                   online: row.status === '开启',
                   offline: row.status === '关闭',
                 }"
               >
-                <img v-if="row.status === '关闭'" style="width: 20px; height: 20px; filter: brightness(0.55) saturate(1.8);" src="@/assets/images/lightClose.png" alt="" />
-                <img v-else style="width: 20px; height: 20px" src="@/assets/images/lightOpen.png" alt="" />
-                &nbsp;{{ row.status }}
+                <img
+                  v-if="row.status === '关闭'"
+                  class="status-icon"
+                  src="@/assets/images/lightClose.png"
+                  alt=""
+                />
+                <img
+                  v-else
+                  class="status-icon"
+                  src="@/assets/images/lightOpen.png"
+                  alt=""
+                />
+                <span class="status-text">{{ row.status }}</span>
               </span>
             </template>
           </vxe-column>
@@ -790,27 +800,38 @@ onUnmounted(() => {
   border-radius: 3px;
 }
 
-/* 状态 Badge */
-.status-badge-table {
+/* 状态指示器 —— 图标与文字分离，灰色系 */
+.status-indicator {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  min-width: 48px;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 12px;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
 }
 
-.status-badge-table.online {
-  color: var(--color-online);
-  background: rgba(82, 196, 26, 0.2);
+.status-indicator .status-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
 }
 
-.status-badge-table.offline {
-  color: var(--color-offline);
-  background: rgba(255, 77, 79, 0.2);
+.status-indicator .status-text {
+  line-height: 1;
+}
+
+.status-indicator.online {
+  color: rgb(244, 234, 42);
+}
+
+.status-indicator.online .status-icon {
+  filter: none;
+}
+
+.status-indicator.offline {
+  color: #8a99ab;
+}
+
+.status-indicator.offline .status-icon {
+  filter: grayscale(1) brightness(1.4) contrast(0.8);
 }
 
 /* 操作按钮 */

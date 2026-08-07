@@ -188,7 +188,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { controlRecordListApi } from '@/api/equipmentMonitoring';
+import { controlRecordListApi, getLogDetailApi } from '@/api/equipmentMonitoring';
 
 const loading = ref(false);
 const tableData = ref<any[]>([]);
@@ -270,15 +270,13 @@ const circuitMockData = ref<{ circuitName: string; status: string }[]>([]);
 
 function onDetail(item: any) {
   detailRecord.value = item;
-  // mock 数据
-  circuitMockData.value = [
-    { circuitName: `${item.name || '回路'}-回路1`, status: '开' },
-    { circuitName: `${item.name || '回路'}-回路2`, status: '关' },
-    { circuitName: `${item.name || '回路'}-回路3`, status: '开' },
-    { circuitName: `${item.name || '回路'}-回路4`, status: '关' },
-    { circuitName: `${item.name || '回路'}-回路5`, status: '开' },
-  ];
   detailVisible.value = true;
+  circuitMockData.value = [];
+  getLogDetailApi({ id: item.id }).then((res: any) => {
+    circuitMockData.value = res?.records ?? [];
+  }).catch((err) => {
+    console.error('获取日志详情失败：', err);
+  });
 }
 
 function closeDetail() {

@@ -118,7 +118,7 @@
         </div>
 
         <!-- ==================== 第 4 行：标签 / 场景名称 ==================== -->
-        <div class="form-section">
+        <div class="form-section scene-info">
           <div class="section-title">场景信息</div>
           <a-row :gutter="10">
             <a-col :span="12">
@@ -605,23 +605,31 @@ defineExpose({ showModal, closeModal });
   grid-column: 3;
 }
 
-/* ==================== 搜索项分组 ==================== */
+/* ==================== 搜索项分组（高亮蓝 / 高饱和蓝） ==================== */
 .search-section {
-  margin-bottom: 4px;
-  padding: 4px 10px 6px;
-  background: rgba(20, 29, 43, 0.6);
-  border: 1px solid #1f2b3d;
+  margin-bottom: 8px;
+  padding: 10px 14px 12px;
+  /* 原型图：搜索项区域为更高亮、更高饱和度的蓝，与下方深蓝形成对比 */
+  background: linear-gradient(180deg, #1f4373 0%, #1a385f 100%);
+  border: 1px solid #3a6398;
   border-radius: 6px;
+  box-shadow:
+    inset 0 0 28px rgba(0, 212, 255, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(0, 212, 255, 0.06),
+    0 4px 14px rgba(0, 30, 60, 0.4);
 
   :deep(.section-title) {
-    margin-bottom: 3px;
-    color: #6ecfef !important;
+    margin-bottom: 6px;
+    color: #b3e5ff !important;
     font-size: 12px;
     font-weight: 500;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     position: relative;
-    padding-left: 10px;
+    padding-left: 12px;
     text-transform: uppercase;
+    display: flex;
+    align-items: center;
 
     &::before {
       content: '';
@@ -630,9 +638,19 @@ defineExpose({ showModal, closeModal });
       top: 50%;
       transform: translateY(-50%);
       width: 3px;
-      height: 10px;
-      background: linear-gradient(180deg, #00a2e8, #0078c8);
+      height: 13px;
+      background: linear-gradient(180deg, #ffffff 0%, #00d4ff 100%);
       border-radius: 2px;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.8);
+    }
+
+    /* 标题后增加装饰横线（科技感） */
+    &::after {
+      content: '';
+      flex: 1;
+      margin-left: 10px;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(0, 212, 255, 0.15) 50%, transparent 100%);
     }
   }
 
@@ -655,26 +673,39 @@ defineExpose({ showModal, closeModal });
     width: 100% !important;
   }
 
-  /* 深色主题 - select（外观，高度由全局控制） */
+  /* 深色主题 - select（高亮蓝区域内：稍深的输入框背景以区分容器） */
   :deep(.ant-select-selector) {
-    background: #1b2533 !important;
-    border: 1px solid #303d50 !important;
+    background: #15304f !important;
+    border: 1px solid #4a6f96 !important;
     color: #ffffff !important;
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    padding: 0 11px !important;
+    box-sizing: border-box !important;
+    transition: all 0.2s !important;
   }
   :deep(.ant-select-selector:hover) {
-    border-color: #00a2e8 !important;
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.25);
+  }
+  :deep(.ant-select-focused .ant-select-selector) {
+    border-color: #00d4ff !important;
+    box-shadow:
+      0 0 0 2px rgba(0, 212, 255, 0.3),
+      0 0 10px rgba(0, 212, 255, 0.25) !important;
   }
   :deep(.ant-select-selection-item),
   :deep(.ant-select-selection-placeholder) {
     font-size: 12px !important;
   }
   :deep(.ant-select-selection-item) { color: #ffffff !important; }
-  :deep(.ant-select-selection-placeholder) { color: #5a6a80 !important; font-size: 12px !important; }
+  :deep(.ant-select-selection-placeholder) { color: #7a96b5 !important; font-size: 12px !important; }
   :deep(.ant-select-arrow) {
-    color: #5a6a80 !important;
+    color: #7a96b5 !important;
     position: absolute !important;
     right: 8px !important;
     top: 50% !important;
@@ -690,69 +721,88 @@ defineExpose({ showModal, closeModal });
     justify-content: center !important;
   }
   :deep(.ant-select-clear) {
-    background: #1b2533 !important;
-    color: #5a6a80 !important;
+    background: #15304f !important;
+    color: #7a96b5 !important;
   }
 
-  /* 深色主题 - input（外观，高度由全局控制） */
+  /* 深色主题 - input */
   :deep(.ant-input-affix-wrapper) {
-    background: #1b2533 !important;
-    border: 1px solid #303d50 !important;
+    background: #15304f !important;
+    border: 1px solid #4a6f96 !important;
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    padding: 0 11px !important;
+    box-sizing: border-box !important;
+    transition: all 0.2s !important;
   }
   :deep(.ant-input-affix-wrapper:hover) {
-    border-color: #00a2e8 !important;
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.25);
   }
   :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
-    border-color: #00a2e8 !important;
-    box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15) !important;
+    border-color: #00d4ff !important;
+    box-shadow:
+      0 0 0 2px rgba(0, 212, 255, 0.3),
+      0 0 10px rgba(0, 212, 255, 0.25) !important;
   }
   :deep(.ant-input-affix-wrapper > input.ant-input) {
     background: transparent !important;
     border: none !important;
     color: #ffffff !important;
     font-size: 12px !important;
+    height: 30px !important;
+    line-height: 30px !important;
+    padding: 0 !important;
   }
   :deep(.ant-input-affix-wrapper > input.ant-input::placeholder) {
-    color: #5a6a80 !important;
+    color: #7a96b5 !important;
   }
   :deep(.ant-input-affix-wrapper .ant-input-clear-icon) {
     height: auto !important;
     line-height: 1 !important;
     font-size: 12px !important;
-    color: #5a6a80 !important;
+    color: #7a96b5 !important;
   }
 
   /* 表单label */
   :deep(.ant-form-item-label > label) {
-    color: #8fa3bf !important;
+    color: #c9e0f5 !important;
     font-size: 12px !important;
     height: 28px !important;
   }
   :deep(.ant-form-item-required::before) {
-    color: #ff4d4f !important;
+    color: #ff7875 !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
   }
 }
 
 /* ==================== 表单分组（表格区/场景信息区） ==================== */
 .form-section {
-  margin-bottom: 4px;
-  padding: 4px 10px 8px;
-  background: rgba(20, 29, 43, 0.6);
-  border: 1px solid #1f2b3d;
+  margin-bottom: 8px;
+  padding: 10px 14px 12px;
+  background: linear-gradient(180deg, #121c2b 0%, #0f1823 100%);
+  border: 1px solid #2a3a52;
   border-radius: 6px;
+  box-shadow:
+    inset 0 0 24px rgba(0, 162, 232, 0.05),
+    0 0 0 1px rgba(0, 162, 232, 0.04);
 
   :deep(.section-title) {
-    margin-bottom: 4px;
+    margin-bottom: 8px;
     color: #6ecfef;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     position: relative;
-    padding-left: 10px;
+    padding-left: 12px;
     text-transform: uppercase;
+    display: flex;
+    align-items: center;
 
     &::before {
       content: '';
@@ -761,9 +811,19 @@ defineExpose({ showModal, closeModal });
       top: 50%;
       transform: translateY(-50%);
       width: 3px;
-      height: 10px;
-      background: linear-gradient(180deg, #00a2e8, #0078c8);
+      height: 13px;
+      background: linear-gradient(180deg, #00d4ff 0%, #00a2e8 100%);
       border-radius: 2px;
+      box-shadow: 0 0 6px rgba(0, 212, 255, 0.6);
+    }
+
+    /* 标题后装饰线 */
+    &::after {
+      content: '';
+      flex: 1;
+      margin-left: 10px;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(0, 212, 255, 0.25) 0%, transparent 100%);
     }
   }
 
@@ -786,7 +846,7 @@ defineExpose({ showModal, closeModal });
     width: 100% !important;
   }
 
-  /* 深色主题 - select（外观，高度由全局控制） */
+  /* 深色主题 - select */
   :deep(.ant-select-selector) {
     background: #1b2533 !important;
     border: 1px solid #303d50 !important;
@@ -794,9 +854,22 @@ defineExpose({ showModal, closeModal });
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    padding: 0 11px !important;
+    box-sizing: border-box !important;
+    transition: all 0.2s !important;
   }
   :deep(.ant-select-selector:hover) {
     border-color: #00a2e8 !important;
+    box-shadow: 0 0 0 1px rgba(0, 162, 232, 0.15);
+  }
+  :deep(.ant-select-focused .ant-select-selector) {
+    border-color: #00d4ff !important;
+    box-shadow:
+      0 0 0 2px rgba(0, 162, 232, 0.25),
+      0 0 8px rgba(0, 162, 232, 0.2) !important;
   }
   :deep(.ant-select-selection-item),
   :deep(.ant-select-selection-placeholder) {
@@ -825,26 +898,38 @@ defineExpose({ showModal, closeModal });
     color: #5a6a80 !important;
   }
 
-  /* 深色主题 - input（外观，高度由全局控制） */
+  /* 深色主题 - input */
   :deep(.ant-input-affix-wrapper) {
     background: #1b2533 !important;
     border: 1px solid #303d50 !important;
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    padding: 0 11px !important;
+    box-sizing: border-box !important;
+    transition: all 0.2s !important;
   }
   :deep(.ant-input-affix-wrapper:hover) {
     border-color: #00a2e8 !important;
+    box-shadow: 0 0 0 1px rgba(0, 162, 232, 0.15);
   }
   :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
-    border-color: #00a2e8 !important;
-    box-shadow: 0 0 0 2px rgba(0, 162, 232, 0.15) !important;
+    border-color: #00d4ff !important;
+    box-shadow:
+      0 0 0 2px rgba(0, 162, 232, 0.25),
+      0 0 8px rgba(0, 162, 232, 0.2) !important;
   }
   :deep(.ant-input-affix-wrapper > input.ant-input) {
     background: transparent !important;
     border: none !important;
     color: #ffffff !important;
     font-size: 12px !important;
+    height: 30px !important;
+    line-height: 30px !important;
+    padding: 0 !important;
   }
   :deep(.ant-input-affix-wrapper > input.ant-input::placeholder) {
     color: #5a6a80 !important;
@@ -856,15 +941,55 @@ defineExpose({ showModal, closeModal });
     color: #5a6a80 !important;
   }
 
-  /* 表单label */
+  /* 表单label - 不加装饰点，避免与必填*重叠；保留必填*（红色，标准规范） */
   :deep(.ant-form-item-label > label) {
-    color: #8fa3bf !important;
+    color: #b0c0d6 !important;
     font-size: 12px !important;
     height: 28px !important;
   }
   :deep(.ant-form-item-required::before) {
     color: #ff4d4f !important;
+    display: inline-block !important;
+    margin-right: 4px !important;
   }
+}
+
+/* ==================== 场景信息 section —— 紫色变体 ==================== */
+.form-section.scene-info {
+  border-color: rgba(192, 132, 252, 0.32);
+  box-shadow:
+    inset 0 0 24px rgba(192, 132, 252, 0.06),
+    0 0 0 1px rgba(192, 132, 252, 0.06);
+
+  :deep(.section-title) {
+    color: #d8b4fe !important;
+  }
+
+  :deep(.section-title::before) {
+    background: linear-gradient(180deg, #c084fc 0%, #a855f7 100%) !important;
+    box-shadow: 0 0 6px rgba(192, 132, 252, 0.6) !important;
+  }
+
+  :deep(.section-title::after) {
+    background: linear-gradient(90deg, rgba(192, 132, 252, 0.3) 0%, transparent 100%) !important;
+  }
+
+  /* 内部控件 focus 时变紫色光晕 */
+  :deep(.ant-select-focused .ant-select-selector),
+  :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
+    border-color: #c084fc !important;
+    box-shadow:
+      0 0 0 2px rgba(192, 132, 252, 0.25),
+      0 0 8px rgba(192, 132, 252, 0.2) !important;
+  }
+
+  :deep(.ant-select-selector:hover),
+  :deep(.ant-input-affix-wrapper:hover) {
+    border-color: #c084fc !important;
+    box-shadow: 0 0 0 1px rgba(192, 132, 252, 0.2) !important;
+  }
+
+  /* 装饰点已去掉，此处保留 focus/hover 联动紫色（关键差异化） */
 }
 .modal-footer {
   display: flex;
@@ -909,33 +1034,90 @@ defineExpose({ showModal, closeModal });
 /* ==================== 表格区域 —— vxe-table 深色主题 ==================== */
 .table-wrapper {
   overflow: hidden;
-  margin-bottom: 20px;
+  margin-bottom: 4px;
+  background: linear-gradient(180deg, #141d2b 0%, #0f1823 100%);
+  border: 1px solid #1f2b3d;
+  border-radius: 4px;
+  box-shadow: inset 0 0 16px rgba(0, 162, 232, 0.04);
 }
 
 .table-wrapper :deep(.vxe-table) {
-  background: #141d2b;
+  background: transparent;
   color: #ffffff;
   border: 0;
   outline: 0;
   box-shadow: none;
 
-  --vxe-ui-table-border-color: #141d2b;
+  --vxe-ui-table-border-color: #1f2b3d;
   --vxe-ui-table-border-width: 0;
-  --vxe-ui-table-checkbox-range-border-color: #141d2b;
-  --vxe-ui-table-cell-area-border-color: #141d2b;
-  --vxe-ui-table-cell-main-area-extension-border-color: #141d2b;
-  --vxe-ui-table-cell-extend-area-border-color: #141d2b;
-  --vxe-ui-table-cell-copy-area-border-color: #141d2b;
+  --vxe-ui-table-checkbox-range-border-color: #00d4ff;
+  --vxe-ui-table-cell-area-border-color: #00d4ff;
+  --vxe-ui-table-cell-main-area-extension-border-color: #00d4ff;
+  --vxe-ui-table-cell-extend-area-border-color: #00d4ff;
+  --vxe-ui-table-cell-copy-area-border-color: #00d4ff;
   --vxe-ui-table-fixed-right-scrolling-box-shadow: none;
   --vxe-ui-table-fixed-left-scrolling-box-shadow: none;
-  --vxe-ui-layout-background-color: #141d2b;
+  --vxe-ui-layout-background-color: transparent;
   --vxe-ui-table-header-background-color: #1b2533;
   --vxe-ui-table-footer-background-color: #141d2b;
-  --vxe-ui-table-row-hover-background-color: rgba(255, 255, 255, 0.04);
-  --vxe-ui-table-row-striped-background-color: #141d2b;
-  --vxe-ui-table-row-current-background-color: rgba(0, 162, 232, 0.15);
+  --vxe-ui-table-row-hover-background-color: rgba(0, 212, 255, 0.06);
+  --vxe-ui-table-row-striped-background-color: transparent;
+  --vxe-ui-table-row-current-background-color: rgba(0, 162, 232, 0.18);
+  --vxe-ui-table-row-hover-current-background-color: rgba(0, 162, 232, 0.22);
 
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* 表头：加底部青光描边 + 列首左侧装饰 */
+.table-wrapper :deep(.vxe-table .vxe-header--wrapper),
+.table-wrapper :deep(.vxe-header--row) {
+  background: linear-gradient(180deg, #1f2b3d 0%, #1b2533 100%) !important;
+}
+
+.table-wrapper :deep(.vxe-table .vxe-header--wrapper) {
+  position: relative;
+  border-bottom: 1px solid #2a3a52;
+  box-shadow: 0 1px 0 0 rgba(0, 212, 255, 0.1);
+}
+
+.table-wrapper :deep(.vxe-table .vxe-header--column) {
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  color: #8fa3bf !important;
+  letter-spacing: 0.3px;
+}
+
+/* 表体行：hover 青色高亮 + 左侧条 */
+.table-wrapper :deep(.vxe-table .vxe-body--row) {
+  transition: background 0.2s;
+  position: relative;
+}
+
+.table-wrapper :deep(.vxe-table .vxe-body--row:hover) {
+  background: rgba(0, 212, 255, 0.06) !important;
+  box-shadow: inset 2px 0 0 0 rgba(0, 212, 255, 0.6);
+}
+
+.table-wrapper :deep(.vxe-table .vxe-body--row.row--checked) {
+  background: rgba(0, 162, 232, 0.18) !important;
+  box-shadow: inset 2px 0 0 0 #00d4ff;
+}
+
+/* 行内单元格字号、行高紧凑 */
+.table-wrapper :deep(.vxe-table .vxe-body--column) {
+  font-size: 12px !important;
+  color: #d6e0ee !important;
+}
+
+/* 复选框主题 */
+.table-wrapper :deep(.vxe-table .vxe-checkbox--icon) {
+  border-color: #4a5a70 !important;
+  background: #1b2533 !important;
+}
+.table-wrapper :deep(.vxe-table .vxe-checkbox--checked .vxe-checkbox--icon) {
+  background: #00a2e8 !important;
+  border-color: #00d4ff !important;
+  box-shadow: 0 0 6px rgba(0, 162, 232, 0.5);
 }
 
 /* 自定义滚动条 */
@@ -993,32 +1175,57 @@ defineExpose({ showModal, closeModal });
   }
 }
 
-.dark-tech-modal {
-  .ant-modal-content {
-    background: #141d2b !important;
-    border: 1px solid #303d50 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 162, 232, 0.08) !important;
-    overflow: hidden;
+/* ==================== dark-tech-modal 弹框样式 ==================== */
+/* 使用 body 前缀提升特异性，覆盖全局 ant-modal 默认样式（如 src/components/Modal/src/index.less
+   中的 .ant-modal .ant-modal-content box-shadow） */
+body .dark-tech-modal {
+  /* 修复 ant-modal 父容器 overflow 裁剪发光的问题 */
+  .ant-modal {
+    overflow: visible !important;
+  }
 
-    /* 顶部蓝色渐变光条 */
+  .ant-modal-content {
+    /* 用更深的底色，让边框/光晕对比更明显 */
+    background: #0c1828 !important;
+    /* 实色高亮边框，不再用低透明 rgba，避免被深色背景吞掉 */
+    border: 2px solid #00d4ff !important;
+    border-radius: 8px !important;
+    box-shadow:
+      /* 内层紧贴边框的青色发光（四边均匀） */
+      inset 0 0 0 1px rgba(0, 212, 255, 0.7),
+      inset 0 0 14px 2px rgba(0, 212, 255, 0.25),
+      /* 外层四边均匀散射的青蓝光晕（强烈） */
+      0 0 8px 1px rgba(0, 212, 255, 0.65),
+      0 0 20px 3px rgba(0, 162, 232, 0.5),
+      0 0 44px 6px rgba(0, 162, 232, 0.32),
+      0 0 80px 12px rgba(0, 162, 232, 0.18),
+      /* 黑色投影深度 */
+      0 12px 40px rgba(0, 0, 0, 0.7) !important;
+    overflow: visible !important;
+    position: relative;
+
+    /* 顶部蓝色渐变光条（科技感发光，作为顶部强调） */
     &::before {
       content: '';
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #00a2e8, transparent);
-      opacity: 0.6;
+      top: -2px;
+      left: 30px;
+      right: 30px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent 0%, rgba(0, 162, 232, 0.5) 10%, #00d4ff 40%, #ffffff 50%, #00d4ff 60%, rgba(0, 162, 232, 0.5) 90%, transparent 100%);
+      box-shadow: 0 0 16px rgba(0, 212, 255, 1), 0 0 28px rgba(0, 162, 232, 0.6);
+      border-radius: 2px;
+      z-index: 5;
+      pointer-events: none;
     }
   }
 
   .ant-modal-header {
-    background: #1b2533 !important;
-    border-bottom: 1px solid #303d50 !important;
-    padding: 10px 20px 8px !important;
-    border-radius: 8px 8px 0 0 !important;
+    background: linear-gradient(180deg, #1b2533 0%, #162033 100%) !important;
+    border-bottom: 1px solid #00a2e8 !important;
+    padding: 12px 20px 10px !important;
+    border-radius: 6px 6px 0 0 !important;
+    position: relative;
   }
 
   .ant-modal-title {
@@ -1026,12 +1233,40 @@ defineExpose({ showModal, closeModal });
     font-size: 16px !important;
     font-weight: 600 !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-    letter-spacing: 0.5px !important;
+    letter-spacing: 0.8px !important;
+    position: relative;
+    padding-left: 18px !important;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 10px;
+      height: 10px;
+      background: #00d4ff;
+      border-radius: 50%;
+      box-shadow:
+        0 0 10px rgba(0, 212, 255, 0.9),
+        0 0 18px rgba(0, 162, 232, 0.5);
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1px;
+      height: 14px;
+      background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.6), transparent);
+    }
   }
 
   .ant-modal-close {
     color: #a0aabf !important;
-    top: 8px !important;
+    top: 10px !important;
     right: 14px !important;
     width: 28px !important;
     height: 28px !important;
@@ -1043,18 +1278,28 @@ defineExpose({ showModal, closeModal });
 
     &:hover {
       color: #ffffff !important;
-      background: rgba(255, 255, 255, 0.08) !important;
+      background: rgba(0, 162, 232, 0.15) !important;
     }
   }
 
   .ant-modal-body {
-    padding: 8px 16px 10px !important;
-    background: #141d2b !important;
+    padding: 10px 16px 12px !important;
+    background: #0c1828 !important;
   }
 
   .ant-modal-footer {
     display: none !important;
   }
+}
+
+/* 兜底覆盖：如果 body 前缀仍被全局样式覆盖，使用 ID+class 组合作为兜底
+   （特异性最高，确保背景色一定生效） */
+.dark-tech-modal.ant-modal-wrap .ant-modal .ant-modal-content {
+  background-color: #0c1828 !important;
+  border: 2px solid #00d4ff !important;
+}
+
+
 
   /* ==================== 表单覆盖 ==================== */
   .dark-form {
@@ -1289,7 +1534,6 @@ defineExpose({ showModal, closeModal });
       border-color: #ff4d4f !important;
     }
   }
-}
 
 /* ==================== 筛选单元格（Grid 内非表单控件）深色主题 ==================== */
 .dark-tech-modal .layout-grid .filter-cell {
