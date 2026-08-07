@@ -76,7 +76,7 @@
               <td>{{ item.relType }}</td>
               <td class="cell-wrap">{{ item.name }}</td>
               <td class="cell-wrap">{{ item.operationType }}</td>
-              <td>{{ item.triggerType || (index % 2 === 0 ? '场景' : '定时') }}</td>
+              <td>{{ item.operatorType }}</td>
               <td>{{ item.operationBy }}</td>
               <td>
                 <el-button type="primary" link size="small" @click="onDetail(item)">详情</el-button>
@@ -160,7 +160,7 @@
           <tbody>
             <tr v-for="(item, idx) in circuitDetailList" :key="idx">
               <td>{{ idx + 1 }}</td>
-              <td>{{ item.name || '-' }}</td>
+              <td class="ellipsis-cell" :title="item.name">{{ item.name || '-' }}</td>
               <td>{{ item.relType || '-' }}</td>
               <td>{{ item.operationType || '-' }}</td>
               <td>
@@ -232,7 +232,7 @@ async function fetchData() {
     if (res?.records) {
       tableData.value = res.records.map((item: any, idx: number) => ({
         ...item,
-        triggerType: item.triggerType || (idx % 2 === 0 ? '场景' : '定时'),
+        operatorType: item.operatorType,
       }));
       total.value = res.total ?? res.records.length;
     } else {
@@ -677,6 +677,7 @@ onMounted(() => {
 .device-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 
   thead {
     position: sticky;
@@ -704,6 +705,12 @@ onMounted(() => {
     color: #ffffff;
     border-bottom: 1px solid #303d50;
     vertical-align: middle;
+  }
+
+  .ellipsis-cell {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
 

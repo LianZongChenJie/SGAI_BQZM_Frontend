@@ -96,6 +96,7 @@
               <div class="table-wrapper">
                 <vxe-table
                   ref="tableRef"
+                  :key="formData.relType"
                   :data="filteredTableData"
                   :loading="tableLoading || tableFilterLoading"
                   :row-config="{ keyField: 'id', height: 32 }"
@@ -107,9 +108,14 @@
                 >
                   <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
                   <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
-                  <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
+                  <vxe-column field="spaceName" title="区域"></vxe-column>
                   <vxe-column field="areaName" title="名称"></vxe-column>
                   <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
+                  <vxe-column field="electricCurrent" title="电流" width="100" v-if="formData.relType === '回路'">
+                    <template #default="{ row }">
+                      {{ row.electricCurrent != null ? row.electricCurrent : '-' }}
+                    </template>
+                  </vxe-column>
                 </vxe-table>
               </div>
             </a-col>
