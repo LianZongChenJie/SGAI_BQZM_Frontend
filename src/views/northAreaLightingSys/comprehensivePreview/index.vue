@@ -47,13 +47,13 @@
               <div style="font-size: 32px; margin-bottom: 10px">☀️</div>
               <div style="font-weight: 600; margin-bottom: 5px">全区开灯</div>
               <div style="font-size: 12px; color: var(--text2); margin-bottom: 15px">开启所有地块照明</div>
-              <button class="btn btn-success" style="width: 100%" @click="handleAllOn">执行开灯</button>
+              <button class="btn btn-success" style="width: 100%" @click="handleAllOn">全开</button>
             </div>
             <div class="control-box">
               <div style="font-size: 32px; margin-bottom: 10px">🌙</div>
               <div style="font-weight: 600; margin-bottom: 5px">全区关灯</div>
               <div style="font-size: 12px; color: var(--text2); margin-bottom: 15px">关闭所有地块照明</div>
-              <button class="btn btn-danger" style="width: 100%" @click="handleAllOff">执行关灯</button>
+              <button class="btn btn-danger" style="width: 100%" @click="handleAllOff">全关</button>
             </div>
           </div>
         </div>
@@ -111,8 +111,8 @@
     offline: 0,
   });
 
-  /** 所有地块数据 */
-  const allSpaceList = ref<{ spaceId: string; spaceName: string }[]>([]);
+  /** 所有地块数据（新接口字段：id / districtName） */
+  const allSpaceList = ref<{ id: string; districtName: string }[]>([]);
 
   /** 回路总数 */
   const circuitCount = ref(0);
@@ -138,7 +138,7 @@
   /** 按地块聚合的表格数据 */
   const spaceTableData = computed(() =>
     allSpaceList.value.map((space) => {
-      const circuits = circuitList.value.filter((c: any) => c.spaceName === space.spaceName);
+      const circuits = circuitList.value.filter((c: any) => c.spaceName === space.districtName);
       const onlineCircuits = circuits.filter((c: any) => c.comstat === '在线');
       const openCircuits = circuits.filter((c: any) => c.status === '开启');
       const closeCircuits = circuits.filter((c: any) => c.status === '关闭');
@@ -147,8 +147,8 @@
         return sum + 18 + variation;
       }, 0);
       return {
-        spaceId: space.spaceId,
-        spaceName: space.spaceName,
+        spaceId: space.id,
+        spaceName: space.districtName,
         circuits: circuits.length,
         openCount: openCircuits.length,
         closeCount: closeCircuits.length,
@@ -179,7 +179,10 @@
   async function loadAllSpace() {
     try {
       const res = await getAllSpaceApi();
-      allSpaceList.value = res ?? [];
+      // 兼容分页结构（records/list/result/data）与纯数组返回
+      allSpaceList.value = Array.isArray(res)
+        ? res
+        : (res?.records || res?.list || res?.result || res?.data || []);
     } catch {
       allSpaceList.value = [];
     }

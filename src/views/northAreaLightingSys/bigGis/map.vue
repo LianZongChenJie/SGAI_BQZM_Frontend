@@ -54,6 +54,9 @@ import { VideoCamera } from '@element-plus/icons-vue'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import spaceBoundariesData from './space-boundaries.json'
 
+// 单条标点点击事件：父组件根据当前模式决定打开四页签弹框或原灯光详情弹窗
+const emit = defineEmits<{ (e: 'light-marker-single-click', data: any): void }>()
+
 // 监控平台 iframe 地址前缀（与设备监控页面保持一致），monitorAdr 为监控通道编码
 const MONITOR_BASE_URL = 'http://10.168.47.23:4000/index.html?id=';
 import lightOnImg from '/@/assets/images/lightOn.png'
@@ -72,6 +75,11 @@ let openedMarkerOriginalZ: string = '';
 function closeAllMarkerLists() {
   if (openedListEl) {
     openedListEl.style.display = 'none';
+    // 清除边界适配残留的内联样式（top/bottom/transform/maxHeight），下次展开重新计算
+    openedListEl.style.top = '';
+    openedListEl.style.bottom = '';
+    openedListEl.style.maxHeight = '';
+    openedListEl.style.transform = '';
     openedListEl = null;
   }
   // 还原之前展开的 marker 容器 z-index
@@ -80,10 +88,29 @@ function closeAllMarkerLists() {
     openedMarkerEl = null;
     openedMarkerOriginalZ = '';
   }
+  // 清除列表项激活高亮
+  document.querySelectorAll('.marker-list-item.is-active').forEach((li) => li.classList.remove('is-active'));
 }
 
 /**
- * 点击地图空白时自动关闭展开的成员列表（捕获阶段，标点主体/列表项点击不触发）
+ * 清除成员列表项的激活高亮（列表保持展开展示），供父组件在弹框关闭时调用
+ */
+const clearMarkerListActive = () => {
+  document.querySelectorAll('.marker-list-item.is-active').forEach((li) => li.classList.remove('is-active'));
+};
+
+/**
+ * 收起当前展开的成员列表（供父组件在非详情模式点击列表项时保持原行为）
+ */
+const collapseMarkerList = () => {
+  closeAllMarkerLists();
+};
+
+/**
+ * 点击地图空白时自动关闭展开的成员列表（捕获阶段）：
+ * - 标点主体/列表项点击不触发（各自处理）
+ * - 弹框（含遮罩与 X 关闭按钮，teleport 到 body）点击不触发，弹框打开/关闭期间列表保持展示
+ * - 点击地图其他空白区域时收起列表
  */
 function handleDocumentClick(e: MouseEvent) {
   const target = e.target as HTMLElement;
@@ -91,6 +118,8 @@ function handleDocumentClick(e: MouseEvent) {
   if (target.closest('.marker-list-item')) return;
   // 点击标点主体：由标点主体自己处理 toggle，不在此关闭
   if (target.closest('.light-marker')) return;
+  // 点击弹框内部（.ant-modal-wrap 含遮罩与 X，.el-dialog 为原灯光详情弹窗）：不在此关闭
+  if (target.closest('.ant-modal-wrap') || target.closest('.el-dialog')) return;
   closeAllMarkerLists();
 }
 const buildingInfo = ref<unknown[]>([]);
@@ -214,36 +243,137 @@ async function loadLightingData() {
   }
 }
 const lightingMarkerArr = ref<any[]>([]);
-let highlightLine: any = null; // 地块边框线（保留兼容）
 let markersDrawing: boolean = false; // 标记是否正在绘制
+let spaceModeDrawn: boolean = false; // 地块模式绘制缓存标志：已绘制过则重复调用直接返回
 
 /**
- * 计算中心点
+ * 获取地块标点坐标：优先使用 space-boundaries.json 中人工配置的 center 字段。
+ *
+ * center 字段格式为 [经度, 纬度]，由人工在 JSON 中配置，不做自动计算。
+ * 无有效 center 时返回 null，由调用方回退到面积质心算法自动计算。
+ * （不再回退到旧 lon/lat 字段：该字段部分地块已过时，可能落在区块外）
+ */
+function getSpaceMarkerCenter(space: any): { centerLon: number; centerLat: number } | null {
+  const c = space && space.center;
+  if (
+    Array.isArray(c) &&
+    c.length >= 2 &&
+    typeof c[0] === 'number' &&
+    typeof c[1] === 'number' &&
+    c[0] !== c[1] &&
+    isFinite(c[0]) &&
+    isFinite(c[1])
+  ) {
+    return { centerLon: c[0], centerLat: c[1] };
+  }
+  return null;
+}
+
+/**
+ * 射线法（PNPoly）判断点是否在多边形内部（顶点坐标 [[lon, lat], ...]，自动闭合）
+ */
+function isPointInPolygon(lon: number, lat: number, path: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
+    const xi = path[i][0], yi = path[i][1];
+    const xj = path[j][0], yj = path[j][1];
+    if (yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * 计算多边形顶点的面积质心（多边形重心），比顶点平均更接近视觉中心。
+ * 若质心不在多边形内部，则回退到顶点平均；若仍不在内部，使用扫描线中点法兜底。
+ * @param path 顶点坐标数组 [[lon, lat], ...]
+ * @returns 中心坐标 { centerLon, centerLat }
  */
 function calculateCenterPoint(path: number[][]): { centerLon: number; centerLat: number } {
-  if (!path || path.length === 0) {
+  if (!path || path.length < 3) {
     return { centerLon: 0, centerLat: 0 };
   }
-  
-  // 计算边界框
+  // 过滤出有效坐标点
+  const valid = path.filter((coord) =>
+    Array.isArray(coord) &&
+    coord.length >= 2 &&
+    isFinite(coord[0]) &&
+    isFinite(coord[1])
+  );
+  if (valid.length < 3) return { centerLon: 0, centerLat: 0 };
+
+  // 1. 面积质心（多边形重心）
+  let area = 0;
+  let sumCx = 0;
+  let sumCy = 0;
+  for (let i = 0; i < valid.length; i++) {
+    const [x1, y1] = valid[i];
+    const [x2, y2] = valid[(i + 1) % valid.length];
+    const cross = x1 * y2 - x2 * y1;
+    area += cross;
+    sumCx += (x1 + x2) * cross;
+    sumCy += (y1 + y2) * cross;
+  }
+  area /= 2;
+  if (Math.abs(area) > 1e-15) {
+    const centroid = { centerLon: sumCx / (6 * area), centerLat: sumCy / (6 * area) };
+    if (isPointInPolygon(centroid.centerLon, centroid.centerLat, valid)) {
+      return centroid;
+    }
+  }
+
+  // 2. 顶点平均
+  let sumLon = 0;
+  let sumLat = 0;
+  for (const coord of valid) {
+    sumLon += coord[0];
+    sumLat += coord[1];
+  }
+  const avg = { centerLon: sumLon / valid.length, centerLat: sumLat / valid.length };
+  if (isPointInPolygon(avg.centerLon, avg.centerLat, valid)) {
+    return avg;
+  }
+
+  // 3. 扫描线中点兜底：在所有顶点纬度中位数处，取多边形内部最宽区间的中点
+  const sortedLat = valid.map((c) => c[1]).sort((a, b) => a - b);
+  const midY = sortedLat[Math.floor(sortedLat.length / 2)];
+  const crossXs: number[] = [];
+  for (let i = 0; i < valid.length; i++) {
+    const [x1, y1] = valid[i];
+    const [x2, y2] = valid[(i + 1) % valid.length];
+    if (y1 > midY !== y2 > midY) {
+      crossXs.push(x1 + ((midY - y1) * (x2 - x1)) / (y2 - y1));
+    }
+  }
+  if (crossXs.length >= 2) {
+    crossXs.sort((a, b) => a - b);
+    let bestStart = crossXs[0];
+    let bestEnd = crossXs[1];
+    let bestWidth = crossXs[1] - crossXs[0];
+    for (let i = 2; i + 1 < crossXs.length; i += 2) {
+      const w = crossXs[i + 1] - crossXs[i];
+      if (w > bestWidth) {
+        bestWidth = w;
+        bestStart = crossXs[i];
+        bestEnd = crossXs[i + 1];
+      }
+    }
+    return { centerLon: (bestStart + bestEnd) / 2, centerLat: midY };
+  }
+
+  // 4. 最终兜底：包围盒中心
   let minLon = Infinity;
   let maxLon = -Infinity;
   let minLat = Infinity;
   let maxLat = -Infinity;
-  
-  path.forEach((coord: number[]) => {
-    const [lon, lat] = coord;
-    if (lon < minLon) minLon = lon;
-    if (lon > maxLon) maxLon = lon;
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
-  });
-  
-  // 计算中心点
-  const centerLon = (minLon + maxLon) / 2;
-  const centerLat = (minLat + maxLat) / 2;
-  
-  return { centerLon, centerLat };
+  for (const coord of valid) {
+    minLon = Math.min(minLon, coord[0]);
+    maxLon = Math.max(maxLon, coord[0]);
+    minLat = Math.min(minLat, coord[1]);
+    maxLat = Math.max(maxLat, coord[1]);
+  }
+  return { centerLon: (minLon + maxLon) / 2, centerLat: (minLat + maxLat) / 2 };
 }
 
 /**
@@ -277,8 +407,14 @@ function drawAllSpaceBoundaries() {
 
 /**
  * 绘制所有地块边框（除了首钢园北区）并添加标记点
+ * 已绘制过时直接返回（缓存优化，避免重复清空/重建标记）
  */
 function drawAllSpacesExceptNorth() {
+  // 已绘制过：直接返回（缓存优化）
+  if (spaceModeDrawn) {
+    console.log('地块模式已绘制过，跳过重复绘制（缓存）');
+    return;
+  }
   console.log('开始绘制所有地块边框（除首钢园北区）');
   
   if (!map.value || !spaceBoundariesData.length) {
@@ -294,8 +430,8 @@ function drawAllSpacesExceptNorth() {
   let colorIndex = 0; // 独立计数器，确保每个区域都有不同的颜色
   
   // 遍历空间数据，过滤掉首钢园北区
-  spaceBoundariesData.forEach((space: any, index: number) => {
-    const { name: spaceName, path } = space;
+  spaceBoundariesData.forEach((space: any) => {
+    const { name: spaceName, path, spaceid } = space;
     
     // 跳过首钢园北区
     if (spaceName === '首钢园北区') {
@@ -316,9 +452,20 @@ function drawAllSpacesExceptNorth() {
       // 直接使用 path 坐标绘制边框
       highlightOneSpaceFromPath(spaceName, path, color);
       
-      // 计算中心点并添加标记点
-      const { centerLon, centerLat } = calculateCenterPoint(path);
-      addSpaceMarker(spaceName, centerLon, centerLat, color);
+      // 计算中心点并添加标记点（携带 spaceid，点击时用于请求地块场景接口）
+      // 优先使用 JSON 中人工配置的 center 字段；缺失时用面积质心算法自动计算
+      const manualCenter = getSpaceMarkerCenter(space);
+      let centerLon = 0;
+      let centerLat = 0;
+      if (manualCenter) {
+        centerLon = manualCenter.centerLon;
+        centerLat = manualCenter.centerLat;
+      } else {
+        const c = calculateCenterPoint(path);
+        centerLon = c.centerLon;
+        centerLat = c.centerLat;
+      }
+      addSpaceMarker(spaceName, centerLon, centerLat, color, spaceid);
       
       drawnCount++;
       colorIndex++; // 只有成功绘制才增加计数
@@ -332,43 +479,40 @@ function drawAllSpacesExceptNorth() {
   console.log(`✅ 成功绘制: ${drawnCount} 个地块`);
   console.log(`⏭️ 跳过: ${skippedCount} 个地块（首钢园北区）`);
   console.log(`📍 标记点: ${drawnCount} 个`);
+  spaceModeDrawn = true; // 标记为已绘制，后续重复调用直接返回
 }
 
 /**
  * 为地块添加标记点（中心位置）
+ * @param spaceName 地块名
+ * @param centerLon 中心经度
+ * @param centerLat 中心纬度
+ * @param color 标记颜色
+ * @param spaceid 地块 ID（点击时用于请求地块场景接口）
  */
-function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number, color: string) {
+function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number, color: string, spaceid?: string) {
   if (!map.value) return;
   
-  // 创建标记点：发光科技圆点 + 外层脉冲光环，hover 时放大并增强光晕，极具点击感
+  // 标记点：灯泡图标，hover 放大
+  // 说明：SDK 以 anchor:'bottom' 创建 marker（外层 translate(-50%,-100%)，底部中心对齐坐标点），
+  // 内层容器需 translate(0, 50%) 补偿，使图标视觉中心正好落在坐标点上（否则图标整体偏左上 35px、上 70px，看起来不在地块内）
   const markerHTML = `
-    <div class="space-marker" style="
+    <div class="space-marker" data-space-name="${spaceName}" style="
       position: relative;
-      width: 44px;
-      height: 44px;
+      width: 70px;
+      height: 70px;
       cursor: pointer;
-      transform: translate(-50%, -50%);
+      transform: translate(0, 50%);
+      pointer-events: none;
     " title="${spaceName}">
-      <!-- 外层脉冲光环 -->
-      <span style="
-        position: absolute; inset: 0; border-radius: 50%;
-        background: ${color}; opacity: 0.35;
-        animation: spaceMarkerPulse 1.8s ease-out infinite;
-      "></span>
-      <!-- 主圆点 -->
-      <span style="
+      <!-- 灯泡图标 -->
+      <img src="${lightOnImg}" style="
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 22px; height: 22px; border-radius: 50%;
-        background: ${color};
-        border: 2px solid #fff;
-        box-shadow: 0 0 10px ${color}, 0 4px 14px rgba(0,0,0,0.45);
-      "></span>
-      <!-- 中心小亮点 -->
-      <span style="
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 6px; height: 6px; border-radius: 50%;
-        background: #fff; box-shadow: 0 0 6px #fff;
-      "></span>
+        width: 70px; height: 70px; object-fit: contain;
+        pointer-events: auto;
+        z-index: 10001;
+        filter: drop-shadow(0 0 6px ${color}) drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+      " />
     </div>`;
   
   try {
@@ -377,7 +521,7 @@ function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number,
       centerLat.toString(),
       centerLon.toString(),
       spaceName,
-      { name: spaceName }
+      { name: spaceName, spaceid }
     );
     
     if (marker) {
@@ -387,6 +531,21 @@ function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number,
   } catch (error) {
     console.error(`创建标记点失败 [${spaceName}]:`, error);
   }
+}
+
+/**
+ * 设置地块标点 active 状态（一级列表展示时标点保持高亮，关闭后恢复）
+ * @param spaceName 地块名
+ * @param active 是否激活
+ */
+function setSpaceMarkerActive(spaceName: string, active: boolean) {
+  if (!spaceName) return;
+  const els = document.querySelectorAll('.space-marker');
+  els.forEach((el) => {
+    if (el.getAttribute('data-space-name') === spaceName) {
+      el.classList.toggle('is-active', active);
+    }
+  });
 }
 
 /**
@@ -408,6 +567,7 @@ function clearAllDrawings() {
   const allMarkers = [...lightingMarkerArr.value];
   lightingMarkerArr.value = [];
   markersDrawing = false;
+  spaceModeDrawn = false; // 重置地块模式绘制缓存（下次进入需重新绘制）
   
   let successCount = 0;
   let failCount = 0;
@@ -517,7 +677,7 @@ function createSpaceMask(spaceName: string, linePoints: number[][]) {
   try {
     if (!map.value || !map.value.createPolygon) return;
     // 蒙层颜色与透明度（可在此统一调整）
-    const maskFillColor = '#00e676';          // 科技绿
+    const maskFillColor = '#9ca3af';          // 灰色
     const maskOpacity = 0.4;
     const mask = map.value.createPolygon({
       bdid: buildingID,
@@ -557,7 +717,6 @@ function clearAllHighlights() {
     }
   });
   allHighlightLines = [];
-  highlightLine = null;
   // 清除所有地块遮罩层
   allSpaceMasks.forEach((mask: any) => {
     try {
@@ -762,11 +921,70 @@ const areaLightOff = lightOffImg;
 
 
 /**
+ * 成员列表展开时做视口边界适配（避免列表超出屏幕被截断）：
+ * - 水平：默认以标点中心水平居中，超出左右视口时整体平移，保证列表完整可见
+ * - 垂直：默认在标点上方，上方放不下且下方空间更足时切换到下方
+ * - 上方展开时顶部避开固定 header，列表不被 header 遮挡
+ * - 下方展开时列表顶边对齐视觉图标（按钮）底部，避免隔着细线+基座区显得离标点太远
+ * - 空间不足时压缩 max-height，尽量保证列表主体可见
+ */
+function adjustMarkerListPosition(el: HTMLElement, listEl: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const MARGIN = 8;
+  const GAP = 4;
+  // 视觉图标（按钮）约占容器上部 40%（lightOn/lightOff 两图比例一致），其余为细线+基座区
+  const ICON_BUTTON_RATIO = 0.4;
+  // 顶部安全边距：避开固定 header（实测 60px 高），列表上方展开时不被 header 遮挡
+  const headerEl = document.querySelector<HTMLElement>('.ant-layout-header');
+  const TOP_SAFE = headerEl ? headerEl.getBoundingClientRect().bottom + 4 : MARGIN;
+  // display 已置为 block 后再测量实际尺寸
+  const listW = listEl.offsetWidth;
+  const listH = listEl.offsetHeight;
+
+  // 水平偏移（dx > 0 右移、dx < 0 左移，叠加在默认的 -50% 居中之上）
+  const centerX = rect.left + rect.width / 2;
+  let dx = 0;
+  if (centerX - listW / 2 < MARGIN) {
+    dx = MARGIN - (centerX - listW / 2);
+  } else if (centerX + listW / 2 > vw - MARGIN) {
+    dx = vw - MARGIN - (centerX + listW / 2);
+  }
+
+  // 垂直：默认上方（bottom: 100%），上方放不下且下方更足时切换下方
+  const spaceAbove = rect.top - GAP;
+  const spaceBelow = vh - rect.bottom - GAP;
+  let maxH = listH;
+  let dy = 0;
+  if (spaceAbove < listH + TOP_SAFE && spaceBelow > spaceAbove) {
+    // 下方展开：上移使列表顶边对齐视觉图标（按钮）底部，紧贴标点
+    listEl.style.top = '100%';
+    listEl.style.bottom = 'auto';
+    dy = -(el.offsetHeight * (1 - ICON_BUTTON_RATIO));
+    maxH = Math.min(listH, spaceBelow - MARGIN);
+  } else {
+    listEl.style.top = 'auto';
+    listEl.style.bottom = '100%';
+    if (spaceAbove < listH + TOP_SAFE) {
+      maxH = Math.min(listH, spaceAbove - TOP_SAFE);
+    }
+  }
+  listEl.style.maxHeight = `${Math.max(60, maxH)}px`;
+  listEl.style.transform = `translate(-50%, ${dy}px) translateX(${dx}px)`;
+}
+
+/**
  * 标点主体点击：
  * - 成员数 >1：第一次点击展示成员列表，再次点击收起
  * - 仅 1 条：直接打开详情弹框
  */
 const handleMarkerMainClick = (data: any, group: any[]) => {
+  // 地块模式标点：携带 spaceid，点击时请求该地块的场景/回路接口
+  if (data && data.spaceid) {
+    handleSpaceMarkerClick(data);
+    return;
+  }
   if (group.length > 1) {
     const el = document.getElementById(`light-${String(data.type)}-${String(data.id)}`);
     const listEl = el?.querySelector<HTMLElement>('.marker-list');
@@ -782,12 +1000,15 @@ const handleMarkerMainClick = (data: any, group: any[]) => {
         const wrapper = (el.parentElement && el.parentElement !== document.body) ? el.parentElement : el;
         openedMarkerEl = wrapper;
         openedMarkerOriginalZ = wrapper.style.zIndex;
-        wrapper.style.zIndex = '50000';
+        wrapper.style.zIndex = '400';
+        // 展开后做视口边界适配，避免列表靠近屏幕边缘时被截断
+        adjustMarkerListPosition(el, listEl);
       }
     }
     return;
   }
-  openLightDetail(data);
+  // 仅 1 条：通知父组件（详情模式打开四页签弹框，其他情况回退原灯光详情弹窗）
+  emit('light-marker-single-click', data);
 };
 
 /**
@@ -822,38 +1043,30 @@ const customizeMarker = (
       onClick: () => handleMarkerMainClick(data, group),
     });
     marker.addToMap();
-    // 成员列表项点击：打开对应设备详情并收起列表（阻止冒泡，避免触发主标点点击逻辑）
+    // 成员列表项点击：保持列表展开并高亮当前项，通知父组件打开弹框（详情模式四页签弹框，其他情况回退原灯光详情弹窗）
+    // （阻止冒泡，避免触发主标点点击逻辑）
     if (domId && group.length) {
       const el = document.getElementById(domId);
       el?.addEventListener('click', (e) => {
         const li = (e.target as HTMLElement)?.closest?.('.marker-list-item');
         if (!li) return;
         e.stopPropagation();
-        closeAllMarkerLists();
+        // 切换激活高亮：弹框打开期间列表保持激活，关闭后由父组件调用 clearMarkerListActive 清除
+        const listEl = el.querySelector<HTMLElement>('.marker-list');
+        listEl?.querySelectorAll('.marker-list-item.is-active').forEach((o) => o.classList.remove('is-active'));
+        li.classList.add('is-active');
         const gid = li.getAttribute('data-id');
         const gtype = li.getAttribute('data-type');
         const target = group.find(
           (g) => String(g.id) === gid && String(g.type) === gtype
         );
-        if (target) openLightDetail(target);
+        if (target) emit('light-marker-single-click', target);
       });
     }
     return marker;
   } catch (error) {
     console.error('标点创建异常:', text, '坐标:', lng, lat, '数据:', data, '错误:', error);
     return null;
-  }
-};
-
-/**
- * 清除单个标记
- */
-const clearMarker = (marker: any) => {
-  if (!marker) return;
-  try {
-    marker.removeFromMap && marker.removeFromMap();
-  } catch (error) {
-    console.warn('移除标记失败:', error);
   }
 };
 
@@ -985,6 +1198,7 @@ async function AddLightingMarker() {
 /**
  * 按屏幕 y 坐标排序标点层级：
  * - y 越大（越靠下/越靠前）z-index 越高，前面的电线杆盖住后面的
+ * - 基数 100 + 排名，远低于布局 header（500），标点不覆盖页面 header/面板
  * - 弹框列表 .marker-list 的 z-index 恒高于所有标点（样式层已设 10000）
  *
  * 重要：DaxiMap SDK 为每个 marker 创建一个外层 wrapper 容器，wrapper 才是真正的
@@ -995,8 +1209,8 @@ function sortMarkerZByY() {
   if (!document) return;
   const markers: { el: HTMLElement; y: number }[] = [];
   document.querySelectorAll<HTMLElement>('.light-marker').forEach((el) => {
-    // 跳过展开列表中的容器（展开时由 handleMarkerMainClick 提升到 50000）
-    if (el.style.zIndex === '50000') return;
+    // 跳过展开列表中的容器（展开时由 handleMarkerMainClick 提升到 400）
+    if (el.style.zIndex === '400') return;
     // 优先取外层 SDK wrapper 容器（如果有），否则用内层
     const parent = el.parentElement as HTMLElement | null;
     const wrapper = parent && parent.contains(el) && parent !== document.body ? parent : el;
@@ -1006,8 +1220,8 @@ function sortMarkerZByY() {
   // 按 y 升序排序，y 大（靠下/前面）→ 分配更高 z-index
   markers.sort((a, b) => a.y - b.y);
   markers.forEach((m, index) => {
-    // 基础 2000 + 排名，确保前面的（y 大）盖住后面的
-    m.el.style.zIndex = String(2000 + index);
+    // 基础 100 + 排名，确保前面的（y 大）盖住后面的，且低于 header（500）
+    m.el.style.zIndex = String(100 + index);
   });
 }
 
@@ -1027,6 +1241,14 @@ function updateSingleMarker(item: any) {
     el.style.backgroundImage = `url('${lightIcon}')`;
   }
 }
+
+/**
+ * 地块模式标点点击：场景数据由父组件按需请求
+ */
+const handleSpaceMarkerClick = (data: any) => {
+  const spaceName = data.name || '';
+  console.log('点击地块标点:', spaceName);
+};
 
 /**
  * 打开灯光详情弹窗
@@ -1188,7 +1410,11 @@ defineExpose({
   clearLightingMarkers,  // 清除灯光标点
   drawAllSpacesExceptNorth,  // 绘制所有地块（除首钢园北区）
   loadLightingData,  // 加载灯光数据
-  AddLightingMarker  // 添加标点
+  AddLightingMarker,  // 添加标点
+  openLightDetail,  // 灯光详情弹窗（父组件非详情模式回退调用）
+  setSpaceMarkerActive,  // 设置地块标点 active 状态
+  clearMarkerListActive,  // 清除成员列表项激活高亮（列表保持展示）
+  collapseMarkerList  // 收起成员列表（非详情模式点击列表项时保持原行为）
 });
 
 onMounted(async () => {
@@ -1333,6 +1559,14 @@ onUnmounted(() => {
   color: #38bdf8;
 }
 
+/* 列表项激活高亮（点击列表项弹出弹框期间保持） */
+.light-marker .marker-list-item.is-active {
+  background: rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 #38bdf8;
+}
+
 /* 深色弹窗样式（全局，因为 el-dialog 会 teleport 到 body） */
 .dark-dialog.el-dialog {
   background: #0f2035 !important;
@@ -1383,32 +1617,29 @@ onUnmounted(() => {
   background-color: #2a4a6f !important;
 }
 
-/* 地块模式标点 - 点击提示效果 */
-@keyframes spaceMarkerPulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.45;
-  }
-  70% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-  100% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
+/* 地块模式标点 - hover 灯泡放大 */
+.space-marker img {
+  transition: transform 0.25s ease, filter 0.25s ease;
 }
 
-.space-marker {
-  transition: transform 0.25s ease;
-}
-
-.space-marker:hover {
+.space-marker img:hover {
   transform: translate(-50%, -50%) scale(1.25) !important;
-  z-index: 10;
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(0, 200, 255, 0.8)) !important;
 }
 
-.space-marker:hover span:nth-child(2) {
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.6), 0 6px 18px rgba(0, 0, 0, 0.5) !important;
+/* 地块标点 active 状态（一级列表展示时标点保持高亮 + 呼吸发光） */
+.space-marker.is-active img {
+  transform: translate(-50%, -50%) scale(1.2) !important;
+  animation: spaceMarkerActivePulse 1.6s ease-in-out infinite;
+  z-index: 10002 !important;
+}
+
+@keyframes spaceMarkerActivePulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 16px rgba(0, 217, 255, 0.85));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 1)) drop-shadow(0 0 30px rgba(0, 217, 255, 1));
+  }
 }
 </style>

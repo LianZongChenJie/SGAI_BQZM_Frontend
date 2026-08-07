@@ -4,6 +4,7 @@
     :title="'场景详情 - ' + currentScene?.name"
     width="650px"
     wrapClassName="scene-detail-modal"
+    :zIndex="91000"
     :footer="null"
     :maskClosable="true"
     @cancel="onCancel"
@@ -18,15 +19,17 @@
                 <th>地块名称</th>
                 <th>区域名称</th>
                 <th>回路名称</th>
+                <th>电流</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(row, idx) in tableData" :key="idx">
-                <td>{{ row.spaceName || '-' }}</td>
-                <td>{{ row.areaName || '-' }}</td>
-                <td>{{ row.circuitName || row.name || '-' }}</td>
+                <td :title="row.spaceName || '-'">{{ row.spaceName || '-' }}</td>
+                <td :title="row.areaName || '-'">{{ row.areaName || '-' }}</td>
+                <td :title="row.circuitName || row.name || '-'">{{ row.circuitName || row.name || '-' }}</td>
+                <td :title="row.electricCurrent || ''">{{ row.electricCurrent || '' }}</td>
                 <td>
                   <span class="status-text" :class="row.status === '开启' ? 'status-on' : 'status-off'">
                     {{ row.status || '关闭' }}
@@ -51,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { planDetailApiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring'
 import { message, Modal } from 'ant-design-vue'
 
@@ -82,12 +85,14 @@ async function showDetail(scene: any) {
     console.log('场景详情数据:', data)
     
     if (data) {
+      tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
       // 根据控制类型显示不同数据
       if (scene.relType === '区域') {
         tableData.value = Array.isArray(data.areaList) ? data.areaList : []
       } else if (scene.relType === '回路') {
         tableData.value = Array.isArray(data.circuitList) ? data.circuitList : []
       }
+      tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
     }
   } catch (err: any) {
     console.error('获取场景详情失败:', err)
@@ -103,6 +108,8 @@ function handleRowAction(row: any, action: '开启' | '关闭') {
     content: `确定要${actionText}该回路吗？`,
     okText: '确认',
     cancelText: '取消',
+    zIndex: 102000,  // 二次确认最高层级：高于四页签/详情弹框(90000)
+    wrapClassName: 'dark-confirm-modal',
     onOk: async () => {
       try {
         await postSceneSwitchApi({
@@ -150,7 +157,34 @@ defineExpose({ showDetail })
 
 .device-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
+}
+
+/* 列宽分配：名称列占剩余空间，长内容省略号截断，状态/操作列固定 */
+.device-table th:nth-child(1),
+.device-table td:nth-child(1) {
+  width: 20%;
+}
+
+.device-table th:nth-child(2),
+.device-table td:nth-child(2) {
+  width: 24%;
+}
+
+.device-table th:nth-child(3),
+.device-table td:nth-child(3) {
+  width: 24%;
+}
+
+.device-table th:nth-child(4),
+.device-table td:nth-child(4) {
+  width: 10%;
+}
+
+.device-table th:nth-child(5),
+.device-table td:nth-child(5) {
+  width: 22%;
 }
 
 .device-table th,
@@ -262,6 +296,28 @@ defineExpose({ showDetail })
   .ant-modal-body {
     padding: 20px 24px !important;
     color: rgba(255, 255, 255, 0.85);
+  }
+
+  /* 关闭按钮：亮色 X 图标 + 淡青圆形底，hover 旋转发光（深色背景上默认灰色 X 不明显） */
+  .ant-modal-close {
+    color: rgba(255, 255, 255, 0.9) !important;
+    background: rgba(56, 189, 248, 0.1) !important;
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+    top: 9px !important;
+    right: 9px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.25s ease !important;
+  }
+
+  .ant-modal-close:hover {
+    color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.28) !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4) !important;
+    transform: rotate(90deg);
   }
 }
 </style>

@@ -24,6 +24,7 @@ enum Api {
   getAreaListAllTagApi = '/sgai-bqzm/bems/lighting/district/all',
   getAllVidoeListApi = '/sgai-bqzm/bems/lighting/videoMonitor/list',
   deleteSceneItemAPi = '/sgai-bqzm/bems/lighting/scene/delete',
+  postSceneControlApi = '/sgai-bqzm/bems/lighting/scene/control',
 }
 
 /**
@@ -108,6 +109,9 @@ export const deleteSceneItemAPi = (params) => defHttp.delete({ url: Api.deleteSc
 
 // 场景的全开全关
 export const postSceneSwitchApi = (params) => defHttp.post({ url: Api.postSceneSwitchApi, params });
+
+// 场景控制（sceneId + operationType，query 传参）
+export const postSceneControlApi = (params) => defHttp.post({ url: Api.postSceneControlApi, params }, { joinParamsToUrl: true });
 
 // 获取日历详情接口
 export const getCalendarControlDetailApi = (params) => defHttp.get({ url: Api.getCalendarControlDetailApi, params });
