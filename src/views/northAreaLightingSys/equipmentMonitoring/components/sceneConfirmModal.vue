@@ -47,7 +47,7 @@ const loading = ref(false);
 
 const contenMessage = computed(() => {
   const name = sceneData.value?.name || '';
-  const action = type.value === 'execute' ? '打开' : type.value === 'deleteBtn' ? '删除': '关闭';
+  const action = type.value === 'execute' ? '开启' : type.value === 'deleteBtn' ? '删除': '关闭';
   if(type.value === 'deleteBtn') {
     return {
       prefix: '确定要 ',
