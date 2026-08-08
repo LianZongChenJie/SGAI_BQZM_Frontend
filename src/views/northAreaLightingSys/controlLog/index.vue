@@ -663,14 +663,9 @@ onMounted(() => {
 
 .device-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
-
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
 
   th,
   td {
@@ -681,11 +676,15 @@ onMounted(() => {
   }
 
   thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     color: #7fa6d4;
     font-weight: 500;
     border-bottom: 1px solid rgba(0, 212, 255, 0.15);
     user-select: none;
-    background: rgba(10, 30, 55, 0.45);
+    background: #0f2845;
+    box-shadow: 0 1px 0 rgba(0, 212, 255, 0.1);
   }
 
   tbody td {
