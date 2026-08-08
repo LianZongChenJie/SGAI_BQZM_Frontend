@@ -116,7 +116,7 @@ defineExpose({
   background: rgba(0, 162, 232, 0.06);
   border-left: 3px solid #00a2e8;
   border-radius: 0 4px 4px 0;
-  font-size: 13px;
+  font-size: 16px;
   color: #8a9ab0;
 
   .tip-icon {
