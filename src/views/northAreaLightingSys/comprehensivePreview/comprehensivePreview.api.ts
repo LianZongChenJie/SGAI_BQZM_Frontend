@@ -49,7 +49,7 @@ export const getAreaRunStatusApi = () => defHttp.get({ url: Api.areaRunStatus })
 /** 获取各地块运行时长对比（本月） */
 export const getRunTimeCompareApi = (queryStr = '') => defHttp.get({ url: `${Api.runTimeCompare}${queryStr}` });
 
-/** 获取地块场景数据（按 spaceId 查询地块的回路与场景） */
+/** 获取地块场景数据（按 spaceId 查询地块的回路与场景，返回 result：scenes 场景 + circuits 回路） */
 export const getSceneSpaceApi = (spaceId: string) =>
   defHttp.get({ url: Api.sceneSpace, params: { spaceId } }, { joinParamsToUrl: true });
 

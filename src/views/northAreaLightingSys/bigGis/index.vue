@@ -473,7 +473,7 @@ import { useScreenScale } from '../useScreenScale'
 useScreenScale()
 import { getAllCircuitApi, getAllSpaceApi, getRunTimeCompareApi, openAreaApi, closeAreaApi, getSceneSpaceApi, getVideoListBySpaceApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { getCircuitListApi } from '@/api/baseSettingBqZm'
-import { getLightingPlanAPiNew, postSceneControlApi } from '@/api/equipmentMonitoring'
+import { postSceneControlApi, getAreaListAllTagApi } from '@/api/equipmentMonitoring'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import { setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';
 import { message } from 'ant-design-vue'
@@ -536,10 +536,9 @@ const runtimeTableData = ref<any[]>([])
 // 所有地块 ID 列表（用于运行时长查询）
 const allSpaceIdList = ref<string[]>([])
 const spaceList = ref<any[]>([])
-const sceneList = ref<any[]>([])  // 场景配置列表
 
-// 场景列表区域筛选：下拉框选项来自 getAllSpaceApi 返回的地块数据（取 id / districtName 字段），
-// 第一条固定为「全部」（value='all'，选中即展示所有且不显示清除按钮）；spaceList 由 fetchAllSpaceIds 填充（id + name=districtName）
+// 场景列表区域筛选：下拉框选项来自 district/all 返回的地块数据（取 id / districtName 字段），
+// 第一条固定为「全部」（value='all'，选中即展示所有且不显示清除按钮）
 const selectedAreaFilter = ref<string | undefined>(undefined)
 const areaFilterOptions = computed(() => {
   const options: { label: string; value: string }[] = [{ label: '全部', value: 'all' }]
@@ -548,12 +547,28 @@ const areaFilterOptions = computed(() => {
   })
   return options
 })
-// 筛选后的场景列表：未选或选「全部」展示所有；选中后按场景数据 tagId 匹配地块 id
+// 筛选后的场景列表：数据来自各地块按 spaceIds 循环请求合并后的场景缓存（spaceSceneDataMap），
+// 给场景打上归属地块 id（_spaceId）；未选或选「全部」展示所有地块的场景，选中后只展示该地块的场景
 const filteredSceneList = computed(() => {
-  if (!selectedAreaFilter.value || selectedAreaFilter.value === 'all') return sceneList.value
-  return sceneList.value.filter((s) => {
-    return s.tagId != null && String(s.tagId) === String(selectedAreaFilter.value)
+  const allScenes: any[] = []
+  spaceList.value.forEach((space: any) => {
+    const data = spaceSceneDataMap.value[normalizeSpaceName(space.name)]
+    const scenes = data?.scenes
+    if (!Array.isArray(scenes)) return
+    scenes.forEach((item: any) => {
+      allScenes.push({
+        ...item,
+        id: item.id || item.sceneId,
+        name: item.sceneName || item.planName || '-',
+        color: item.status === '开启' ? '#52c41a' : item.status === '关闭' ? '#ff4d4f' : '#38bdf8',
+        enabled: item.status === '开启',
+        _spaceId: space.id,
+        _spaceName: space.name,
+      })
+    })
   })
+  if (!selectedAreaFilter.value || selectedAreaFilter.value === 'all') return allScenes
+  return allScenes.filter((s) => String(s._spaceId) === String(selectedAreaFilter.value))
 })
 
 // 地块默认配色
@@ -750,53 +765,114 @@ function closeSpaceMenu() {
 }
 
 
+// 地块显示名（space-boundaries.json 标点名）与 district/all 的 districtName 不一致时的映射，
+// 用于点击标点（JSON 名）也能匹配到 spaceList 中的 spaceIds
+const SPACE_NAME_ALIAS: Record<string, string> = {
+  '通明湖': '群明湖',
+  '制氧区域': '制氧区',
+  '首钢园服贸会': '服贸会区',
+}
+
+// 将地块名归一化为 spaceList 中的规范名（districtName）；映射不到时返回原值
+function normalizeSpaceName(spaceName: string): string {
+  if (!spaceName) return spaceName
+  if (spaceList.value.some((s: any) => s.name === spaceName)) return spaceName
+  const alias = SPACE_NAME_ALIAS[spaceName]
+  if (alias && spaceList.value.some((s: any) => s.name === alias)) return alias
+  return spaceName
+}
+
+// 将接口返回的 spaceIds（逗号分隔字符串，如 "901,902"；或数组；或空字符串/空数组）解析为数字数组
+function parseSpaceIds(spaceIds: any): number[] {
+  if (spaceIds == null) return []
+  const arr = Array.isArray(spaceIds)
+    ? spaceIds
+    : String(spaceIds)
+        .replace(/[\[\]\s]/g, '')
+        .split(',')
+  return arr.map((v: any) => Number(v)).filter((n: number) => !isNaN(n) && n > 0)
+}
+
+// 按 id 合并数组（保留顺序，id 相同只保留第一个；无 id 的项直接追加）
+function mergeById(list: any[], incoming: any): any[] {
+  if (!Array.isArray(incoming)) return list
+  const exists = new Set(list.map((i: any) => i?.id).filter((v: any) => v != null))
+  for (const item of incoming) {
+    if (item?.id == null || !exists.has(item.id)) {
+      list.push(item)
+      if (item?.id != null) exists.add(item.id)
+    }
+  }
+  return list
+}
+
+// 从 getSceneSpaceApi 返回的 result 中取场景列表（scenes 为场景数组）
+function getSceneListFromRes(res: any): any[] {
+  return Array.isArray(res?.scenes) ? res.scenes : []
+}
+
+// 从 getSceneSpaceApi 返回的 result 中取回路列表（circuits 为回路数组）
+function getCircuitListFromRes(res: any): any[] {
+  return Array.isArray(res?.circuits) ? res.circuits : []
+}
+
 // 预加载某个地块的场景/回路数据（按需请求，带缓存；保存完整返回：scenes 与 circuits 同级）
 async function fetchSpaceSceneData(spaceName: string) {
-  // 优先从空间列表按名称匹配拿 id；名称不一致时从标点 DOM 的 data-space-id 兑底（space-boundaries.json 的 spaceid）
-  let space = spaceList.value.find((s: any) => s.name === spaceName)
-  let spaceId = space?.id
-  if (!spaceId) {
-    const markerEl = document.querySelector('.space-marker[data-space-name="' + spaceName + '"]')
-    spaceId = markerEl?.getAttribute('data-space-id') || ''
-  }
-  if (!spaceId) {
-    console.warn(`[index] 地块 [${spaceName}] 无法定位 id，跳过状态更新`)
+  // 名称归一化：JSON 标点名（制氧区域/通明湖/首钢园服贸会）与 districtName（制氧区/群明湖/服贸会区）不一致，
+  // 统一映射为 spaceList 中的规范名，保证批量请求与点击标点共用同一份缓存
+  const key = normalizeSpaceName(spaceName)
+  const space = spaceList.value.find((s: any) => s.name === key)
+  const spaceIds: number[] = parseSpaceIds(space?.spaceIds)
+  if (spaceIds.length === 0) {
+    console.warn(`[index] 地块 [${key}] 无 spaceIds，跳过状态更新`)
     return
   }
   try {
-    spaceSceneLoadingMap.value[spaceName] = true
-    const res: any = await getSceneSpaceApi(String(spaceId))
-    if (res && (res.scenes || res.circuits)) {
-      spaceSceneDataMap.value[spaceName] = res
+    spaceSceneLoadingMap.value[key] = true
+    // 循环请求每个 spaceId 的场景/回路数据，并按 id 合并（部分请求失败不影响其他成功结果）
+    const merged: any = { scenes: [], circuits: [] }
+    let hasError = false
+    for (const sid of spaceIds) {
+      try {
+        const res: any = await getSceneSpaceApi(String(sid))
+        if (res) {
+          merged.scenes = mergeById(merged.scenes, getSceneListFromRes(res))
+          merged.circuits = mergeById(merged.circuits, getCircuitListFromRes(res))
+        }
+      } catch (e) {
+        hasError = true
+        console.error(`[index] 地块 [${spaceName}] spaceId=${sid} 场景接口请求失败:`, e)
+      }
+    }
+    if (merged.scenes.length || merged.circuits.length) {
+      spaceSceneDataMap.value[key] = merged
       // 更新地块标点状态：circuits 中任一回路 status === '开启' → 亮灯，否则熄灭（空数组/无 circuits 均熄灭）
       // 短路遍历：发现第一个开启回路立即终止，避免全量扫描（最好 O(1)，最坏 O(n)，空间 O(1)）
       let isOn = false
-      if (Array.isArray(res.circuits)) {
-        for (const c of res.circuits) {
-          if (c.status === '开启') {
-            isOn = true
-            break
-          }
+      for (const c of merged.circuits) {
+        if (c.status === '开启') {
+          isOn = true
+          break
         }
       }
       mapViewRef.value?.updateSpaceMarkerState?.(spaceName, isOn)
+    } else if (hasError) {
+      // 所有请求均失败时按无开启回路处理，标点置为熄灭
+      mapViewRef.value?.updateSpaceMarkerState?.(spaceName, false)
     }
-  } catch (e) {
-    console.error(`[index] 地块 [${spaceName}] 场景接口请求失败:`, e)
-    // 请求失败时按无开启回路处理，标点置为熄灭
-    mapViewRef.value?.updateSpaceMarkerState?.(spaceName, false)
   } finally {
-    spaceSceneLoadingMap.value[spaceName] = false
+    spaceSceneLoadingMap.value[key] = false
   }
 }
 
 // 确保地块数据已加载（未加载且未请求中时发起请求，返回完整数据或 null）
 async function ensureSpaceSceneData(spaceName: string): Promise<any | null> {
-  const loaded = spaceSceneDataMap.value[spaceName]
+  const key = normalizeSpaceName(spaceName)
+  const loaded = spaceSceneDataMap.value[key]
   if (loaded) return loaded
-  if (spaceSceneLoadingMap.value[spaceName]) return null
+  if (spaceSceneLoadingMap.value[key]) return null
   await fetchSpaceSceneData(spaceName)
-  return spaceSceneDataMap.value[spaceName] || null
+  return spaceSceneDataMap.value[key] || null
 }
 
 // 点击地块模式时批量请求所有地块（除首钢园北区）的场景数据（带缓存）
@@ -815,7 +891,7 @@ function fetchAllSpaceSceneData() {
 
 // 从 getSceneSpaceApi 返回的 result.scenes 中获取当前地块的场景列表（与 circuits 同级）
 function getSpaceSceneListFromApi(spaceName: string): any[] {
-  const data = spaceSceneDataMap.value[spaceName];
+  const data = spaceSceneDataMap.value[normalizeSpaceName(spaceName)];
   if (!data) return [];
   const list = data.scenes;
   if (!Array.isArray(list)) return []
@@ -830,7 +906,7 @@ function getSpaceSceneListFromApi(spaceName: string): any[] {
 
 // 从 getSceneSpaceApi 返回的 result.circuits 中获取当前地块的回路列表（与 scenes 同级）
 function getSpaceCircuitListFromApi(spaceName: string): any[] {
-  const data = spaceSceneDataMap.value[spaceName];
+  const data = spaceSceneDataMap.value[normalizeSpaceName(spaceName)];
   if (!data) return [];
   const list = data.circuits;
   if (!Array.isArray(list)) return []
@@ -927,7 +1003,7 @@ function handleLightAreaOff() {
 
 // 地块级全开（调用 openAreaApi）
 function handleSpaceAllOn(spaceName: string) {
-  const space = spaceList.value.find((s: any) => s.name === spaceName)
+  const space = spaceList.value.find((s: any) => s.name === normalizeSpaceName(spaceName))
   if (!space?.id) {
     message.warning('该地块无 ID，无法执行全开')
     return
@@ -949,7 +1025,7 @@ function handleSpaceAllOn(spaceName: string) {
 
 // 地块级全关（调用 closeAreaApi）
 function handleSpaceAllOff(spaceName: string) {
-  const space = spaceList.value.find((s: any) => s.name === spaceName)
+  const space = spaceList.value.find((s: any) => s.name === normalizeSpaceName(spaceName))
   if (!space?.id) {
     message.warning('该地块无 ID，无法执行全关')
     return
@@ -1035,6 +1111,32 @@ async function fetchCircuitStats() {
 }
 
 
+// 获取所有片区数据（district/all，与 getAllSpaceApi 同字段：id / districtName），初始化时调用，用于地块列表/场景请求的 id 定位
+async function fetchAllDistrictTags() {
+  try {
+    const res: any = await getAreaListAllTagApi()
+    // 兼容分页结构（records/list/result/data）与纯数组返回
+    const list = Array.isArray(res) ? res : (res?.records || res?.list || res?.result || res?.data || [])
+    console.log('[index] 所有片区数据(district/all):', list)
+    // 若 spaceList 尚未初始化，则用该接口数据赋值（字段与 getAllSpaceApi 一致：id / districtName / spaceIds）
+    if (spaceList.value.length === 0 && list.length > 0) {
+      spaceList.value = list.map((space: any, index: number) => ({
+        id: space.id,
+        name: space.districtName,
+        spaceIds: space.spaceIds,
+        color: DEFAULT_SPACE_COLORS[index % DEFAULT_SPACE_COLORS.length],
+        enabled: false
+      }))
+      allSpaceIdList.value = list.map((item: any) => item.id).filter(Boolean)
+      console.log('spaceList 已由 district/all 初始化:', spaceList.value.length, '个地块')
+      // 初始化后批量请求各地块场景数据（填充左侧场景列表与标点亮灭状态）
+      fetchAllSpaceSceneData()
+    }
+  } catch (error) {
+    console.error('获取片区数据(district/all)失败:', error)
+  }
+}
+
 // 获取所有地块 ID（用于运行时长查询）
 async function fetchAllSpaceIds() {
   try {
@@ -1049,6 +1151,7 @@ async function fetchAllSpaceIds() {
       spaceList.value = list.map((space: any, index: number) => ({
         id: space.id,
         name: space.districtName,
+        spaceIds: space.spaceIds,
         color: DEFAULT_SPACE_COLORS[index % DEFAULT_SPACE_COLORS.length],
         enabled: false
       }))
@@ -1166,7 +1269,7 @@ function selectSpace(spaceName: string) {
 // 选择场景并绘制边框
 function selectScene(sceneId: string) {
   console.log('选择场景:', sceneId)
-  const scene = sceneList.value.find(s => s.id === sceneId)
+  const scene = filteredSceneList.value.find(s => s.id === sceneId)
   if (scene) {
     // TODO: 根据场景ID绘制对应的地块边框
     console.log('场景信息:', scene)
@@ -1240,62 +1343,6 @@ function handleSceneOff(scene: any) {
   return handleSceneAction(scene, '关闭')
 }
 
-// 获取场景配置列表
-async function fetchSceneList() {
-  try {
-    const params = {
-      pageNo: 1,
-      pageSize: 999  // 获取所有场景
-    }
-    
-    const data = await getLightingPlanAPiNew(params)
-    console.log('场景列表数据:', data)
-    
-    if (data?.records && Array.isArray(data.records)) {
-      const iconMap: Record<string, string> = {
-        '开启': '#52c41a',
-        '关闭': '#ff4d4f',
-      }
-      
-      sceneList.value = data.records.map((item: any) => {
-        const relCount = item.relIds ? item.relIds.split(',').length : 0
-        
-        // 获取地块/区域名称（使用areaName或spaceName）
-        let areaName = '-'
-        if (item.areaName) {
-          areaName = item.areaName
-        } else if (item.spaceName) {
-          areaName = item.spaceName
-        }
-        
-        console.log(`场景 [${item.planName}] 数据:`, {
-          areaName: item.areaName,
-          spaceName: item.spaceName,
-          解析后的areaName: areaName
-        })
-        
-        return {
-          ...item,
-          id: item.id,
-          name: item.planName || '',
-          color: iconMap[item.operationType] || '#38bdf8',
-          circuitCount: relCount,
-          desc: `控制类型 · ${item.relType || '-'}`,
-          spaceName: areaName,  // 地块/区域名称
-          relType: item.relType,
-          enabled: false,  // 默认关闭
-          relIds: item.relIds,
-        }
-      })
-      
-      console.log(`已加载 ${sceneList.value.length} 个场景`, sceneList.value)
-    }
-  } catch (error) {
-    console.error('获取场景列表失败:', error)
-    message.error('获取场景列表失败')
-  }
-}
-
 // "详情模式"按钮 - 显示所有标点，清除地块
 function handleShowDetails() {
   console.log('详情模式按钮点击')
@@ -1366,7 +1413,7 @@ async function loadLightCircuit(areaId: string) {
 async function loadSpaceVideoList(spaceName: string) {
   videoLoading.value = true
   try {
-    const space = spaceList.value.find((s: any) => s.name === spaceName)
+    const space = spaceList.value.find((s: any) => s.name === normalizeSpaceName(spaceName))
     const res: any = await getVideoListBySpaceApi(space?.id ? String(space.id) : '')
     spaceVideoList.value = Array.isArray(res) ? res : (res?.result || res?.data || [])
     console.log('地块视频列表:', spaceVideoList.value)
@@ -1386,10 +1433,10 @@ function getVideoPlayUrl(item: any) {
 
 onMounted(() => {
   console.log('页面已挂载')
+  // 初始化时获取所有片区数据（district/all，填充地块列表 spaceList）
+  fetchAllDistrictTags()
   // 初始化时获取回路统计数据
   fetchCircuitStats()
-  // 获取场景配置列表
-  fetchSceneList()
   // 获取各地块运行时长对比
   fetchRunTimeCompare()
 })
