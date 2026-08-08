@@ -29,8 +29,8 @@
           <label class="filter-label">操作类型</label>
           <select v-model="operationType" class="select">
             <option value="">全部</option>
-            <option value="开">开</option>
-            <option value="关">关</option>
+            <option value="开">开启</option>
+            <option value="关">关闭</option>
           </select>
         </div>
         <div class="filter-item">
@@ -75,7 +75,7 @@
               <td>{{ item.operationTime }}</td>
               <td>{{ item.relType }}</td>
               <td class="cell-wrap">{{ item.name }}</td>
-              <td class="cell-wrap">{{ item.operationType }}</td>
+              <td class="cell-wrap">{{ item.operationType === '开' ? '开启' : item.operationType === '关' ? '关闭' : '-'}}</td>
               <td>{{ item.operatorType }}</td>
               <td>{{ item.operationBy }}</td>
               <td>
@@ -111,7 +111,8 @@
       title="操作日志详情"
       width="680px"
       :footer="null"
-      wrapClassName="dark-tech-modal"
+      wrapClassName="control-log-detail-modal"
+      :getContainer="false"
       @cancel="closeDetail"
     >
       <!-- 标题信息 -->
@@ -130,7 +131,7 @@
         </div>
         <div class="title-meta">
           <span>类型：{{ detailData?.relType || detailRecord?.relType || '-' }}</span>
-          <span>操作类型：{{ detailData?.operationType || detailRecord?.operationType || '-' }}</span>
+          <span>操作类型：{{ detailData?.operationType === '开' ? '开启' : detailData?.operationType === '关' ? '关闭' : '-'}}</span>
           <span>操作人员：{{ detailData?.operationBy || detailRecord?.operationBy || '-' }}</span>
           <span>操作时间：{{ detailData?.operationTime || detailRecord?.operationTime || '-' }}</span>
         </div>
@@ -144,7 +145,6 @@
             <col />
             <col style="width: 90px;" />
             <col style="width: 90px;" />
-            <col style="width: 100px;" />
             <col style="width: 90px;" />
           </colgroup>
           <thead>
@@ -153,7 +153,6 @@
               <th>回路名称</th>
               <th>类型</th>
               <th>操作类型</th>
-              <th>状态</th>
               <th>操作人员</th>
             </tr>
           </thead>
@@ -162,22 +161,7 @@
               <td>{{ idx + 1 }}</td>
               <td class="ellipsis-cell" :title="item.name">{{ item.name || '-' }}</td>
               <td>{{ item.relType || '-' }}</td>
-              <td>{{ item.operationType || '-' }}</td>
-              <td>
-                <div
-                  class="status-badge-fu-cu"
-                  :class="{ online: item.operationType === '开', offline: item.operationType === '关' }"
-                >
-                  <img
-                    v-if="item.operationType === '关'"
-                    class="status-icon"
-                    src="@/assets/images/lightClose.png"
-                    alt=""
-                  />
-                  <img v-else class="status-icon" src="@/assets/images/lightOpen.png" alt="" />
-                  <span class="status-text">{{ item.operationType || '-' }}</span>
-                </div>
-              </td>
+              <td>{{ item.operationType === '开' ? '开启' : item.operationType === '关' ? '关闭' : '-'}}</td>
               <td>{{ item.operationBy || '-' }}</td>
             </tr>
             <tr v-if="circuitDetailList.length === 0">
@@ -782,17 +766,9 @@ onMounted(() => {
     background: rgba(255, 255, 255, 0.04) !important;
   }
 }
-</style>
 
-<style>
-/* 原生 option 在浏览器 OS 层渲染，scoped 无法覆盖，需非 scoped */
-.page-container .select option {
-  background: var(--bg) !important;
-  color: #ffffff !important;
-}
-
-/* ==================== 全局 Modal 覆盖（深色科技风） ==================== */
-.dark-tech-modal {
+/* ==================== 详情 Modal 覆盖（深色科技风） ==================== */
+:deep(.control-log-detail-modal) {
   .ant-modal-content {
     background: #141d2b !important;
     border: 1px solid #303d50 !important;
@@ -840,6 +816,14 @@ onMounted(() => {
     padding: 20px 24px 24px !important;
     background: #141d2b !important;
   }
+}
+</style>
+
+<style>
+/* 原生 option 在浏览器 OS 层渲染，scoped 无法覆盖，需非 scoped */
+.page-container .select option {
+  background: var(--bg) !important;
+  color: #ffffff !important;
 }
 </style>
 

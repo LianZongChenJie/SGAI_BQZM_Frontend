@@ -4,19 +4,21 @@
       v-model:open="open"
       title="提示"
       :footer="null"
-      width="560px"
+      width="500px"
       :destroyOnClose="true"
       :maskClosable="false"
       wrapClassName="dark-tech-modal"
     >
-           <!-- 顶部提示条 -->
-      <div class="modal-tip">
-        <svg class="tip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="16" x2="12" y2="12" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-        </svg>
-        <span v-html="contenMessage"></span>
+      <!-- 顶部提示条 -->
+      <div class="modal-content-scroll">
+        <div class="modal-tip">
+          <svg class="tip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          <span v-html="contenMessage"></span>
+        </div>
       </div>
 
       <!-- 底部操作按钮 -->
@@ -78,13 +80,33 @@ defineExpose({
 </script>
 
 <style scoped lang="less">
+/* ==================== 内容滚动区 ==================== */
+.modal-content-scroll {
+  max-height: 160px;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 194, 255, 0.5);
+    border-radius: 3px;
+  }
+}
+
 /* ==================== 提示条（科技感） ==================== */
 .modal-tip {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   background: rgba(0, 162, 232, 0.06);
   border-left: 3px solid #00a2e8;
   border-radius: 0 4px 4px 0;
@@ -115,11 +137,16 @@ defineExpose({
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 24px;
-  margin: 0 -24px -24px;
-  border-top: 1px solid #303d50;
+  padding: 20px 24px;
+  margin: 0;
+  border-top: none;
   margin-top: 20px;
-  position: relative;
+  position: absolute;
+  bottom: 8px;
+  left: 16px;
+  right: 16px;
+  background: transparent;
+  z-index: 10;
 
   &::before {
     content: '';
@@ -132,11 +159,11 @@ defineExpose({
   }
 
   :deep(.ant-btn) {
-    height: 34px;
-    padding: 0 20px;
-    border-radius: 4px;
-    font-size: 13px;
-    font-weight: 400;
+    height: 40px;
+    padding: 0 28px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
     transition: all 0.2s;
   }
 
@@ -168,10 +195,12 @@ defineExpose({
     background: linear-gradient(135deg, #00a2e8, #0080c0) !important;
     border: none !important;
     color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(0, 162, 232, 0.25);
 
     &:hover {
       background: linear-gradient(135deg, #0090cf, #0070a8) !important;
-      box-shadow: 0 0 12px rgba(0, 162, 232, 0.35);
+      box-shadow: 0 4px 14px rgba(0, 162, 232, 0.4);
+      transform: translateY(-1px);
     }
   }
 }
@@ -234,8 +263,10 @@ defineExpose({
   }
 
   .ant-modal-body {
-    padding: 20px 24px 24px !important;
+    padding: 24px 24px 100px !important;
     background: #141d2b !important;
+    min-height: 280px;
+    position: relative;
   }
 
   .ant-modal-footer {

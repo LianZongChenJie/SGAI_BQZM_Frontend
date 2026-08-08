@@ -117,7 +117,7 @@
               <div class="actions">
                 <button class="action-btn" @click="videoMonitorModalOpen(row)">监控视频</button>
                 <button class="action-btn" @click="circuitListModalOpenChange(row)">回路列表</button>
-                <button class="action-btn btn-primary" @click="onOpenRow(row)">全开</button>
+                <button class="action-btn btn-primary" style="color: #1a1a1a;" @click="onOpenRow(row)">全开</button>
                 <button class="action-btn btn-danger" @click="onCloseRow(row)">全关</button>
               </div>
             </template>

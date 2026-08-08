@@ -3,7 +3,7 @@
     v-model:open="visible"
     :title="title"
     width="1000px"
-    wrapClassName="dark-tech-modal create-timer-modal"
+    wrapClassName="create-timer-modal"
     :footer="null"
     top="20px"
     :maskClosable="false"
@@ -90,7 +90,7 @@
 
         <!-- ==================== 第 3 行：表格（vxe-table） ==================== -->
         <div class="form-section">
-          <div class="section-title">勾选数据</div>
+          <div class="section-title">数据</div>
           <a-row :gutter="10">
             <a-col :span="24">
               <div class="table-wrapper">
@@ -920,39 +920,41 @@ defineExpose({ showModal, closeModal });
   }
 }
 
-/* ==================== 定时任务信息 section —— 紫色变体（与场景信息保持一致） ==================== */
+/* ==================== 定时任务信息 section —— 复用搜索项高亮蓝样式 ==================== */
 .form-section.task-info {
-  border-color: rgba(192, 132, 252, 0.32);
+  background: linear-gradient(180deg, #1f4373 0%, #1a385f 100%);
+  border: 1px solid #3a6398;
   box-shadow:
-    inset 0 0 24px rgba(192, 132, 252, 0.06),
-    0 0 0 1px rgba(192, 132, 252, 0.06);
+    inset 0 0 28px rgba(0, 212, 255, 0.08),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(0, 212, 255, 0.06),
+    0 4px 14px rgba(0, 30, 60, 0.4);
 
   :deep(.section-title) {
-    color: #d8b4fe !important;
+    color: #b3e5ff !important;
   }
 
   :deep(.section-title::before) {
-    background: linear-gradient(180deg, #c084fc 0%, #a855f7 100%) !important;
-    box-shadow: 0 0 6px rgba(192, 132, 252, 0.6) !important;
+    background: linear-gradient(180deg, #ffffff 0%, #00d4ff 100%) !important;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.8) !important;
   }
 
   :deep(.section-title::after) {
-    background: linear-gradient(90deg, rgba(192, 132, 252, 0.3) 0%, transparent 100%) !important;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(0, 212, 255, 0.15) 50%, transparent 100%) !important;
   }
 
-  /* 内部控件 focus 时变紫色光晕 */
   :deep(.ant-select-focused .ant-select-selector),
   :deep(.ant-input-affix-wrapper.ant-input-affix-wrapper-focused) {
-    border-color: #c084fc !important;
+    border-color: #00d4ff !important;
     box-shadow:
-      0 0 0 2px rgba(192, 132, 252, 0.25),
-      0 0 8px rgba(192, 132, 252, 0.2) !important;
+      0 0 0 2px rgba(0, 212, 255, 0.25),
+      0 0 8px rgba(0, 212, 255, 0.2) !important;
   }
 
   :deep(.ant-select-selector:hover),
   :deep(.ant-input-affix-wrapper:hover) {
-    border-color: #c084fc !important;
-    box-shadow: 0 0 0 1px rgba(192, 132, 252, 0.2) !important;
+    border-color: #00d4ff !important;
+    box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.2) !important;
   }
 }
 
@@ -1192,61 +1194,26 @@ defineExpose({ showModal, closeModal });
   }
 }
 
-/* ==================== dark-tech-modal 弹框样式 ==================== */
+/* ==================== create-timer-modal 弹框样式 ==================== */
 /* 使用 body 前缀提升特异性，覆盖全局 ant-modal 默认样式 */
-body .dark-tech-modal {
+body .create-timer-modal {
   /* 覆写 Ant Design 5 默认紫色系 CSS 变量 */
   --ant-primary-color: #00a2e8 !important;
   --ant-primary-color-hover: #00d4ff !important;
   --ant-primary-color-active: #0088cc !important;
   --ant-primary-color-outline: rgba(0, 162, 232, 0.2) !important;
 
-  .ant-modal {
-    overflow: visible !important;
-  }
-
   .ant-modal-content {
-    /* 更深的底色，让边框/光晕对比更明显 */
     background: #0c1828 !important;
-    /* 实色高亮边框 */
-    border: 2px solid #00d4ff !important;
     border-radius: 8px !important;
-    box-shadow:
-      /* 内层紧贴边框的青色发光（四边均匀） */
-      inset 0 0 0 1px rgba(0, 212, 255, 0.7),
-      inset 0 0 14px 2px rgba(0, 212, 255, 0.25),
-      /* 外层四边均匀散射的青蓝光晕 */
-      0 0 8px 1px rgba(0, 212, 255, 0.65),
-      0 0 20px 3px rgba(0, 162, 232, 0.5),
-      0 0 44px 6px rgba(0, 162, 232, 0.32),
-      0 0 80px 12px rgba(0, 162, 232, 0.18),
-      /* 黑色投影 */
-      0 12px 40px rgba(0, 0, 0, 0.7) !important;
-    overflow: visible !important;
-    position: relative;
-
-    /* 顶部蓝色渐变光条 */
-    &::before {
-      content: '';
-      position: absolute;
-      top: -2px;
-      left: 30px;
-      right: 30px;
-      height: 3px;
-      background: linear-gradient(90deg, transparent 0%, rgba(0, 162, 232, 0.5) 10%, #00d4ff 40%, #ffffff 50%, #00d4ff 60%, rgba(0, 162, 232, 0.5) 90%, transparent 100%);
-      box-shadow: 0 0 16px rgba(0, 212, 255, 1), 0 0 28px rgba(0, 162, 232, 0.6);
-      border-radius: 2px;
-      z-index: 5;
-      pointer-events: none;
-    }
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
   }
 
   .ant-modal-header {
     background: linear-gradient(180deg, #1b2533 0%, #162033 100%) !important;
-    border-bottom: 1px solid #00a2e8 !important;
+    border-bottom: 1px solid #303d50 !important;
     padding: 12px 20px 10px !important;
     border-radius: 6px 6px 0 0 !important;
-    position: relative;
   }
 
   .ant-modal-title {
@@ -1255,34 +1222,6 @@ body .dark-tech-modal {
     font-weight: 600 !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
     letter-spacing: 0.8px !important;
-    position: relative;
-    padding-left: 18px !important;
-
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 10px;
-      height: 10px;
-      background: #00d4ff;
-      border-radius: 50%;
-      box-shadow:
-        0 0 10px rgba(0, 212, 255, 0.9),
-        0 0 18px rgba(0, 162, 232, 0.5);
-    }
-
-    &::after {
-      content: '';
-      position: absolute;
-      left: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 1px;
-      height: 14px;
-      background: linear-gradient(180deg, transparent, rgba(0, 212, 255, 0.6), transparent);
-    }
   }
 
   .ant-modal-close {
@@ -1548,7 +1487,7 @@ body .dark-tech-modal {
 }
 
 /* ==================== Disabled 状态深色覆盖（扁平非嵌套，最高优先级） ==================== */
-body .dark-tech-modal {
+body .create-timer-modal {
   .ant-input-affix-wrapper-disabled,
   .ant-input-affix-wrapper-disabled .ant-input,
   .ant-input-disabled,
@@ -1616,9 +1555,9 @@ body .dark-tech-modal {
 /* 导致切几次页面后下拉框与输入框高度不一致。*/
 /* 解法：用 body 前缀提升特异性到 (0,4,0)，并绕过 .dark-form 直接定位到所有控件。*/
 /* 由于本块位于全局样式末尾，源序优先，叠加 !important + body 前缀确保永远生效。*/
-body .dark-tech-modal .ant-input-affix-wrapper,
-body .dark-tech-modal .ant-input-affix-wrapper-sm,
-body .dark-tech-modal .ant-input-affix-wrapper-lg {
+body .create-timer-modal .ant-input-affix-wrapper,
+body .create-timer-modal .ant-input-affix-wrapper-sm,
+body .create-timer-modal .ant-input-affix-wrapper-lg {
   height: 32px !important;
   min-height: 32px !important;
   max-height: 32px !important;
@@ -1630,9 +1569,9 @@ body .dark-tech-modal .ant-input-affix-wrapper-lg {
   align-items: center !important;
 }
 
-body .dark-tech-modal .ant-input-affix-wrapper > input.ant-input,
-body .dark-tech-modal .ant-input-affix-wrapper > input.ant-input-sm,
-body .dark-tech-modal .ant-input-affix-wrapper > input.ant-input-lg {
+body .create-timer-modal .ant-input-affix-wrapper > input.ant-input,
+body .create-timer-modal .ant-input-affix-wrapper > input.ant-input-sm,
+body .create-timer-modal .ant-input-affix-wrapper > input.ant-input-lg {
   height: 30px !important;
   min-height: 30px !important;
   max-height: 30px !important;
@@ -1643,9 +1582,9 @@ body .dark-tech-modal .ant-input-affix-wrapper > input.ant-input-lg {
   font-size: 12px !important;
 }
 
-body .dark-tech-modal .ant-input:not(.ant-input-affix-wrapper .ant-input):not(.ant-input-group .ant-input),
-body .dark-tech-modal input.ant-input.ant-input-sm,
-body .dark-tech-modal input.ant-input.ant-input-lg {
+body .create-timer-modal .ant-input:not(.ant-input-affix-wrapper .ant-input):not(.ant-input-group .ant-input),
+body .create-timer-modal input.ant-input.ant-input-sm,
+body .create-timer-modal input.ant-input.ant-input-lg {
   height: 32px !important;
   min-height: 32px !important;
   max-height: 32px !important;
@@ -1655,9 +1594,9 @@ body .dark-tech-modal input.ant-input.ant-input-lg {
   font-size: 12px !important;
 }
 
-body .dark-tech-modal .ant-select .ant-select-selector,
-body .dark-tech-modal .ant-select .ant-select-selector.ant-select-selector-sm,
-body .dark-tech-modal .ant-select .ant-select-selector.ant-select-selector-lg {
+body .create-timer-modal .ant-select .ant-select-selector,
+body .create-timer-modal .ant-select .ant-select-selector.ant-select-selector-sm,
+body .create-timer-modal .ant-select .ant-select-selector.ant-select-selector-lg {
   height: 32px !important;
   min-height: 32px !important;
   max-height: 32px !important;
@@ -1669,30 +1608,30 @@ body .dark-tech-modal .ant-select .ant-select-selector.ant-select-selector-lg {
   align-items: center !important;
 }
 
-body .dark-tech-modal .ant-select {
+body .create-timer-modal .ant-select {
   height: 32px !important;
   line-height: 32px !important;
 }
 
-body .dark-tech-modal .ant-select .ant-select-selection-item,
-body .dark-tech-modal .ant-select .ant-select-selection-placeholder {
+body .create-timer-modal .ant-select .ant-select-selection-item,
+body .create-timer-modal .ant-select .ant-select-selection-placeholder {
   line-height: 30px !important;
   font-size: 12px !important;
 }
 
-body .dark-tech-modal .ant-input-number,
-body .dark-tech-modal .ant-input-number-input {
+body .create-timer-modal .ant-input-number,
+body .create-timer-modal .ant-input-number-input {
   height: 32px !important;
   line-height: 32px !important;
 }
 
 /* 防止第一列 a-col 因为 align-items 默认 stretch 导致高度不一致 */
-body .dark-tech-modal .ant-row {
+body .create-timer-modal .ant-row {
   align-items: flex-start !important;
 }
 
 /* ==================== 全面覆盖 Ant Design 5 默认紫色 outline/focus ==================== */
-body .dark-tech-modal {
+body .create-timer-modal {
   /* 禁用 Ant Design 5 默认 outline（紫/蓝），改用 border-box-shadow 方案 */
   .ant-select-outlined,
   .ant-input-outlined,

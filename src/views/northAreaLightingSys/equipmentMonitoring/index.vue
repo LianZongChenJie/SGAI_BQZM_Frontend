@@ -83,6 +83,7 @@
               <span class="panel-count">
                 <span class="count-label">已查</span>
                 <span class="count-filtered">{{ filteredMonitorSceneList.length }}</span>
+                <span class="count-label">条</span>
                 <span class="count-sep">/</span>
                 <span class="count-label">共</span>
                 <span class="count-total">{{ sceneList.length }}</span>
@@ -100,6 +101,13 @@
                   show-search
                   :filter-option="(input, option) => (option.label || '').toLowerCase().includes(input.toLowerCase())"
                   style="width: 120px"
+                />
+                <a-select
+                  v-model:value="monitorTypeFilter"
+                  placeholder="类型"
+                  :options="monitorTypeOptions"
+                  allowClear
+                  style="width: 100px"
                 />
                 <a-input
                   v-model:value="monitorSearchName"
@@ -199,6 +207,7 @@
               <span class="panel-count">
                 <span class="count-label">已查</span>
                 <span class="count-filtered">{{ filteredSceneList.length }}</span>
+                <span class="count-label">条</span>
                 <span class="count-sep">/</span>
                 <span class="count-label">共</span>
                 <span class="count-total">{{ sceneList.length }}</span>
@@ -215,6 +224,13 @@
                 show-search
                 :filter-option="(input, option) => (option.label || '').toLowerCase().includes(input.toLowerCase())"
                 style="width: 140px"
+              />
+              <a-select
+                v-model:value="sceneTypeFilter"
+                placeholder="类型"
+                :options="sceneTypeOptions"
+                allowClear
+                style="width: 100px"
               />
               <a-input
                 v-model:value="sceneSearchName"
@@ -327,6 +343,7 @@
               <span class="panel-count">
                 <span class="count-label">已查</span>
                 <span class="count-filtered">{{ filteredTimerList.length }}</span>
+                <span class="count-label">条</span>
                 <span class="count-sep">/</span>
                 <span class="count-label">共</span>
                 <span class="count-total">{{ timerTotal }}</span>
@@ -565,12 +582,22 @@ const sceneTagLoading = ref(false);
 const sceneSearchTag = ref<string | undefined>(undefined);
 const sceneSearchName = ref('');
 const sceneSearchLoading = ref(false);
+const sceneTypeFilter = ref<string | undefined>(undefined);
+const sceneTypeOptions = [
+  { label: '节目', value: 'program' },
+  { label: '场景', value: 'scene' },
+];
 
 /** 已过滤的场景列表（场景配置 tab 本地筛选） */
 const filteredSceneList = computed(() => {
   let data = sceneList.value;
   if (sceneSearchTag.value) {
     data = data.filter((item) => item.tagName === sceneSearchTag.value);
+  }
+  if (sceneTypeFilter.value === 'program') {
+    data = data.filter((item) => item.groupId);
+  } else if (sceneTypeFilter.value === 'scene') {
+    data = data.filter((item) => !item.groupId);
   }
   if (sceneSearchName.value) {
     const kw = sceneSearchName.value.toLowerCase();
@@ -583,12 +610,22 @@ const filteredSceneList = computed(() => {
 const tagName = ref<string | undefined>(undefined);
 const monitorSearchName = ref('');
 const monitorSearchLoading = ref(false);
+const monitorTypeFilter = ref<string | undefined>(undefined);
+const monitorTypeOptions = [
+  { label: '节目', value: 'program' },
+  { label: '场景', value: 'scene' },
+];
 
 /** 已过滤的场景列表（监控 tab 本地筛选） */
 const filteredMonitorSceneList = computed(() => {
   let data = sceneList.value;
   if (tagName.value) {
     data = data.filter((item) => item.tagName === tagName.value);
+  }
+  if (monitorTypeFilter.value === 'program') {
+    data = data.filter((item) => item.groupId);
+  } else if (monitorTypeFilter.value === 'scene') {
+    data = data.filter((item) => !item.groupId);
   }
   if (monitorSearchName.value) {
     const kw = monitorSearchName.value.toLowerCase();
@@ -616,7 +653,7 @@ function onSceneSearch() {
   if (sceneSearchTimer) clearTimeout(sceneSearchTimer);
   sceneSearchLoading.value = true;
   sceneSearchTimer = setTimeout(() => {
-    if (!sceneSearchTag.value && !sceneSearchName.value) {
+    if (!sceneSearchTag.value && !sceneSearchName.value && !sceneTypeFilter.value) {
       fetchSceneList();
     }
     sceneSearchLoading.value = false;
@@ -627,6 +664,7 @@ function onSceneSearch() {
 function onSceneSearchReset() {
   sceneSearchTag.value = undefined;
   sceneSearchName.value = '';
+  sceneTypeFilter.value = undefined;
 }
 
 /** 场景搜索（监控 tab 防抖） */
@@ -635,7 +673,7 @@ function onMonitorSearch() {
   if (monitorSearchTimer) clearTimeout(monitorSearchTimer);
   monitorSearchLoading.value = true;
   monitorSearchTimer = setTimeout(() => {
-    if (!tagName.value && !monitorSearchName.value) {
+    if (!tagName.value && !monitorSearchName.value && !monitorTypeFilter.value) {
       fetchSceneList();
     }
     monitorSearchLoading.value = false;
@@ -646,6 +684,7 @@ function onMonitorSearch() {
 function onMonitorSearchReset() {
   tagName.value = undefined;
   monitorSearchName.value = '';
+  monitorTypeFilter.value = undefined;
 }
 
 /* --------------------- Loading --------------------- */
@@ -1700,7 +1739,7 @@ onMounted(() => {
 
 .btn-success {
   background: var(--color-success);
-  color: #fff;
+  color: #1a1a1a;
 }
 
 .btn-success:hover {

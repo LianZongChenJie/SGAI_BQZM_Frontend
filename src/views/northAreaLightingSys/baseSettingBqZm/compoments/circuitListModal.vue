@@ -142,7 +142,7 @@
                     ok-text="确定"
                     cancel-text="取消"
                     @confirm="onOpenRow(row)"
-                  ><button class="action-btn btn-open">开启</button></a-popconfirm>
+                  ><button class="action-btn btn-open" style="color: #1a1a1a;">开启</button></a-popconfirm>
                   <a-popconfirm
                     :title="'确认关闭'+ row.circuitName +'？'"
                     ok-text="确定"
@@ -159,8 +159,11 @@
 
       <!-- 底部操作按钮 -->
       <div class="modal-footer">
-        <a-button class="btn-cancel" @click="closeModal">取消</a-button>
-        <a-button class="btn-confirm" type="primary" :loading="loading" @click="onSubmit">确定</a-button>
+        <span class="total-count">共 <b class="count-num">{{ displayData.length }}</b> 条</span>
+        <div class="footer-actions">
+          <a-button class="btn-cancel" @click="closeModal">取消</a-button>
+          <a-button class="btn-confirm" type="primary" :loading="loading" @click="onSubmit">确定</a-button>
+        </div>
       </div>
     </a-modal>
   </div>
@@ -531,7 +534,7 @@ defineExpose({
 .modal-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 12px;
   padding: 16px 24px;
   margin: 0 -24px -24px;
@@ -547,6 +550,39 @@ defineExpose({
     right: 24px;
     height: 1px;
     background: linear-gradient(90deg, transparent, rgba(0, 162, 232, 0.4), transparent);
+  }
+
+  .total-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #b0c7e0;
+    font-size: 13px;
+    flex-shrink: 0;
+
+    &::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00a2e8;
+      box-shadow: 0 0 6px rgba(0, 162, 232, 0.6);
+    }
+
+    .count-num {
+      color: #00a2e8;
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'DIN', 'Helvetica Neue', Arial, sans-serif;
+      text-shadow: 0 0 8px rgba(0, 162, 232, 0.4);
+    }
+  }
+
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   :deep(.ant-btn) {
