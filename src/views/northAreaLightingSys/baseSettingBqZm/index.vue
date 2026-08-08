@@ -84,8 +84,10 @@
         >
           <vxe-column type="checkbox" width="45" fixed="left"></vxe-column>
           <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
-          <vxe-column field="relName" title="类别" min-width="150"></vxe-column>
-          <vxe-column field="spaceName" title="区域" min-width="150"></vxe-column>
+          <vxe-column field="relName" title="类别" min-width="120"></vxe-column>
+          <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
+          <!-- areaCode -->
+          <vxe-column field="areaCode" title="areaCode" min-width="110"></vxe-column>
           <vxe-column field="areaName" title="名称" min-width="280"></vxe-column>
           <vxe-column field="status" title="状态" width="130">
             <template #default="{ row }">
