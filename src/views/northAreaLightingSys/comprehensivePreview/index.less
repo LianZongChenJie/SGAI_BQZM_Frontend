@@ -1,106 +1,113 @@
-:root {
-  --accent: #3b82f6;
-  --accent2: #22c55e;
-  --accent3: #f59e0b;
-  --danger: #ef4444;
-  --border: #1e3a5f;
-  --radius: 8px;
-  --text2: #8899aa;
-  --bg: #0a1628;
-  --card-bg: #0f2035;
-  --text: #e0e6ed;
-} 
-
+/* ============================================================
+   北区照明综合预览 - 大屏可视化统一自适应方案
+   设计基准 1920×1080（配合 useScreenScale 动态 rem 基准）：
+   - 尺寸细节一律用 rem：设计稿 px ÷ 100 = rem（1rem = 100px @1920）
+     示例：13px → 0.13rem，32px → 0.32rem（1920 屏精确还原，4K 自动翻倍）
+   - 布局一律用 flex 弹性撑满/平分，整屏 100% 不滚动，内部区块各自滚动
+   - 整屏级留白/大区块比例用 vw / vh / 百分比
+   - 1px 细线边框保留 px（视觉恒定细线）
+   ============================================================ */
 .north-lighting-overview {
+  /* 主题色变量（模板内联样式引用） */
+  --accent: #00d9ff;
+  --accent2: #00e676;
+  --accent3: #ffb74d;
+  --danger: #ff5252;
+  --border: rgba(0, 200, 255, 0.28);
+  --text2: #8fa8c8;
+
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  /* 页面级滚动：内容超高时整页纵向滚动，内部区块按内容自然高度展示（不压缩） */
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;                /* 20px @1920 */
+  padding: 0.2rem;            /* 20px @1920 */
   overflow-y: auto;
-  padding: 20px;
-  background: var(--bg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  color: var(--text);
+  color: #e8f4ff;
+  /* 大屏背景：深蓝黑底 + 顶部/右下青色光晕 + 细网格纹理 */
+  background-color: #050d1a;
+  background-image:
+    radial-gradient(ellipse 65% 45% at 50% -8%, rgba(0, 150, 255, 0.16) 0%, transparent 62%),
+    radial-gradient(ellipse 45% 35% at 100% 105%, rgba(0, 200, 255, 0.1) 0%, transparent 60%),
+    linear-gradient(rgba(0, 200, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 200, 255, 0.04) 1px, transparent 1px);
+  background-size: auto, auto, 0.48rem 0.48rem, 0.48rem 0.48rem;  /* 48px @1920 */
 
-  .grid {
-    display: grid;
-    gap: 20px;
+  /* 地图外壳：隔离视觉缩放（地图 UI 保持固定字号） */
+  .map-shell {
+    font-size: 16px;
+    height: 100%;
+    min-height: 0;
   }
 
-  .grid-4 {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .grid-2 {
-    grid-template-columns: repeat(2, 1fr);
+  /* ---------- 顶部统计卡片行：flex 弹性布局 ---------- */
+  .stats-row {
+    display: flex;
+    gap: 0.2rem;                 /* 20px @1920 */
+    flex-shrink: 0;
   }
 
   .stat-card {
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    padding: 20px;
-    border: 1px solid var(--border);
-    box-shadow: none !important;
+    flex: 1;                     /* 四卡平分，随屏弹性 */
+    min-width: 0;
+    position: relative;
+    background: linear-gradient(180deg, rgba(14, 32, 56, 0.92) 0%, rgba(8, 20, 38, 0.92) 100%);
+    border-radius: 0.1rem;       /* 10px @1920 */
+    padding: 0.18rem 0.16rem;    /* 18px 16px @1920 */
+    border: 1px solid rgba(0, 200, 255, 0.28);
+    backdrop-filter: blur(6px);
   }
 
   .stat-label {
-    font-size: 13px;
-    color: var(--text2);
-    margin-bottom: 8px;
+    font-size: 0.13rem;          /* 13px @1920 */
+    color: #8fa8c8;
+    margin-bottom: 0.08rem;
+    letter-spacing: 0.01rem;
   }
 
   .stat-value {
-    font-size: 32px;
+    font-size: 0.32rem;          /* 32px @1920，远距离可读 */
     font-weight: 700;
-    margin-bottom: 6px;
+    margin-bottom: 0.06rem;
+    line-height: 1.1;
+    text-shadow: 0 0 0.18rem rgba(0, 217, 255, 0.45);
   }
 
   .stat-trend {
-    font-size: 12px;
+    font-size: 0.12rem;          /* 12px @1920 */
+    letter-spacing: 0.005rem;
   }
 
   .trend-up {
-    color: var(--accent2);
+    color: #00e676;
   }
 
   .trend-down {
-    color: var(--danger);
+    color: #ff5252;
   }
 
-  .card {
-    background: var(--card-bg);
-    border-radius: var(--radius);
-    padding: 20px;
-    border: 1px solid var(--border);
-    margin-bottom: 20px;
-    box-shadow: none !important;
-  }
-
-  .card-title-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 15px;
-  }
-
-  .card-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  /* 主内容区：左地图 + 右两栏 */
+  /* ---------- 主内容区：flex 上下分区，占满剩余高度 ---------- */
   .main-area {
+    flex: 1;                     /* 撑满剩余高度；内容超高时页面滚动，不压缩内部区块 */
     display: flex;
-    gap: 20px;
+    gap: 0.2rem;
     align-items: stretch;
 
     .main-left {
-      flex: 0 0 55%;
+      flex: 0 0 55%;             /* 左地图：55% 宽（可调比例） */
       min-width: 0;
+      display: flex;
+      flex-direction: column;
+
+      .card-fill {
+        flex: 1;
+        min-height: 0;
+      }
     }
 
     .main-right {
@@ -108,47 +115,90 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 0.2rem;
     }
 
     .card {
       margin-bottom: 0;
     }
 
-    /* 右侧表格卡片占满剩余高度，内容多时内部滚动 */
+    /* 右侧表格卡片：高度固定占满剩余区域，数据多时表格内部滚动（页面滚动仍保留） */
     .card-table {
       flex: 1;
       min-height: 0;
       overflow-y: auto;
     }
 
-    /* 右侧一键控制按内容高度 */
+    /* 右侧一键控制：按内容高度 */
     .card-control {
       flex: 0 0 auto;
     }
   }
 
+  /* ---------- 卡片通用 ---------- */
+  .card {
+    position: relative;
+    background: linear-gradient(180deg, rgba(14, 32, 56, 0.92) 0%, rgba(8, 20, 38, 0.92) 100%);
+    border-radius: 0.1rem;
+    padding: 0.16rem;
+    border: 1px solid rgba(0, 200, 255, 0.28);
+    backdrop-filter: blur(6px);
+  }
+
+  .card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.1rem;
+    border-bottom: 1px solid rgba(0, 200, 255, 0.28);
+    margin-bottom: 0.14rem;
+  }
+
+  /* 卡片标题：青色渐变竖条装饰 + 发光 */
+  .card-title {
+    position: relative;
+    font-size: 0.16rem;          /* 16px @1920 */
+    font-weight: 600;
+    color: #e8f4ff;
+    padding-left: 0.12rem;
+    letter-spacing: 0.01rem;
+    text-shadow: 0 0 0.12rem rgba(0, 217, 255, 0.4);
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0.04rem;
+      height: 0.18rem;
+      border-radius: 0.02rem;
+      background: linear-gradient(180deg, #00d9ff 0%, #0077ff 100%);
+      box-shadow: 0 0 0.1rem rgba(0, 217, 255, 0.9);
+    }
+  }
+
   .status-badges {
     display: flex;
-    gap: 10px;
+    gap: 0.1rem;
   }
 
   .map-placeholder {
     background: #0d1b2e;
-    border: 2px dashed var(--border);
-    border-radius: var(--radius);
-    padding: 60px 40px;
+    border: 0.02rem dashed rgba(0, 200, 255, 0.28);
+    border-radius: 0.1rem;
+    padding: 0.6rem 0.4rem;
     text-align: center;
-    color: var(--text2);
+    color: #8fa8c8;
   }
 
   .tag {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
+    gap: 0.05rem;
+    padding: 0.04rem 0.12rem;
+    border-radius: 0.2rem;
+    font-size: 0.12rem;
     font-weight: 500;
   }
 
@@ -168,8 +218,8 @@
   }
 
   .status-dot {
-    width: 8px;
-    height: 8px;
+    width: 0.08rem;
+    height: 0.08rem;
     border-radius: 50%;
     display: inline-block;
 
@@ -186,39 +236,42 @@
     }
   }
 
+  /* ---------- 数据表格 ---------- */
   .overview-table {
     width: 100%;
     border-collapse: collapse;
 
     th,
     td {
-      padding: 12px 12px;
+      padding: 0.12rem 0.12rem;
       text-align: left;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-      color: var(--text);
+      border-bottom: 1px solid rgba(0, 200, 255, 0.14);
+      font-size: 0.13rem;        /* 13px @1920 */
+      color: #e8f4ff;
+      white-space: nowrap;
     }
 
     th {
-      background: transparent;
+      background: rgba(0, 60, 110, 0.25);
       font-weight: 600;
-      color: var(--text2);
-      font-size: 12px;
-      text-transform: uppercase;
+      color: #00d9ff;
+      font-size: 0.12rem;
+      letter-spacing: 0.01rem;
     }
 
-    tr:hover td {
-      background: rgba(255, 255, 255, 0.03);
+    tbody tr:hover td {
+      background: rgba(0, 200, 255, 0.08);
     }
   }
 
+  /* ---------- 按钮 ---------- */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
+    padding: 0.08rem 0.16rem;
+    border-radius: 0.06rem;
+    font-size: 0.14rem;          /* 14px @1920 */
     font-weight: 500;
     border: none;
     cursor: pointer;
@@ -226,12 +279,12 @@
   }
 
   .btn-sm {
-    padding: 4px 12px;
-    font-size: 12px;
+    padding: 0.04rem 0.12rem;
+    font-size: 0.12rem;
   }
 
   .btn-primary {
-    background: var(--accent);
+    background: #3b82f6;
     color: #fff;
 
     &:hover {
@@ -240,36 +293,523 @@
   }
 
   .btn-success {
-    background: var(--accent2);
+    background: #00e676;
     color: #fff;
-    padding: 10px 20px;
-    font-size: 14px;
+    padding: 0.1rem 0.2rem;
+    font-size: 0.14rem;
     font-weight: 600;
+    box-shadow: 0 0 0.16rem rgba(0, 230, 118, 0.3);
 
     &:hover {
       background: #16a34a;
+      box-shadow: 0 0 0.24rem rgba(0, 230, 118, 0.5);
     }
   }
 
   .btn-danger {
-    background: var(--danger);
+    background: #ff5252;
     color: #fff;
-    padding: 10px 20px;
-    font-size: 14px;
+    padding: 0.1rem 0.2rem;
+    font-size: 0.14rem;
     font-weight: 600;
+    box-shadow: 0 0 0.16rem rgba(255, 82, 82, 0.3);
 
     &:hover {
       background: #dc2626;
+      box-shadow: 0 0 0.24rem rgba(255, 82, 82, 0.5);
     }
   }
 
+  /* ---------- 一键控制区 ---------- */
   .control-box {
     flex: 1;
-    min-width: 200px;
-    padding: 24px 20px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    min-width: 2rem;             /* 200px @1920 */
+    padding: 0.24rem 0.2rem;
+    border: 1px solid rgba(0, 200, 255, 0.28);
+    border-radius: 0.1rem;
     text-align: center;
     background: rgba(255, 255, 255, 0.02);
+    box-shadow: inset 0 0 0.24rem rgba(0, 180, 255, 0.05);
+
+    &:hover {
+      border-color: rgba(0, 217, 255, 0.5);
+      box-shadow: 0 0 0.2rem rgba(0, 180, 255, 0.15), inset 0 0 0.24rem rgba(0, 180, 255, 0.08);
+    }
   }
+}
+
+/* ============================================================
+   灯光详情弹框（点击地图标点打开，与 bigGis 详情模式标点弹框一致）
+   弹框经 teleport 渲染到 body，本文件为非 scoped 全局样式，可直接生效
+   ============================================================ */
+/* 空状态 */
+.space-submenu-empty {
+  padding: 0.14rem;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.12rem;
+  text-align: center;
+}
+
+/* ===== 灯光详情弹框 ===== */
+/* 内容区固定高度：页签切换时弹框尺寸稳定（4.4rem，视频页签播放器与之契合） */
+.space-tabs .ant-tabs-content-holder {
+  height: 4.4rem;
+}
+
+/* 页签内容撑满高度，保证上下居中生效 */
+.space-tabs .ant-tabs-content {
+  height: 100%;
+}
+
+.space-tabs .ant-tabs-tabpane {
+  height: 100%;
+}
+
+/* 两个页签铺满弹框宽度（flex 平分） */
+.space-tabs .ant-tabs-nav-list {
+  display: flex;
+  width: 100%;
+}
+
+.space-tabs .ant-tabs-tab {
+  flex: 1;
+  margin: 0 !important;
+  padding: 0.06rem 0 !important;  /* 压缩 tab 高度，让下部表格更宽绰 */
+  justify-content: center;
+  text-align: center;
+  border-radius: 0 !important;
+}
+
+.space-tabs .ant-tabs-tab .ant-tabs-tab-btn {
+  width: 100%;
+  text-align: center;
+}
+
+/* 详情弹框内视频播放器：与内容区高度契合 */
+.video-modal-item {
+  height: 4.4rem;
+  background: #060d1a;
+  border-radius: 0.06rem;
+  overflow: hidden;
+}
+
+.video-modal-item .video-player-wrap {
+  width: 100%;
+  height: 100%;
+}
+
+/* 1. 灯光控制（整合页签）：一键开关（上）→ 回路列表（下），纵向排列 */
+.light-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  height: 100%;
+}
+
+/* 一键开关区（最上边）：两按钮居中，绿/红扁平风格（对称内边距保证按钮上下居中）
+   注意：本区域位于 teleport 弹窗内，rem 基于 html 根字号全局生效（useScreenScale），同样随屏缩放 */
+.pane-switch {
+  display: flex;
+  align-items: center;  /* 按钮垂直居中 */
+  justify-content: center;
+  gap: 0.18rem;
+  padding: 0.08rem 0;  /* 上下对称，按钮在开关区内上下居中 */
+  border-bottom: 1px dashed rgba(0, 150, 255, 0.25);
+}
+
+/* 全开：半透明底 + 同色描边 + 同色文字，扁平化 */
+.pane-switch .icon-btn {
+  padding: 0.08rem 0.28rem;
+  border-radius: 0.06rem;
+  background: rgba(0, 200, 120, 0.15);
+  border: 1px solid rgba(0, 200, 120, 0.45);
+  color: #00e676;
+}
+
+.pane-switch .icon-btn:hover {
+  background: rgba(0, 200, 120, 0.3);
+  border-color: rgba(0, 200, 120, 0.7);
+  box-shadow: 0 0 0.14rem rgba(0, 200, 120, 0.3);
+}
+
+/* 全关：红色风格 */
+.pane-switch .icon-btn.dark-btn {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.45);
+  color: #ff5252;
+}
+
+.pane-switch .icon-btn.dark-btn:hover {
+  background: rgba(255, 80, 80, 0.3);
+  border-color: rgba(255, 80, 80, 0.7);
+  box-shadow: 0 0 0.14rem rgba(255, 80, 80, 0.3);
+}
+
+.pane-switch .icon-btn svg {
+  width: 0.18rem;
+  height: 0.18rem;
+}
+
+.pane-switch .icon-btn .btn-text {
+  font-size: 0.13rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+/* 回路列表区（最下边）：标签 + 表格纵向排列，撑满剩余高度 */
+.pane-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 回路统计标签：占满整行，标签左、数字右（space-between），整体加粗 */
+.circuit-count-tag {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 0.08rem;
+  padding: 0.06rem 0.12rem;
+  font-size: 0.13rem;
+  color: #8fe8ff;
+  background: rgba(0, 200, 255, 0.1);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  border-radius: 0.04rem;
+  white-space: nowrap;
+}
+
+.circuit-count-tag .stat-label {
+  font-size: 0.13rem;
+  font-weight: 700;  /* 加粗 */
+  color: #8fe8ff;
+}
+
+.circuit-count-tag .stat-value {
+  font-size: 0.2rem;  /* 数字放大，与主界面回路统计一致 */
+  font-weight: 700;
+  color: #00d9ff;
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.6);
+}
+
+.circuit-count-tag .stat-value .highlight-text {
+  color: #00e676;
+  text-shadow: 0 0 0.1rem rgba(0, 230, 118, 0.8);
+}
+
+/* 表格加载区：撑满剩余高度 */
+.pane-table .pane-spin.ant-spin-nested-loading,
+.pane-table .pane-spin .ant-spin-container {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+/* 回路表格容器：自适应剩余高度（表格与弹框契合） */
+.space-tabs .circuit-vxe-table-wrap {
+  height: 100%;
+}
+
+/* tab 标签栏深色主题 */
+.video-tabs {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.video-tabs .ant-tabs-nav {
+  margin-bottom: 0.06rem;  /* 压缩 tab 与内容的间距 */
+}
+
+.video-tabs .ant-tabs-nav-wrap {
+  overflow-x: auto;
+}
+
+.video-tabs .ant-tabs-tab {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(0, 200, 255, 0.25) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  border-radius: 0.04rem;
+  transition: all 0.2s ease;
+}
+
+.video-tabs .ant-tabs-tab-active {
+  background: rgba(0, 200, 255, 0.2) !important;
+  border-color: rgba(0, 200, 255, 0.6) !important;
+}
+
+.video-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #00d9ff !important;
+  font-weight: 600;
+}
+
+/* ===== 灯光详情弹框 深色科技主题（全局，teleport 到 body 生效） ===== */
+.space-modal .ant-modal-header {
+  background: linear-gradient(135deg, #102a4a 0%, #0a1a30 100%) !important;
+  border-bottom: 1px solid rgba(0, 200, 255, 0.35) !important;
+  border-radius: 0.08rem 0.08rem 0 0 !important;
+  padding: 0.16rem 0.24rem !important;
+  position: relative;
+}
+
+/* header 底部发光线条 */
+.space-modal .ant-modal-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.55), transparent);
+  pointer-events: none;
+}
+
+.space-modal .ant-modal-title {
+  color: #00d9ff !important;
+  font-size: 0.16rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 1px;
+  text-shadow: 0 0 0.1rem rgba(0, 217, 255, 0.55);
+}
+
+.space-modal .ant-modal-close {
+  color: rgba(255, 255, 255, 0.55) !important;
+  background: rgba(0, 200, 255, 0.08) !important;
+  border-radius: 50% !important;
+  top: 0.15rem !important;
+  right: 0.15rem !important;
+  width: 0.3rem !important;
+  height: 0.3rem !important;
+  transition: all 0.25s ease;
+}
+
+.space-modal .ant-modal-close:hover {
+  color: #ffffff !important;
+  background: rgba(0, 200, 255, 0.28) !important;
+  box-shadow: 0 0 0.14rem rgba(0, 200, 255, 0.5);
+  transform: rotate(90deg);
+}
+
+.space-modal .ant-modal-content {
+  background: linear-gradient(180deg, #0c1e38 0%, #081527 100%) !important;
+  border: 1px solid rgba(0, 200, 255, 0.3) !important;
+  border-radius: 0.08rem !important;
+  box-shadow: 0 0.16rem 0.48rem rgba(0, 0, 0, 0.7), 0 0 0.24rem rgba(0, 180, 255, 0.18) !important;
+}
+
+/* 弹框遮罩 */
+.space-modal .ant-modal-mask {
+  background: rgba(2, 10, 22, 0.6) !important;
+  backdrop-filter: blur(2px);
+}
+
+/* ===== 二次确认弹窗（Modal.confirm，全开全关统一深色风格） =====
+   wrapClassName: 'dark-confirm-modal' 挂载到 .ant-modal-wrap，全局生效 */
+.dark-confirm-modal .ant-modal-content,
+.dark-confirm-modal .ant-modal-confirm {
+  background: linear-gradient(180deg, #15253c 0%, #0f1a2b 100%) !important;
+}
+
+.dark-confirm-modal .ant-modal-content {
+  border: 1px solid rgba(0, 200, 255, 0.3) !important;
+  border-radius: 0.08rem !important;
+  box-shadow: 0 0.12rem 0.32rem rgba(0, 0, 0, 0.55), 0 0 0.2rem rgba(0, 180, 255, 0.15) !important;
+}
+
+.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-body {
+  padding: 0.2rem 0.24rem 0.06rem !important;
+}
+
+.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-title {
+  color: #ffffff !important;
+  font-size: 0.15rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+}
+
+.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-content {
+  color: rgba(240, 245, 255, 0.85) !important;
+  font-size: 0.13rem !important;
+  margin-top: 0.08rem !important;
+}
+
+/* 警告图标：黄色警示，深底上更醒目 */
+.dark-confirm-modal .ant-modal-confirm-body > .anticon {
+  color: #ffc53d !important;
+  font-size: 0.2rem !important;
+}
+
+.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-btns {
+  padding: 0.12rem 0.24rem 0.18rem !important;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.1rem;
+}
+
+.dark-confirm-modal .ant-modal-confirm-btns .ant-btn {
+  border-radius: 0.06rem !important;
+  height: 0.32rem !important;
+  padding: 0 0.18rem !important;
+  font-size: 0.13rem !important;
+}
+
+/* 取消按钮：深灰底 + 浅灰边框 */
+.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-default {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: rgba(240, 245, 255, 0.85) !important;
+}
+
+.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-default:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  color: #ffffff !important;
+}
+
+/* 确认按钮：系统主蓝渐变 */
+.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-primary {
+  background: linear-gradient(135deg, #409eff 0%, #6b5ce7 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0.12rem rgba(64, 158, 255, 0.35);
+}
+
+.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #55aaff 0%, #7d6ff0 100%) !important;
+  box-shadow: 0 0 0.16rem rgba(64, 158, 255, 0.5) !important;
+}
+
+/* ===== 弹框层级：高于页面其他浮层 ===== */
+.space-modal.ant-modal-root,
+.space-modal.ant-modal-wrap,
+.space-modal .ant-modal-wrap,
+.space-modal .ant-modal-mask {
+  z-index: 90000 !important;
+}
+
+/* ===== 回路 vxe-table 深色主题 =====
+   vxe-table 4.7 全部颜色基于 CSS 变量，在表格根元素重新定义变量即可全局继承生效；
+   另加元素级 !important 双保险 */
+.circuit-vxe-table-wrap {
+  /* 主题变量覆盖 */
+  --vxe-ui-font-color: rgba(255, 255, 255, 0.85);
+  --vxe-ui-font-primary-color: #00d9ff;
+  --vxe-ui-font-lighten-color: rgba(255, 255, 255, 0.55);
+  --vxe-ui-font-darken-color: #ffffff;
+  --vxe-ui-font-disabled-color: rgba(255, 255, 255, 0.25);
+  --vxe-ui-layout-background-color: #0b1a2f;
+  --vxe-ui-table-background-color: transparent;
+  --vxe-ui-table-border-color: rgba(0, 200, 255, 0.15);
+  --vxe-ui-table-border-radius: 0.06rem;
+  --vxe-ui-table-header-background-color: rgba(0, 40, 80, 0.35);
+  --vxe-ui-table-header-hover-background-color: rgba(0, 60, 110, 0.45);
+  --vxe-ui-table-header-font-color: #00d9ff;
+  --vxe-ui-table-header-font-weight: 600;
+  --vxe-ui-table-row-hover-background-color: rgba(0, 200, 255, 0.1);
+  --vxe-ui-table-row-hover-color: #ffffff;
+  --vxe-ui-table-row-striped-background-color: rgba(255, 255, 255, 0.02);
+  --vxe-ui-table-row-hover-striped-background-color: rgba(0, 200, 255, 0.12);
+  --vxe-ui-table-column-hover-background-color: rgba(0, 200, 255, 0.08);
+  --vxe-ui-table-column-current-background-color: rgba(0, 200, 255, 0.08);
+  --vxe-ui-table-row-current-background-color: rgba(0, 200, 255, 0.12);
+  --vxe-ui-base-popup-border-color: rgba(0, 200, 255, 0.25);
+  --vxe-ui-base-popup-box-shadow: 0 0.08rem 0.24rem rgba(0, 0, 0, 0.6);
+  /* 元素级兜底 */
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 0.13rem;
+}
+
+.circuit-vxe-table-wrap .vxe-table--header-wrapper {
+  background: rgba(0, 40, 80, 0.35) !important;
+}
+
+.circuit-vxe-table-wrap .vxe-header--column {
+  background: transparent !important;
+  color: #00d9ff !important;
+  border-bottom: 1px solid rgba(0, 200, 255, 0.25) !important;
+  /* 表头：字号调小、不加粗，与正文内容拉开层次 */
+  font-size: 0.12rem;
+  font-weight: 400;
+}
+
+.circuit-vxe-table-wrap .vxe-body--column {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.circuit-vxe-table-wrap .vxe-row:hover .vxe-body--column {
+  background: rgba(0, 200, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+/* 单元格内边距：列间距更透气 */
+.circuit-vxe-table-wrap .vxe-cell {
+  padding: 0 0.1rem !important;
+}
+
+/* 回路表格深色滚动条 */
+.circuit-vxe-table-wrap ::-webkit-scrollbar {
+  width: 0.06rem;
+  height: 0.06rem;
+}
+
+.circuit-vxe-table-wrap ::-webkit-scrollbar-track {
+  background: rgba(0, 30, 60, 0.2);
+  border-radius: 0.03rem;
+}
+
+.circuit-vxe-table-wrap ::-webkit-scrollbar-thumb {
+  background: rgba(0, 150, 255, 0.4);
+  border-radius: 0.03rem;
+}
+
+.circuit-vxe-table-wrap ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 200, 255, 0.6);
+}
+
+/* 固定列分隔阴影 */
+.circuit-vxe-table-wrap .vxe-table--fixed-left-wrapper {
+  box-shadow: 0.04rem 0 0.12rem rgba(0, 0, 0, 0.25);
+}
+
+.circuit-vxe-table-wrap .vxe-table--border-line,
+.circuit-vxe-table-wrap .vxe-table--main-wrapper {
+  border-color: rgba(0, 200, 255, 0.15) !important;
+}
+
+.circuit-vxe-table-wrap .vxe-table--body-wrapper,
+.circuit-vxe-table-wrap .vxe-table--virtual-wrapper {
+  background: transparent !important;
+}
+
+.circuit-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar {
+  width: 0.06rem;
+  height: 0.06rem;
+}
+
+.circuit-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(0, 150, 255, 0.4);
+  border-radius: 0.03rem;
+}
+
+.circuit-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 30, 60, 0.2);
+}
+
+/* 回路状态徽章 */
+.circuit-vxe-table-wrap .circuit-status {
+  font-size: 0.12rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.circuit-vxe-table-wrap .circuit-status.is-on {
+  color: #00e676;
+  text-shadow: 0 0 0.08rem rgba(0, 230, 118, 0.45);
+}
+
+.circuit-vxe-table-wrap .circuit-status.is-off {
+  color: #ff5252;
+  text-shadow: 0 0 0.08rem rgba(255, 82, 82, 0.45);
 }

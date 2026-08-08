@@ -56,11 +56,23 @@
           
           <!-- 场景列表模块 -->
           <div class="module-card space-section">
-            <div class="section-title">场景列表</div>
+            <div class="section-title-row">
+              <div class="section-title">场景列表</div>
+              <!-- 区域筛选下拉框：展示区域名称，支持模糊搜索，选择后筛选对应场景（写法参考 equipmentMonitoring 场景配置筛选） -->
+              <a-select
+                v-model:value="selectedAreaFilter"
+                placeholder="全部"
+                :options="areaFilterOptions"
+                :allow-clear="selectedAreaFilter !== 'all'"
+                style="width: 140px"
+                popup-class-name="scene-area-dropdown"
+                class="scene-area-select"
+              />
+            </div>
             <div class="space-list-scroll-container">
               <div class="space-list">
                 <div 
-                  v-for="(scene, index) in sceneList" 
+                  v-for="(scene, index) in filteredSceneList" 
                   :key="index"
                   class="space-item-row"
                   @click="selectScene(scene.id)"
@@ -87,7 +99,12 @@
     
     <!-- 右上角统计面板 -->
     <div class="top-right-controls">
-      <button class="stats-toggle-btn" @click="toggleStatsPanel" title="查看统计数据">
+      <button
+        class="stats-toggle-btn"
+        :class="{ 'is-active': showStatsPanel }"
+        @click="toggleStatsPanel"
+        title="查看统计数据"
+      >
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="12" width="4" height="9" rx="1"/>
           <rect x="10" y="8" width="4" height="13" rx="1"/>
@@ -199,7 +216,7 @@
       @click.stop
     >
       <div class="space-menu-item" :class="{ 'is-active': activeMenuItem === 'all' }" @click="onMenuItemClick('all')">
-        <span class="menu-label">全开全关</span>
+        <span class="menu-label">一键开关</span>
       </div>
 
       <div class="space-menu-item" :class="{ 'is-active': activeMenuItem === 'scene' }" @click="onMenuItemClick('scene')">
@@ -248,7 +265,7 @@
     <!-- 全开全关弹框（居中） -->
     <a-modal
       v-model:open="allModalVisible"
-      title="全开全关"
+      title="一键开关"
       :footer="null"
       width="360px"
       centered
@@ -279,7 +296,7 @@
       v-model:open="sceneModalVisible"
       title="场景模式"
       :footer="null"
-      width="500px"
+      width="600px"
       centered
       class="space-modal"
       wrapClassName="space-modal"
@@ -291,9 +308,9 @@
           <div class="scene-vxe-table-wrap">
           <vxe-table
             :data="spaceSceneList"
-            height="360"
+            height="480"
             :show-header="false"
-            :row-config="{ keyField: 'id', height: 44 }"
+            :row-config="{ keyField: 'id', height: 60 }"
             :scroll-y="{ enabled: true, gt: 20 }"
             :virtual-config="{ enabled: true, useY: true }"
           >
@@ -326,7 +343,7 @@
       v-model:open="detailModalVisible"
       title="地块回路"
       :footer="null"
-      width="320px"
+      width="540px"
       centered
       class="space-modal"
       wrapClassName="space-modal"
@@ -344,9 +361,9 @@
             :virtual-config="{ enabled: true, useY: true }"
           >
             <vxe-column type="seq" title="序号" width="60" align="center"></vxe-column>
-            <vxe-column field="name" title="回路名称" min-width="100" show-overflow></vxe-column>
-            <vxe-column field="electricCurrent" title="电流" min-width="55" show-overflow></vxe-column>
-            <vxe-column field="status" title="状态" width="65" align="center">
+            <vxe-column field="name" title="回路名称" min-width="170" show-overflow></vxe-column>
+            <vxe-column field="electricCurrent" title="电流" min-width="80" show-overflow></vxe-column>
+            <vxe-column field="status" title="状态" width="70" align="center">
               <template #default="{ row }">
                 <span class="circuit-status" :class="row.status === '开启' ? 'is-on' : 'is-off'">
                   {{ row.status || '关闭' }}
@@ -374,72 +391,74 @@
       @cancel="onSpaceModalCancel"
     >
       <a-tabs type="card" class="video-tabs space-tabs">
-        <!-- 1. 回路概览：回路已开/回路总数 + 电流信息，上下居中 -->
-        <a-tab-pane key="summary" tab="回路概览">
-          <div class="tabs-summary">
-          <div class="summary-nums">
-              <span class="summary-num summary-on">{{ lightCircuitSummary.on }}</span>
-              <span class="summary-divider">/</span>
-              <span class="summary-num">{{ lightCircuitSummary.total }}</span>
+        <!-- 1. 灯光控制（整合页签）：一键开关（上）→ 回路概览（中）→ 回路列表（下，左上侧展示已开启/总回路数） -->
+        <a-tab-pane key="control" tab="一键开关">
+          <div class="light-pane">
+            <!-- 一键开关（最上边） -->
+            <div class="pane-switch">
+              <button class="icon-btn with-text" @click="handleLightAreaOn" title="全开">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <circle cx="12" cy="12" r="5"/>
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+                <span class="btn-text">全开</span>
+              </button>
+              <button class="icon-btn dark-btn with-text" @click="handleLightAreaOff" title="全关">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+                <span class="btn-text">全关</span>
+              </button>
             </div>
-            <div class="summary-label">回路已开 / 回路总数</div>
+            <!-- 回路列表（最下边，左上侧展示已开启回路数/总回路数） -->
+            <div class="pane-table">
+              <div class="circuit-count-tag">
+                <span class="stat-label">回路已开/回路总数</span>
+              <span class="stat-value">
+                <span class="number highlight-text">{{ lightCircuitSummary.on }}</span> 
+                / 
+                <span class="number">{{ lightCircuitSummary.total }}</span>
+              </span>
+              </div>
+              <a-spin :spinning="detailModalLoading" class="pane-spin">
+                <template v-if="lightCircuitList.length">
+                  <div class="circuit-vxe-table-wrap">
+                    <vxe-table
+                      :data="lightCircuitList"
+                      height="320"
+                      :row-config="{ keyField: '_key', height: 38 }"
+                      :scroll-y="{ enabled: true }"
+                    >
+                      <vxe-column type="seq" title="序号" width="60" align="center"></vxe-column>
+                      <vxe-column field="name" title="回路名称" min-width="130" show-overflow sortable></vxe-column>
+                      <vxe-column field="electricCurrent" title="电流" min-width="50" show-overflow sortable></vxe-column>
+                      <vxe-column field="status" title="状态" width="80" align="center" sortable>
+                        <template #default="{ row }">
+                          <span class="circuit-status" :class="row.status === '开启' ? 'is-on' : 'is-off'">
+                            {{ row.status || '关闭' }}
+                          </span>
+                        </template>
+                      </vxe-column>
+                    </vxe-table>
+                  </div>
+                </template>
+                <div v-else class="space-submenu-empty">暂无回路</div>
+              </a-spin>
+            </div>
           </div>
         </a-tab-pane>
-        <!-- 2. 一键开关（样式与左侧面板一致，调用 setAreaOpenApi/setAreaCloseApi） -->
-        <a-tab-pane key="switch" tab="一键开关">
-          <div class="mini-action-group">
-            <button class="icon-btn with-text" @click="handleLightAreaOn" title="全开">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <circle cx="12" cy="12" r="5"/>
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" fill="none"/>
-              </svg>
-              <span class="btn-text">全开</span>
-            </button>
-            <button class="icon-btn dark-btn with-text" @click="handleLightAreaOff" title="全关">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-              <span class="btn-text">全关</span>
-            </button>
-          </div>
-        </a-tab-pane>
-        <!-- 3. 监控视频（与综合预览页一致：写死地址前缀拼接 monitorAdr，不调接口） -->
+        <!-- 2. 监控视频（单独页签，与综合预览页一致：写死地址前缀拼接 monitorAdr，不调接口） -->
         <a-tab-pane key="video" tab="监控视频">
           <div v-if="lightVideoUrl" class="video-modal-item">
             <VideoPlayer :url="lightVideoUrl" />
           </div>
           <div v-else class="space-submenu-empty">暂无监控视频</div>
         </a-tab-pane>
-        <!-- 4. 详情：该标点（地块）下的回路列表（序号/名称/状态） -->
-        <a-tab-pane key="detail" tab="详情">
-          <a-spin :spinning="detailModalLoading">
-            <template v-if="lightCircuitList.length">
-              <div class="circuit-vxe-table-wrap">
-              <vxe-table
-                :data="lightCircuitList"
-                height="400"
-                :row-config="{ keyField: '_key', height: 38 }"
-                :scroll-y="{ enabled: true, gt: 20 }"
-                :virtual-config="{ enabled: true, useY: true }"
-              >
-                <vxe-column type="seq" title="序号" width="60" align="center"></vxe-column>
-                <vxe-column field="name" title="回路名称" min-width="130" show-overflow sortable></vxe-column>
-                <vxe-column field="electricCurrent" title="电流" min-width="50" show-overflow sortable></vxe-column>
-                <vxe-column field="status" title="状态" width="80" align="center" sortable>
-                  <template #default="{ row }">
-                    <span class="circuit-status" :class="row.status === '开启' ? 'is-on' : 'is-off'">
-                      {{ row.status || '关闭' }}
-                    </span>
-                  </template>
-                </vxe-column>
-              </vxe-table>
-              </div>
-            </template>
-            <div v-else class="space-submenu-empty">暂无回路</div>
-          </a-spin>
-        </a-tab-pane>
       </a-tabs>
     </a-modal>
+
+    <!-- 统一二次确认弹框（提示样式：标题栏 + 信息图标 + 动作词高亮） -->
+    <ConfirmModal ref="confirmModalRef" />
   </div>
 </template>
 
@@ -447,12 +466,18 @@
 import { ref, computed, onMounted } from 'vue'
 import MapView from './map.vue'
 import SceneDetailModal from './components/SceneDetailModal.vue'
+import { useScreenScale } from '../useScreenScale'
+
+// 大屏自适应：动态 rem 基准（1rem = 100px @1920），样式统一 rem + flex + vw/vh；
+// teleport 弹窗渲染到 body 后 rem 依然基于 html 根字号，同样随屏缩放
+useScreenScale()
 import { getAllCircuitApi, getAllSpaceApi, getRunTimeCompareApi, openAreaApi, closeAreaApi, getSceneSpaceApi, getVideoListBySpaceApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { getCircuitListApi } from '@/api/baseSettingBqZm'
 import { getLightingPlanAPiNew, postSceneControlApi } from '@/api/equipmentMonitoring'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import { setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
+import ConfirmModal from '../equipmentMonitoring/components/ConfirmModal.vue'
 
 const mapViewRef = ref<any>(null)
 const sceneDetailModalRef = ref<any>(null)
@@ -478,7 +503,7 @@ const videoLoading = ref(false)
 // 视频弹框显隐
 const videoModalVisible = ref(false)
 
-// 全开全关 / 场景模式 / 详情弹框显隐
+// 一键开关 / 场景模式 / 详情弹框显隐
 const allModalVisible = ref(false)
 const sceneModalVisible = ref(false)
 const sceneModalLoading = ref(false)
@@ -512,6 +537,24 @@ const runtimeTableData = ref<any[]>([])
 const allSpaceIdList = ref<string[]>([])
 const spaceList = ref<any[]>([])
 const sceneList = ref<any[]>([])  // 场景配置列表
+
+// 场景列表区域筛选：下拉框选项来自 getAllSpaceApi 返回的地块数据（取 id / districtName 字段），
+// 第一条固定为「全部」（value='all'，选中即展示所有且不显示清除按钮）；spaceList 由 fetchAllSpaceIds 填充（id + name=districtName）
+const selectedAreaFilter = ref<string | undefined>(undefined)
+const areaFilterOptions = computed(() => {
+  const options: { label: string; value: string }[] = [{ label: '全部', value: 'all' }]
+  spaceList.value.forEach((s: any) => {
+    options.push({ label: s.name || String(s.id), value: String(s.id) })
+  })
+  return options
+})
+// 筛选后的场景列表：未选或选「全部」展示所有；选中后按场景数据 tagId 匹配地块 id
+const filteredSceneList = computed(() => {
+  if (!selectedAreaFilter.value || selectedAreaFilter.value === 'all') return sceneList.value
+  return sceneList.value.filter((s) => {
+    return s.tagId != null && String(s.tagId) === String(selectedAreaFilter.value)
+  })
+})
 
 // 地块默认配色
 const DEFAULT_SPACE_COLORS = [
@@ -556,8 +599,9 @@ function handleShowArea() {
   if (mapViewRef.value?.drawAllSpacesExceptNorth) {
     mapViewRef.value.drawAllSpacesExceptNorth()
     console.log('已添加地块边框')
-    // 点击地块模式时批量请求所有地块的场景数据
-    //fetchAllSpaceSceneData()
+    // 点击地块模式时批量请求所有地块的场景数据，
+    // 请求完成后按 circuits 状态更新标点亮/灭（任一回路开启=亮灯，否则熄灭）
+    fetchAllSpaceSceneData()
   }
 }
 
@@ -708,15 +752,39 @@ function closeSpaceMenu() {
 
 // 预加载某个地块的场景/回路数据（按需请求，带缓存；保存完整返回：scenes 与 circuits 同级）
 async function fetchSpaceSceneData(spaceName: string) {
-  const space = spaceList.value.find((s: any) => s.name === spaceName)
+  // 优先从空间列表按名称匹配拿 id；名称不一致时从标点 DOM 的 data-space-id 兑底（space-boundaries.json 的 spaceid）
+  let space = spaceList.value.find((s: any) => s.name === spaceName)
+  let spaceId = space?.id
+  if (!spaceId) {
+    const markerEl = document.querySelector('.space-marker[data-space-name="' + spaceName + '"]')
+    spaceId = markerEl?.getAttribute('data-space-id') || ''
+  }
+  if (!spaceId) {
+    console.warn(`[index] 地块 [${spaceName}] 无法定位 id，跳过状态更新`)
+    return
+  }
   try {
     spaceSceneLoadingMap.value[spaceName] = true
-    const res: any = await getSceneSpaceApi(String(space.id))
+    const res: any = await getSceneSpaceApi(String(spaceId))
     if (res && (res.scenes || res.circuits)) {
       spaceSceneDataMap.value[spaceName] = res
+      // 更新地块标点状态：circuits 中任一回路 status === '开启' → 亮灯，否则熄灭（空数组/无 circuits 均熄灭）
+      // 短路遍历：发现第一个开启回路立即终止，避免全量扫描（最好 O(1)，最坏 O(n)，空间 O(1)）
+      let isOn = false
+      if (Array.isArray(res.circuits)) {
+        for (const c of res.circuits) {
+          if (c.status === '开启') {
+            isOn = true
+            break
+          }
+        }
+      }
+      mapViewRef.value?.updateSpaceMarkerState?.(spaceName, isOn)
     }
   } catch (e) {
     console.error(`[index] 地块 [${spaceName}] 场景接口请求失败:`, e)
+    // 请求失败时按无开启回路处理，标点置为熄灭
+    mapViewRef.value?.updateSpaceMarkerState?.(spaceName, false)
   } finally {
     spaceSceneLoadingMap.value[spaceName] = false
   }
@@ -803,22 +871,14 @@ async function handleSpaceSceneOff(scene: any) {
   return handleSceneAction(scene, '关闭')
 }
 
-// 统一二次确认弹窗（深色主题样式：全局 .dark-confirm-modal）
+// 统一二次确认弹窗（提示样式：标题栏“提示” + 蓝色信息图标 + 动作词高亮，同 comprehensivePreview ConfirmModal）
+const confirmModalRef = ref<InstanceType<typeof ConfirmModal> | null>(null)
 function showLightConfirm(opts: {
   content: string
-  title?: string
   okText?: string
   onOk: () => void | Promise<void>
 }) {
-  Modal.confirm({
-    title: opts.title || '确认操作',
-    content: opts.content,
-    okText: opts.okText || '确认',
-    cancelText: '取消',
-    wrapClassName: 'dark-confirm-modal',
-    zIndex: 92000, // 二次确认最高层级：高于四页签/详情弹框(90000)
-    onOk: opts.onOk,
-  })
+  confirmModalRef.value?.showModal(opts)
 }
 
 // 四页签弹框全开（调用 setAreaOpenApi，按 areaId）
@@ -828,11 +888,13 @@ function handleLightAreaOn() {
     return
   }
   showLightConfirm({
-    content: `确定要全开地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
+    content: `确定要 <strong class="tip-action">全开</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
     onOk: async () => {
       try {
         await setAreaOpenApi({ id: lightAreaId.value })
         message.success('全开成功')
+        // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
+        await loadLightCircuit(lightAreaId.value)
       } catch (error) {
         console.error('全开失败:', error)
         message.error('全开失败，请重试')
@@ -848,11 +910,13 @@ function handleLightAreaOff() {
     return
   }
   showLightConfirm({
-    content: `确定要全关地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
+    content: `确定要 <strong class="tip-action">全关</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
     onOk: async () => {
       try {
         await setAreaCloseApi({ id: lightAreaId.value })
         message.success('全关成功')
+        // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
+        await loadLightCircuit(lightAreaId.value)
       } catch (error) {
         console.error('全关失败:', error)
         message.error('全关失败，请重试')
@@ -869,7 +933,7 @@ function handleSpaceAllOn(spaceName: string) {
     return
   }
   showLightConfirm({
-    content: `确定要全开地块“${spaceName}”的所有回路吗？`,
+    content: `确定要 <strong class="tip-action">全开</strong> 地块“${spaceName}”的所有回路吗？`,
     onOk: async () => {
       try {
         await openAreaApi(space.id)
@@ -891,7 +955,7 @@ function handleSpaceAllOff(spaceName: string) {
     return
   }
   showLightConfirm({
-    content: `确定要全关地块“${spaceName}”的所有回路吗？`,
+    content: `确定要 <strong class="tip-action">全关</strong> 地块“${spaceName}”的所有回路吗？`,
     onOk: async () => {
       try {
         await closeAreaApi(space.id)
@@ -908,7 +972,7 @@ function handleSpaceAllOff(spaceName: string) {
 // 一键全开
 function handleAllOn() {
   showLightConfirm({
-    content: '确定要一键全开所有地块灯光吗？',
+    content: '确定要 <strong class="tip-action">一键全开</strong> 所有地块灯光吗？',
     onOk: () => {
       console.log('一键全开')
       spaceList.value.forEach(space => {
@@ -923,7 +987,7 @@ function handleAllOn() {
 // 一键全关
 function handleAllOff() {
   showLightConfirm({
-    content: '确定要一键全关所有地块灯光吗？',
+    content: '确定要 <strong class="tip-action">一键全关</strong> 所有地块灯光吗？',
     onOk: () => {
       console.log('一键全关')
       spaceList.value.forEach(space => {
@@ -1135,15 +1199,14 @@ async function showSceneDetail(scene: any) {
 // 场景开/关通用操作
 async function handleSceneAction(scene: any, action: '开启' | '关闭') {
   debugger
-  const actionText = action === '开启' ? '开' : '关'
+  const actionText = action === '开启' ? '开启' : '关闭'
   return new Promise<void>((resolve, reject) => {
-    Modal.confirm({
-      title: '确认操作',
-      content: `确定要${actionText}场景“${scene.name}”吗？`,
-      okText: '确认',
-      cancelText: '取消',
-      wrapClassName: 'dark-confirm-modal',
-      zIndex: 92000,  // 二次确认最高层级：高于四页签/详情弹框(90000)
+    if (!confirmModalRef.value) {
+      resolve()
+      return
+    }
+    confirmModalRef.value.showModal({
+      content: `确定要 <strong class="tip-action">${actionText}</strong> 场景“${scene.name}”吗？`,
       onOk: async () => {
         try {
           await postSceneControlApi({
@@ -1337,7 +1400,14 @@ onMounted(() => {
   position: relative;
   width: 100%;
   height: 100%;
-  background: #0f172a;
+  /* 大屏底：深蓝黑底 + 顶部青色光晕 + 细网格纹理（地图加载间隙同样保持科技感） */
+  background-color: #050d1a;
+  background-image:
+    radial-gradient(ellipse 65% 45% at 50% -8%, rgba(0, 150, 255, 0.16) 0%, transparent 62%),
+    radial-gradient(ellipse 45% 35% at 100% 105%, rgba(0, 200, 255, 0.1) 0%, transparent 60%),
+    linear-gradient(rgba(0, 200, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 200, 255, 0.04) 1px, transparent 1px);
+  background-size: auto, auto, 2.5vw 2.5vw, 2.5vw 2.5vw;
   /* 修复地图滚动问题：允许滚轮事件穿透 */
   overflow: visible;
 }
@@ -1346,34 +1416,34 @@ onMounted(() => {
 .bottom-controls {
   position: absolute;
   left: 50%;
-  bottom: 32px;
+  bottom: 0.32rem;
   transform: translateX(-50%);
   z-index: 60000;  /* 高于地图标点，确保不被遮挡 */
   display: flex;
-  gap: 120px;
+  gap: 1.2rem;
 }
 
 .ctrl-btn {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  padding: 10px 16px;
-  min-width: 104px;
+  gap: 0.08rem;
+  padding: 0.1rem 0.16rem;
+  min-width: 1.04rem;
   background: linear-gradient(135deg, rgba(10, 34, 60, 0.92) 0%, rgba(4, 20, 42, 0.92) 100%);
   border: 1.5px solid rgba(0, 217, 255, 0.55);
-  border-radius: 6px;
+  border-radius: 0.06rem;
   color: #8fe8ff;
-  font-size: 14px;
+  font-size: 0.14rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
   box-shadow: 
-    0 4px 16px rgba(0, 150, 230, 0.35),
+    0 0.04rem 0.16rem rgba(0, 150, 230, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.5);
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.5);
 }
 
 /* 外边框光晕层 */
@@ -1404,12 +1474,12 @@ onMounted(() => {
 
 /* 图标样式 */
 .ctrl-btn svg {
-  width: 20px;
-  height: 20px;
+  width: 0.2rem;
+  height: 0.2rem;
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 6px rgba(0, 217, 255, 0.5));
+  filter: drop-shadow(0 2px 0.04rem rgba(0, 0, 0, 0.3)) drop-shadow(0 0 0.06rem rgba(0, 217, 255, 0.5));
   transition: all 0.3s ease;
 }
 
@@ -1424,9 +1494,9 @@ onMounted(() => {
   background: linear-gradient(135deg, rgba(13, 46, 82, 0.95) 0%, rgba(6, 30, 60, 0.95) 100%);
   border-color: rgba(0, 240, 255, 0.95);
   color: #fff;
-  transform: translateY(-3px);
+  transform: translateY(-0.03rem);
   box-shadow: 
-    0 8px 24px rgba(0, 180, 255, 0.5),
+    0 0.08rem 0.24rem rgba(0, 180, 255, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
@@ -1435,7 +1505,7 @@ onMounted(() => {
 }
 
 .ctrl-btn:hover svg {
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4)) drop-shadow(0 0 12px rgba(0, 217, 255, 0.9));
+  filter: drop-shadow(0 0.04rem 0.08rem rgba(0, 0, 0, 0.4)) drop-shadow(0 0 0.12rem rgba(0, 217, 255, 0.9));
 }
 
 /* 激活状态 - 亮青实心填充 + 发光 + 底部指示条，与未激活深底形成强烈反差 */
@@ -1443,12 +1513,12 @@ onMounted(() => {
   background: linear-gradient(135deg, #00d9ff 0%, #00a6ff 100%);
   border-color: rgba(255, 255, 255, 0.95);
   color: #fff;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 20px rgba(0, 217, 255, 0.7);
+  text-shadow: 0 0 0.1rem rgba(255, 255, 255, 0.9), 0 0 0.2rem rgba(0, 217, 255, 0.7);
   box-shadow: 
-    0 6px 28px rgba(0, 220, 255, 0.8),
-    0 0 18px rgba(0, 220, 255, 0.55),
+    0 0.06rem 0.28rem rgba(0, 220, 255, 0.8),
+    0 0 0.18rem rgba(0, 220, 255, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -3px 0 #ffffff;
+    inset 0 -0.03rem 0 #ffffff;
   animation: ctrlBtnActivePulse 2.2s ease-in-out infinite;
 }
 
@@ -1456,17 +1526,17 @@ onMounted(() => {
 @keyframes ctrlBtnActivePulse {
   0%, 100% {
     box-shadow: 
-      0 6px 28px rgba(0, 220, 255, 0.8),
-      0 0 14px rgba(0, 220, 255, 0.5),
+      0 0.06rem 0.28rem rgba(0, 220, 255, 0.8),
+      0 0 0.14rem rgba(0, 220, 255, 0.5),
       inset 0 1px 0 rgba(255, 255, 255, 0.45),
-      inset 0 -3px 0 #ffffff;
+      inset 0 -0.03rem 0 #ffffff;
   }
   50% {
     box-shadow: 
-      0 6px 32px rgba(0, 220, 255, 1),
-      0 0 26px rgba(0, 220, 255, 0.75),
+      0 0.06rem 0.32rem rgba(0, 220, 255, 1),
+      0 0 0.26rem rgba(0, 220, 255, 0.75),
       inset 0 1px 0 rgba(255, 255, 255, 0.45),
-      inset 0 -3px 0 #ffffff;
+      inset 0 -0.03rem 0 #ffffff;
   }
 }
 
@@ -1480,19 +1550,19 @@ onMounted(() => {
 }
 
 .ctrl-btn.is-active svg {
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 16px rgba(0, 220, 255, 1));
+  filter: drop-shadow(0 0 0.08rem rgba(255, 255, 255, 0.9)) drop-shadow(0 0 0.16rem rgba(0, 220, 255, 1));
   transform: scale(1.08);
 }
 
 .ctrl-btn.is-active span {
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.95), 0 0 24px rgba(0, 230, 255, 0.8);
+  text-shadow: 0 0 0.12rem rgba(255, 255, 255, 0.95), 0 0 0.24rem rgba(0, 230, 255, 0.8);
 }
 
-/* 左上角控制按钮 */
+/* 左上角控制按钮（位置用 vw/vh，随视口自适应） */
 .top-left-controls {
   position: absolute;
-  left: 20px;
-  top: 90px;  /* 调整位置：从20px改为90px */
+  left: 1.05vw;  /* 0.2rem @1920 */
+  top: 10.5vh;    /* 1.13rem @1080，位置下移避免遮挡地图内容 */
   z-index: 60000;  /* 高于地图标点（最高50000），确保不被遮挡 */
 }
 
@@ -1500,41 +1570,44 @@ onMounted(() => {
 .control-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 0.417vw;
+  padding: 0.729vw 1.25vw;  /* 0.14rem 0.24rem @1920，随屏缩放 */
   background: linear-gradient(135deg, rgba(0, 30, 60, 0.85) 0%, rgba(0, 20, 40, 0.75) 100%);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(0.12rem);
   border: 1px solid rgba(0, 150, 255, 0.4);
-  border-radius: 6px;
+  border-radius: 0.417vw;
   color: #00d9ff;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   box-shadow: 
-    0 4px 16px rgba(0, 100, 255, 0.2),
+    0 0 1.042vw rgba(0, 150, 255, 0.2),
+    0 0.208vw 0.833vw rgba(0, 100, 255, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .control-toggle-btn .toggle-text {
-  font-size: 13px;
+  font-size: 0.781vw;  /* 0.15rem @1920 */
   font-weight: 500;
   white-space: nowrap;
-  letter-spacing: 0.5px;
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  letter-spacing: 0.052vw;
+  text-shadow: 0 0 0.417vw rgba(0, 217, 255, 0.6);
 }
 
 .control-toggle-btn svg {
   flex-shrink: 0;
-  filter: drop-shadow(0 0 4px rgba(0, 217, 255, 0.6));
+  width: 1.25vw;  /* 0.24rem @1920，覆盖模板固定属性，随屏缩放 */
+  height: 1.25vw;
+  filter: drop-shadow(0 0 0.208vw rgba(0, 217, 255, 0.6));
 }
 
 /* 指示灯 - 未激活时暗淡 */
 .control-toggle-btn .indicator-dot {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 8px;
-  height: 8px;
+  top: 0.06rem;
+  right: 0.06rem;
+  width: 0.08rem;
+  height: 0.08rem;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   transition: all 0.3s ease;
@@ -1546,21 +1619,15 @@ onMounted(() => {
   background: linear-gradient(135deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 30, 60, 0.85) 100%);
   border-color: rgba(0, 217, 255, 0.6);
   box-shadow: 
-    0 6px 24px rgba(0, 150, 255, 0.35),
+    0 0.06rem 0.24rem rgba(0, 150, 255, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
 }
 
 /* 激活状态 - 指示灯亮起 */
-.control-toggle-btn.is-active {
-  background: linear-gradient(135deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 30, 60, 0.85) 100%);
-  border-color: rgba(0, 217, 255, 0.7);
-  color: #00d9ff;
-}
-
 .control-toggle-btn.is-active .indicator-dot {
   background: #00d9ff;
-  box-shadow: 0 0 8px rgba(0, 217, 255, 0.8), 0 0 4px rgba(0, 217, 255, 1);
+  box-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.8), 0 0 0.04rem rgba(0, 217, 255, 1);
 }
 
 /* Click效果 */
@@ -1568,19 +1635,17 @@ onMounted(() => {
   transform: translateY(0);
 }
 
-/* 控制面板面板 */
+/* 控制面板 - 简洁玻璃底（无边框/角标装饰） */
 .control-panel {
   position: absolute;
   left: 0;
-  top: 55px;  /* 相对于父容器，确保在图标下方 */
-  width: 340px;  /* 加宽：与统计面板保持一致宽度 */
+  top: 3.333vw;  /* 按钮放大后下移，确保在图标下方 */
+  width: 22.917vw;  /* 4.4rem @1920，随屏缩放 */
   z-index: 60000;  /* 高于地图标点，确保不被遮挡 */
-  max-height: calc(100vh - 70px);
-  background: rgba(10, 22, 40, 0.7);  /* 提高不透明度 */
-  border: 1px solid rgba(56, 189, 248, 0.35);  /* 边框透明度提高 */
-  border-radius: 4px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(56, 189, 248, 0.15);
+  max-height: calc(100vh - 3.646vw);
+  background: linear-gradient(180deg, rgba(14, 32, 56, 0.88) 0%, rgba(8, 20, 38, 0.88) 100%);
+  border-radius: 0.417vw;
+  backdrop-filter: blur(0.12rem);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1588,18 +1653,18 @@ onMounted(() => {
 
 /* 紧凑状态栏 - 直接显示统计信息，无标题 */
 .stat-bar.compact {
-  padding: 10px 14px;
+  padding: 0.521vw 0.729vw;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.05), rgba(16, 185, 129, 0.03));  /* 更低透明度 */
   border-bottom: 1px solid rgba(56, 189, 248, 0.2);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 0.521vw;
 }
 
 .stat-bar .stat-text {
   color: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
+  font-size: 0.625vw;  /* 0.12rem @1920 */
   line-height: 1.4;
   flex: 1;
   white-space: nowrap;
@@ -1611,14 +1676,14 @@ onMounted(() => {
 }
 
 .close-btn-small {
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
+  width: 0.22rem;
+  height: 0.22rem;
+  min-width: 0.22rem;
   background: rgba(239, 68, 68, 0.15);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 4px;
+  border-radius: 0.04rem;
   color: #ef4444;
-  font-size: 14px;
+  font-size: 0.14rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1635,11 +1700,11 @@ onMounted(() => {
 .control-panel .panel-body {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 0.521vw;
 }
 
 .control-panel .panel-body::-webkit-scrollbar {
-  width: 6px;
+  width: 0.06rem;
 }
 
 .control-panel .panel-body::-webkit-scrollbar-track {
@@ -1648,7 +1713,7 @@ onMounted(() => {
 
 .control-panel .panel-body::-webkit-scrollbar-thumb {
   background: rgba(56, 189, 248, 0.3);
-  border-radius: 3px;
+  border-radius: 0.03rem;
 }
 
 /* 面板头部 */
@@ -1656,7 +1721,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;  /* 减小内边距 */
+  padding: 0.1rem 0.14rem;  /* 减小内边距 */
   background: transparent;  /* 移除渐变背景 */
   border-bottom: 1px solid rgba(56, 189, 248, 0.2);
 }
@@ -1664,25 +1729,25 @@ onMounted(() => {
 .header-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.08rem;
   color: #38bdf8;
-  font-size: 14px;
+  font-size: 0.14rem;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
 .close-btn-small {
-  width: 22px;
-  height: 22px;
+  width: 0.22rem;
+  height: 0.22rem;
   background: rgba(255, 255, 255, 0.08);  /* 透明度从 0.05 提高到 0.08 */
   border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  border-radius: 0.04rem;
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 0.14rem;
   transition: all 0.2s ease;
 }
 
@@ -1697,8 +1762,8 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px;
+  gap: 0.521vw;
+  padding: 0.521vw;
   overflow-y: auto;
 }
 
@@ -1706,8 +1771,8 @@ onMounted(() => {
 .module-card {
   background: rgba(0, 30, 60, 0.5);
   border: 1px solid rgba(0, 150, 255, 0.2);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 0.313vw;
+  padding: 0.521vw 0.625vw;
   position: relative;
   overflow: hidden;
 }
@@ -1727,22 +1792,22 @@ onMounted(() => {
 .stat-section.module-card {
   background: rgba(0, 30, 60, 0.5);
   border: 1px solid rgba(0, 150, 255, 0.2);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 0.313vw;
+  padding: 0.521vw 0.625vw;
 }
 
 .action-section.module-card {
   background: rgba(0, 30, 60, 0.5);
   border: 1px solid rgba(0, 150, 255, 0.2);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 0.313vw;
+  padding: 0.521vw 0.625vw;
 }
 
 .space-section.module-card {
   background: rgba(0, 30, 60, 0.5);
   border: 1px solid rgba(0, 150, 255, 0.2);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: 0.313vw;
+  padding: 0.521vw 0.625vw;
 }
 
 /* 统计区域 */
@@ -1750,32 +1815,36 @@ onMounted(() => {
   background: transparent;  /* 完全透明 */
   border: none;  /* 移除边框 */
   border-radius: 0;
-  padding: 8px 12px;  /* 减小内边距 */
+  padding: 0.08rem 0.12rem;  /* 减小内边距 */
 }
 
 .stat-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
+  gap: 0.08rem;
 }
 
 .stat-label {
   color: rgba(0, 217, 255, 0.7);  /* 青色 */
-  font-size: 12px;
+  font-size: 0.15rem;
   font-weight: 500;
+  white-space: nowrap;  /* 保证与数字同行不换行 */
 }
 
 .stat-value {
   color: #00d9ff;  /* 青色亮色 */
-  font-size: 14px;
+  font-size: 0.22rem;  /* 数字放大突出 */
   font-weight: 700;
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  line-height: 1.2;
+  white-space: nowrap;
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.6);
 }
 
 .highlight-text {
   color: #00d9ff;  /* 青色高亮 */
   font-weight: 700;
-  text-shadow: 0 0 10px rgba(0, 217, 255, 0.8);
+  text-shadow: 0 0 0.1rem rgba(0, 217, 255, 0.8);
 }
 
 .number {
@@ -1787,23 +1856,23 @@ onMounted(() => {
   background: transparent;  /* 完全透明 */
   border: none;  /* 移除边框 */
   border-radius: 0;
-  padding: 6px 0;  /* 简化间距 */
+  padding: 0.06rem 0;  /* 简化间距 */
 }
 
 .mini-action-group {
   display: flex;
-  gap: 8px;
+  gap: 0.08rem;
   justify-content: center;
 }
 
 .icon-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;  /* 调整内边距 */
+  gap: 0.06rem;
+  padding: 0.08rem 0.14rem;  /* 调整内边距 */
   background: rgba(56, 189, 248, 0.15);  /* 稍微提高 */
   border: 1px solid rgba(56, 189, 248, 0.3);  /* 恢复边框 */
-  border-radius: 4px;  /* 参考图的小圆角 */
+  border-radius: 0.04rem;  /* 参考图的小圆角 */
   color: #38bdf8;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1811,11 +1880,11 @@ onMounted(() => {
 
 .icon-btn.with-text {
   width: auto;
-  min-width: 56px;
+  min-width: 0.56rem;
 }
 
 .icon-btn .btn-text {
-  font-size: 12px;
+  font-size: 0.14rem;
   font-weight: 500;
   letter-spacing: 0.5px;
 }
@@ -1824,7 +1893,7 @@ onMounted(() => {
   background: rgba(56, 189, 248, 0.2);
   border-color: rgba(56, 189, 248, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
+  box-shadow: 0 0.04rem 0.12rem rgba(56, 189, 248, 0.2);
 }
 
 .icon-btn:active {
@@ -1852,7 +1921,7 @@ onMounted(() => {
 .mini-action-group .icon-btn:first-child:hover {
   background: rgba(0, 200, 120, 0.3);
   border-color: rgba(0, 200, 120, 0.7);
-  box-shadow: 0 0 14px rgba(0, 200, 120, 0.3);
+  box-shadow: 0 0 0.14rem rgba(0, 200, 120, 0.3);
 }
 
 .mini-action-group .icon-btn.dark-btn {
@@ -1864,7 +1933,7 @@ onMounted(() => {
 .mini-action-group .icon-btn.dark-btn:hover {
   background: rgba(255, 80, 80, 0.3);
   border-color: rgba(255, 80, 80, 0.7);
-  box-shadow: 0 0 14px rgba(255, 80, 80, 0.3);
+  box-shadow: 0 0 0.14rem rgba(255, 80, 80, 0.3);
 }
 
 /* 地块列表区域 */
@@ -1875,15 +1944,78 @@ onMounted(() => {
 
 .section-title {
   color: #00d9ff;  /* 青色，科技发光 */
-  font-size: 13px;
+  font-size: 0.781vw;  /* 0.15rem @1920 */
   font-weight: 600;
-  padding: 0 0 8px 8px;
-  margin-bottom: 8px;
-  border-left: 2px solid rgba(0, 150, 255, 0.6);
+  padding: 0 0 0.417vw 0.417vw;
+  margin-bottom: 0.417vw;
+  border-left: 0.104vw solid rgba(0, 150, 255, 0.6);
   text-transform: none;
   letter-spacing: normal;
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  text-shadow: 0 0 0.417vw rgba(0, 217, 255, 0.6);
   border-bottom: 1px dashed rgba(0, 150, 255, 0.2);
+}
+
+/* 场景列表标题行：标题 + 区域筛选下拉框 */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.417vw;
+}
+
+.section-title-row .section-title {
+  margin-bottom: 0;
+}
+
+/* 区域筛选下拉框本体：深色底 + 紧凑高度（与场景行按钮协调） */
+.scene-area-select :deep(.ant-select-selector) {
+  background: rgba(0, 20, 45, 0.9) !important;
+  border-color: rgba(0, 150, 255, 0.4) !important;
+  border-radius: 0.04rem !important;
+  height: 0.2rem !important;
+  font-size: 0.14rem;
+  display: flex;
+  align-items: center;
+}
+
+.scene-area-select :deep(.ant-select-selection-placeholder),
+.scene-area-select :deep(.ant-select-selection-item) {
+  color: #8fe8ff;
+  line-height: 0.2rem !important;
+}
+
+/* 搜索输入文字 + 清除按钮（X）：深色透明底，与整体风格一致 */
+.scene-area-select :deep(.ant-select-selection-search-input) {
+  color: #e8f4ff;
+}
+
+/* 选中文字（含「全部」）：青色发光，选中态清晰可见 */
+.scene-area-select :deep(.ant-select-selection-item) {
+  color: #00e5ff !important;
+  text-shadow: 0 0 0.06rem rgba(0, 217, 255, 0.6);
+}
+
+.scene-area-select :deep(.ant-select-clear) {
+  background: rgba(0, 60, 110, 0.6);
+  color: rgba(143, 232, 255, 0.85);
+  border-radius: 50%;
+  font-size: 0.1rem;
+  width: 0.14rem;
+  height: 0.14rem;
+  right: 0.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scene-area-select :deep(.ant-select-clear:hover) {
+  color: #00e5ff;
+  background: rgba(0, 100, 170, 0.85);
+  box-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.5);
+}
+
+.scene-area-select :deep(.ant-select-arrow) {
+  color: rgba(0, 217, 255, 0.7);
 }
 
 /* 虚拟滚动容器 - 限制高度，支持滚动 */
@@ -1891,23 +2023,23 @@ onMounted(() => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  max-height: 320px;  /* 限制最大高度 */
-  padding-right: 4px;  /* 留出滚动条空间 */
+  max-height: 30vh;  /* 3.2rem @1080，高度随视口 */
+  padding-right: 0.208vw;  /* 留出滚动条空间 */
 }
 
 /* 自定义滚动条 - 科技感 */
 .space-list-scroll-container::-webkit-scrollbar {
-  width: 5px;
+  width: 0.05rem;
 }
 
 .space-list-scroll-container::-webkit-scrollbar-track {
   background: rgba(0, 30, 60, 0.2);
-  border-radius: 3px;
+  border-radius: 0.03rem;
 }
 
 .space-list-scroll-container::-webkit-scrollbar-thumb {
   background: rgba(0, 150, 255, 0.4);
-  border-radius: 3px;
+  border-radius: 0.03rem;
   transition: background 0.3s ease;
 }
 
@@ -1918,14 +2050,14 @@ onMounted(() => {
 .space-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.06rem;
 }
 
 .space-item-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 6px;  /* 减小高度和左右内边距 */
+  gap: 0.365vw;
+  padding: 0.469vw 0.365vw;  /* 0.09rem 0.07rem @1920 */
   background: transparent;  /* 完全透明 */
   border: none;  /* 移除边框 */
   border-radius: 0;
@@ -1936,7 +2068,7 @@ onMounted(() => {
 .space-item-row:hover {
   background: rgba(56, 189, 248, 0.15);  /* 更明显的 hover 效果 */
   border-color: transparent;
-  transform: translateX(3px);  /* 增强左移效果 */
+  transform: translateX(0.03rem);  /* 增强左移效果 */
 }
 
 .space-item-row:active {
@@ -1944,18 +2076,18 @@ onMounted(() => {
 }
 
 .space-indicator {
-  width: 8px;
-  height: 8px;
-  min-width: 8px;
+  width: 0.08rem;
+  height: 0.08rem;
+  min-width: 0.08rem;
   border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .scene-indicator-icon {
-  width: 10px;
-  height: 10px;
-  min-width: 10px;
-  border-radius: 3px;
+  width: 0.12rem;
+  height: 0.12rem;
+  min-width: 0.12rem;
+  border-radius: 0.04rem;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
@@ -1969,13 +2101,13 @@ onMounted(() => {
 
 .item-name {
   color: #00d9ff;  /* 青色科技感 */
-  font-size: 13px;
+  font-size: 0.781vw;  /* 0.15rem @1920 */
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 0 6px rgba(0, 217, 255, 0.5);
+  text-shadow: 0 0 0.313vw rgba(0, 217, 255, 0.5);
 }
 
 .item-details {
@@ -1986,7 +2118,7 @@ onMounted(() => {
 
 .item-space {
   color: rgba(255, 255, 255, 0.5);
-  font-size: 11px;
+  font-size: 0.573vw;  /* 0.11rem @1920 */
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -1999,23 +2131,23 @@ onMounted(() => {
 
 .scene-info {
   color: #00d9ff;  /* 青色 */
-  font-size: 11px;
+  font-size: 0.573vw;  /* 0.11rem @1920 */
   font-weight: 500;
-  margin-right: 8px;
+  margin-right: 0.417vw;
   flex-shrink: 0;
-  text-shadow: 0 0 4px rgba(0, 217, 255, 0.4);
+  text-shadow: 0 0 0.208vw rgba(0, 217, 255, 0.4);
 }
 
 /* 详情按钮 */
 .detail-btn {
-  padding: 3px 6px;
+  padding: 0.208vw 0.417vw;
   height: auto;
-  min-width: 30px;
-  background: rgba(0, 80, 150, 0.2);
-  border: 1px solid rgba(0, 150, 255, 0.4);
-  border-radius: 4px;
-  color: #00d9ff;  /* 青色 */
-  font-size: 11px;
+  min-width: 1.563vw;
+  background: rgba(0, 150, 255, 0.25);
+  border: 1px solid rgba(0, 180, 255, 0.55);
+  border-radius: 0.26vw;
+  color: #ffffff;
+  font-size: 0.781vw;  /* 0.15rem @1920 */
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -2023,30 +2155,28 @@ onMounted(() => {
   justify-content: center;
   transition: all 0.2s ease;
   flex-shrink: 0;
-  margin-right: 4px;
-  text-shadow: 0 0 6px rgba(0, 217, 255, 0.5);
+  margin-right: 0.208vw;
 }
 
 .detail-btn:hover {
-  background: rgba(56, 189, 248, 0.2);
-  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(0, 170, 255, 0.4);
+  border-color: rgba(0, 200, 255, 0.8);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.15);
 }
 
 /* 场景开/关按钮组 */
 .scene-btn-group {
   display: flex;
-  gap: 3px;
+  gap: 0.03rem;
   flex-shrink: 0;
 }
 
 .scene-action-btn {
-  padding: 3px 7px;
+  padding: 0.26vw 0.469vw;
   height: auto;
-  min-width: 24px;
-  border-radius: 3px;
-  font-size: 11px;
+  min-width: 1.25vw;
+  border-radius: 0.156vw;
+  font-size: 0.781vw;  /* 0.15rem @1920 */
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -2064,7 +2194,7 @@ onMounted(() => {
 .scene-action-btn.on-btn:hover {
   background: rgba(0, 200, 120, 0.3);
   border-color: rgba(0, 200, 120, 0.6);
-  box-shadow: 0 0 10px rgba(0, 200, 120, 0.3);
+  box-shadow: 0 0 0.1rem rgba(0, 200, 120, 0.3);
 }
 
 .scene-action-btn.off-btn {
@@ -2076,14 +2206,14 @@ onMounted(() => {
 .scene-action-btn.off-btn:hover {
   background: rgba(255, 80, 80, 0.3);
   border-color: rgba(255, 80, 80, 0.6);
-  box-shadow: 0 0 10px rgba(255, 80, 80, 0.3);
+  box-shadow: 0 0 0.1rem rgba(255, 80, 80, 0.3);
 }
 
 /* 现代开关 - 更简洁 */
 .toggle-switch {
   position: relative;
-  width: 42px;
-  height: 24px;
+  width: 0.42rem;
+  height: 0.24rem;
   flex-shrink: 0;
 }
 
@@ -2099,21 +2229,21 @@ onMounted(() => {
   inset: 0;
   background: rgba(255, 255, 255, 0.08);  /* 更低透明度 */
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 24px;
+  border-radius: 0.24rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .toggle-slider:before {
   content: "";
   position: absolute;
-  height: 18px;
-  width: 18px;
+  height: 0.18rem;
+  width: 0.18rem;
   left: 2px;
   bottom: 2px;
   background: rgba(255, 255, 255, 0.5);  /* 更淡的滑块 */
   border-radius: 50%;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 0.04rem rgba(0, 0, 0, 0.2);
 }
 
 .toggle-switch input:checked + .toggle-slider {
@@ -2122,23 +2252,23 @@ onMounted(() => {
 }
 
 .toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(18px);
+  transform: translateX(0.18rem);
   background: #38bdf8;  /* 开启时显示蓝色 */
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.5);
+  box-shadow: 0 2px 0.08rem rgba(56, 189, 248, 0.5);
 }
 
 /* 地块列表面板 */
 .space-panel {
   position: absolute;
-  right: 20px;
-  top: 80px;
-  width: 280px;
-  max-height: calc(100vh - 200px);
+  right: 0.2rem;
+  top: 0.8rem;
+  width: 2.8rem;
+  max-height: calc(100vh - 2rem);
   background: rgba(10, 22, 40, 0.95);
   border: 1px solid rgba(56, 189, 248, 0.4);
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.2);
+  border-radius: 0.08rem;
+  backdrop-filter: blur(0.1rem);
+  box-shadow: 0 0.08rem 0.32rem rgba(0, 0, 0, 0.5), 0 0 0.2rem rgba(56, 189, 248, 0.2);
   z-index: 60000;  /* 高于地图标点，确保不被遮挡 */
   overflow: hidden;
   display: flex;
@@ -2149,7 +2279,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
+  padding: 0.14rem 0.16rem;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(16, 185, 129, 0.1));
   border-bottom: 1px solid rgba(56, 189, 248, 0.3);
 }
@@ -2157,19 +2287,19 @@ onMounted(() => {
 .panel-header h3 {
   margin: 0;
   color: #fff;
-  font-size: 16px;
+  font-size: 0.16rem;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
 .close-btn {
-  width: 28px;
-  height: 28px;
+  width: 0.28rem;
+  height: 0.28rem;
   background: rgba(239, 68, 68, 0.2);
   border: 1px solid rgba(239, 68, 68, 0.4);
-  border-radius: 4px;
+  border-radius: 0.04rem;
   color: #ef4444;
-  font-size: 16px;
+  font-size: 0.16rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2185,11 +2315,11 @@ onMounted(() => {
 .panel-body {
   flex: 1;
   overflow-y: auto;
-  padding: 8px;
+  padding: 0.08rem;
 }
 
 .panel-body::-webkit-scrollbar {
-  width: 6px;
+  width: 0.06rem;
 }
 
 .panel-body::-webkit-scrollbar-track {
@@ -2198,7 +2328,7 @@ onMounted(() => {
 
 .panel-body::-webkit-scrollbar-thumb {
   background: rgba(56, 189, 248, 0.3);
-  border-radius: 3px;
+  border-radius: 0.03rem;
 }
 
 .panel-body::-webkit-scrollbar-thumb:hover {
@@ -2208,12 +2338,12 @@ onMounted(() => {
 .space-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 12px;
-  margin-bottom: 6px;
+  gap: 0.1rem;
+  padding: 0.12rem 0.12rem;
+  margin-bottom: 0.06rem;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  border-radius: 0.06rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -2221,8 +2351,8 @@ onMounted(() => {
 .space-item:hover {
   background: rgba(56, 189, 248, 0.1);
   border-color: rgba(56, 189, 248, 0.3);
-  transform: translateX(-4px);
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
+  transform: translateX(-0.04rem);
+  box-shadow: 0 2px 0.08rem rgba(56, 189, 248, 0.15);
 }
 
 .space-item:active {
@@ -2230,9 +2360,9 @@ onMounted(() => {
 }
 
 .space-color {
-  width: 12px;
-  height: 12px;
-  min-width: 12px;
+  width: 0.12rem;
+  height: 0.12rem;
+  min-width: 0.12rem;
   border-radius: 2px;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
@@ -2240,41 +2370,43 @@ onMounted(() => {
 .space-name {
   flex: 1;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
+  font-size: 0.14rem;
   font-weight: 500;
 }
 
 /* ========== 右上角统计面板 - 科技蓝主题 ========== */
 .top-right-controls {
   position: absolute;
-  top: 90px;  /* 与左上角整体管控按钮对齐 */
-  right: 24px;
+  top: 10.5vh;  /* 1.13rem @1080，与左上角整体管控按钮同步下移，随视口自适应 */
+  right: 1.25vw;  /* 0.24rem @1920 */
   z-index: 60000;  /* 高于地图标点（最高50000），确保统计面板不被遮挡 */
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
+  gap: 0.521vw;
 }
 
 /* 统计切换按钮 - 精致科技风 */
 .stats-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: 0.417vw;
+  padding: 0.729vw 1.25vw;  /* 0.14rem 0.24rem @1920，随屏缩放 */
   background: linear-gradient(135deg, rgba(0, 30, 60, 0.85) 0%, rgba(0, 20, 40, 0.75) 100%);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(0.12rem);
   border: 1px solid rgba(0, 150, 255, 0.4);
-  border-radius: 6px;
+  border-radius: 0.417vw;
   color: #00d9ff;
-  font-size: 13px;
+  font-size: 0.781vw;  /* 0.15rem @1920 */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;  /* 支撑 ::before 光晕层定位 */
   box-shadow: 
-    0 4px 16px rgba(0, 100, 255, 0.2),
+    0 0 1.042vw rgba(0, 150, 255, 0.2),
+    0 0.208vw 0.833vw rgba(0, 100, 255, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  text-shadow: 0 0 0.417vw rgba(0, 217, 255, 0.6);
 }
 
 .stats-toggle-btn::before {
@@ -2284,7 +2416,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  border-radius: 6px;
+  border-radius: 0.06rem;
   background: linear-gradient(135deg, rgba(0, 200, 255, 0.1) 0%, transparent 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -2295,7 +2427,7 @@ onMounted(() => {
   background: linear-gradient(135deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 30, 60, 0.85) 100%);
   border-color: rgba(0, 217, 255, 0.6);
   box-shadow: 
-    0 6px 24px rgba(0, 150, 255, 0.35),
+    0 0.06rem 0.24rem rgba(0, 150, 255, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
 }
@@ -2308,47 +2440,95 @@ onMounted(() => {
   transform: translateY(0);
 }
 
+/* ===== 整体管控 / 统计按钮激活态（定义在所有 hover 之后，确保打开面板时高亮始终生效） ===== */
+.control-toggle-btn::after,
+.stats-toggle-btn::after {
+  content: '';
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  bottom: -0.03rem;
+  height: 0.03rem;
+  border-radius: 0.015rem;
+  background: linear-gradient(90deg, transparent, #00d9ff, transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.control-toggle-btn.is-active,
+.stats-toggle-btn.is-active {
+  background: linear-gradient(135deg, rgba(0, 55, 105, 0.95) 0%, rgba(0, 35, 80, 0.92) 100%);
+  border-color: rgba(0, 217, 255, 0.95);
+  color: #00e5ff;
+  box-shadow:
+    0 0 0.24rem rgba(0, 200, 255, 0.45),
+    0 0 0.6rem rgba(0, 180, 255, 0.2),
+    inset 0 0 0.2rem rgba(0, 217, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.control-toggle-btn.is-active .toggle-text,
+.stats-toggle-btn.is-active .toggle-label {
+  text-shadow: 0 0 0.3rem rgba(0, 229, 255, 0.9);
+}
+
+.control-toggle-btn.is-active::after,
+.stats-toggle-btn.is-active::after {
+  opacity: 1;
+  box-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.8);
+}
+
+/* 激活状态 - 指示灯亮起（整体管控按钮） */
+.control-toggle-btn.is-active .indicator-dot {
+  background: #00d9ff;
+  box-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.8), 0 0 0.04rem rgba(0, 217, 255, 1);
+}
+
 .stats-toggle-btn svg {
   flex-shrink: 0;
-  filter: drop-shadow(0 0 4px rgba(0, 217, 255, 0.6));
+  width: 1.25vw;  /* 0.24rem @1920，覆盖模板固定属性，随屏缩放 */
+  height: 1.25vw;
+  filter: drop-shadow(0 0 0.208vw rgba(0, 217, 255, 0.6));
 }
 
 .toggle-label {
   white-space: nowrap;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.026vw;
 }
 
-/* 统计面板 - 高不透明深蓝主题（92%不透明度） */
+/* 统计面板 - 大屏科技风：发光边框 + 渐变玻璃底 */
 .stats-panel {
-  width: 400px;  /* 加宽：容纳柱状图与运行时长对比表格（5列） */
-  max-height: 560px;
+  width: 25vw;  /* 4.8rem @1920，随屏缩放 */
+  max-height: 52vh;  /* 5.6rem @1080，高度随视口 */
   overflow-y: auto;
-  background: rgba(10, 22, 40, 0.7);  /* 与整体管控面板透明度保持一致 */
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(0, 150, 255, 0.35);  /* 提高边框透明度 */
-  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(14, 32, 56, 0.88) 0%, rgba(8, 20, 38, 0.88) 100%);
+  backdrop-filter: blur(0.12rem);
+  border: 1px solid rgba(0, 217, 255, 0.35);
+  border-radius: 0.417vw;
   box-shadow: 
-    0 8px 24px rgba(0, 0, 0, 0.3),
+    0 0 1.354vw rgba(0, 150, 255, 0.14),
+    0 0.417vw 1.25vw rgba(0, 0, 0, 0.3),
     0 0 0 1px rgba(0, 150, 255, 0.05);
-  padding: 12px;
+  padding: 0.625vw;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.625vw;
 }
 
 /* 滚动条美化 */
 .stats-panel::-webkit-scrollbar {
-  width: 6px;
+  width: 0.06rem;
 }
 
 .stats-panel::-webkit-scrollbar-track {
   background: rgba(0, 30, 60, 0.2);
-  border-radius: 3px;
+  border-radius: 0.03rem;
 }
 
 .stats-panel::-webkit-scrollbar-thumb {
   background: rgba(0, 150, 255, 0.4);
-  border-radius: 3px;
+  border-radius: 0.03rem;
   transition: background 0.3s ease;
 }
 
@@ -2361,8 +2541,8 @@ onMounted(() => {
 .table-section {
   background: rgba(0, 30, 60, 0.15);
   border: 1px solid rgba(0, 150, 255, 0.15);
-  border-radius: 6px;
-  padding: 16px;
+  border-radius: 0.313vw;
+  padding: 0.833vw;
   position: relative;
   overflow: hidden;
 }
@@ -2380,67 +2560,67 @@ onMounted(() => {
 
 .chart-section h4,
 .table-section h4 {
-  margin: 0 0 16px 0;
-  font-size: 14px;
+  margin: 0 0 0.833vw 0;
+  font-size: 0.729vw;  /* 0.14rem @1920 */
   font-weight: 600;
   color: #00d9ff;
-  text-shadow: 0 0 12px rgba(0, 217, 255, 0.5);
-  letter-spacing: 0.8px;
+  text-shadow: 0 0 0.625vw rgba(0, 217, 255, 0.5);
+  letter-spacing: 0.042vw;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.313vw;
 }
 
 .chart-section h4::before,
 .table-section h4::before {
   content: '';
-  width: 3px;
-  height: 14px;
+  width: 0.156vw;
+  height: 0.729vw;
   background: linear-gradient(180deg, #00d9ff, #0088ff);
-  border-radius: 2px;
-  box-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  border-radius: 0.104vw;
+  box-shadow: 0 0 0.417vw rgba(0, 217, 255, 0.6);
 }
 
 /* 柱状图区域 - 优化宽度 */
 .bar-chart-section {
-  min-height: 200px;
+  min-height: 10.417vw;  /* 2rem @1920 */
 }
 
 .bar-chart-container {
   display: flex;
   justify-content: space-around;
   align-items: center;
-  height: 150px;
-  padding: 0 4px;
-  gap: 8px;
+  height: 7.813vw;  /* 1.5rem @1920 */
+  padding: 0 0.208vw;
+  gap: 0.417vw;
 }
 
 .bar-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 0.06rem;
   flex: 1;
-  max-width: 70px;  /* 限制每个条目的最大宽度 */
+  max-width: 0.7rem;  /* 限制每个条目的最大宽度 */
 }
 
 .bar-wrapper {
   position: relative;
   width: 100%;
-  height: 120px;
+  height: 1.2rem;
   display: flex;
   justify-content: center;
   align-items: flex-end;
 }
 
 .bar-fill {
-  width: 36px;  /* 柱体宽度从48px减小到36px */
-  min-width: 32px;
+  width: 0.36rem;  /* 柱体宽度从0.48rem减小到0.36rem */
+  min-width: 0.32rem;
   background: linear-gradient(180deg, rgba(0, 200, 255, 0.9) 0%, rgba(0, 100, 255, 0.7) 100%);
-  border-radius: 4px 4px 0 0;
+  border-radius: 0.04rem 0.04rem 0 0;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 
-    0 0 12px rgba(0, 150, 255, 0.5),
+    0 0 0.12rem rgba(0, 150, 255, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   position: relative;
 }
@@ -2453,23 +2633,23 @@ onMounted(() => {
   right: 0;
   bottom: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
-  border-radius: 4px 4px 0 0;
+  border-radius: 0.04rem 0.04rem 0 0;
 }
 
 .bar-value {
   position: absolute;
-  top: -20px;
+  top: -0.2rem;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: 0.11rem;
   font-weight: 700;
   color: #ffffff;
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.6);
   white-space: nowrap;
 }
 
 .bar-label {
-  font-size: 12px;  /* 字体从13px减小到12px */
+  font-size: 0.12rem;  /* 字体从0.13rem减小到0.12rem */
   font-weight: 600;
   color: rgba(255, 255, 255, 0.85);  /* 提高一点颜色亮度 */
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -2484,31 +2664,31 @@ onMounted(() => {
 .runtime-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 0.125rem;
 }
 
 .runtime-table thead th {
   background: linear-gradient(180deg, rgba(0, 80, 150, 0.4) 0%, rgba(0, 50, 100, 0.25) 100%);
   color: rgba(0, 217, 255, 0.95);
-  padding: 12px 6px;
+  padding: 0.12rem 0.06rem;
   text-align: left;
   font-weight: 600;
   white-space: nowrap;  /* 表头文字不换行 */
   border-bottom: 2px solid rgba(0, 150, 255, 0.35);
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.4);
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.4);
   letter-spacing: 0.5px;
 }
 
 .runtime-table thead th:first-child {
-  border-radius: 4px 0 0 0;
+  border-radius: 0.04rem 0 0 0;
 }
 
 .runtime-table thead th:last-child {
-  border-radius: 0 4px 0 0;
+  border-radius: 0 0.04rem 0 0;
 }
 
 .runtime-table tbody td {
-  padding: 11px 10px;
+  padding: 0.11rem 0.1rem;
   color: rgba(255, 255, 255, 0.9);
   border-bottom: 1px solid rgba(0, 100, 180, 0.12);
   transition: all 0.2s ease;
@@ -2520,7 +2700,7 @@ onMounted(() => {
 
 .runtime-table tbody tr:hover {
   background: rgba(0, 150, 255, 0.1);
-  box-shadow: inset 0 0 12px rgba(0, 150, 255, 0.1);
+  box-shadow: inset 0 0 0.12rem rgba(0, 150, 255, 0.1);
 }
 
 .runtime-table tbody tr:last-child td {
@@ -2530,25 +2710,25 @@ onMounted(() => {
 .runtime-table tbody td:first-child {
   color: #00d9ff;
   font-weight: 600;
-  text-shadow: 0 0 6px rgba(0, 217, 255, 0.4);
+  text-shadow: 0 0 0.06rem rgba(0, 217, 255, 0.4);
 }
 
 .runtime-table .change-positive {
   color: #00e676;
   font-weight: 700;
-  text-shadow: 0 0 6px rgba(0, 230, 118, 0.5);
+  text-shadow: 0 0 0.06rem rgba(0, 230, 118, 0.5);
 }
 
 .runtime-table .change-negative {
   color: #ff5252;
   font-weight: 700;
-  text-shadow: 0 0 6px rgba(255, 82, 82, 0.5);
+  text-shadow: 0 0 0.06rem rgba(255, 82, 82, 0.5);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 7.68rem) {
   .stats-panel {
-    width: calc(100vw - 48px);
-    max-height: 480px;
+    width: calc(100vw - 0.48rem);
+    max-height: 4.8rem;
   }
 }
 
@@ -2556,28 +2736,28 @@ onMounted(() => {
 .space-menu {
   position: fixed;
   z-index: 70000;
-  width: 150px;
+  width: 1.5rem;
   background: linear-gradient(180deg, rgba(12, 28, 52, 0.97) 0%, rgba(8, 18, 36, 0.97) 100%);
   border: 1px solid rgba(0, 200, 255, 0.35);
-  border-radius: 8px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 180, 255, 0.15);
+  border-radius: 0.08rem;
+  box-shadow: 0 0.12rem 0.4rem rgba(0, 0, 0, 0.6), 0 0 0.2rem rgba(0, 180, 255, 0.15);
   overflow: visible;
   animation: spaceMenuIn 0.18s ease-out;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(0.12rem);
 }
 
 @keyframes spaceMenuIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(0.06rem); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .space-menu-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 0.1rem;
+  padding: 0.1rem 0.14rem;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 13px;
+  font-size: 0.13rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -2586,16 +2766,16 @@ onMounted(() => {
 .space-menu-item:hover {
   background: rgba(0, 200, 255, 0.15);
   color: #00d9ff;
-  padding-left: 18px;
+  padding-left: 0.18rem;
 }
 
 /* 激活状态（点击后弹框打开时保持高亮） */
 .space-menu-item.is-active {
   background: rgba(0, 200, 255, 0.25);
   color: #00d9ff;
-  border-left: 3px solid #00d9ff;
+  border-left: 0.03rem solid #00d9ff;
   font-weight: 600;
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.6);
 }
 
 .space-menu-item.is-active .menu-label {
@@ -2608,7 +2788,7 @@ onMounted(() => {
 
 .menu-arrow {
   color: rgba(0, 200, 255, 0.6);
-  font-size: 12px;
+  font-size: 0.12rem;
 }
 
 /* 二级菜单（位于一级项内部，left:100% 相对一级项定位） */
@@ -2619,22 +2799,22 @@ onMounted(() => {
 .space-card {
   position: absolute;
   left: 100%;
-  top: -4px;
-  width: 240px;
+  top: -0.04rem;
+  width: 2.4rem;
   margin-left: 2px;
   background: linear-gradient(180deg, rgba(12, 28, 52, 0.98) 0%, rgba(8, 18, 36, 0.98) 100%);
   border: 1px solid rgba(0, 200, 255, 0.35);
-  border-radius: 8px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
+  border-radius: 0.08rem;
+  box-shadow: 0 0.12rem 0.32rem rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(0.12rem);
   animation: spaceMenuIn 0.15s ease-out;
   overflow: hidden;
 }
 
 .space-card-title {
-  padding: 9px 14px;
+  padding: 0.09rem 0.14rem;
   color: #00d9ff;
-  font-size: 12px;
+  font-size: 0.12rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   border-bottom: 1px solid rgba(0, 200, 255, 0.2);
@@ -2643,15 +2823,15 @@ onMounted(() => {
 /* 全开全关卡片 */
 .switch-card-body {
   display: flex;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: 0.08rem;
+  padding: 0.08rem 0.14rem;
 }
 
 .switch-btn {
   flex: 1;
-  padding: 6px 0;
-  border-radius: 5px;
-  font-size: 12px;
+  padding: 0.06rem 0;
+  border-radius: 0.05rem;
+  font-size: 0.12rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2666,7 +2846,7 @@ onMounted(() => {
 .switch-on:hover {
   background: rgba(0, 200, 120, 0.3);
   border-color: rgba(0, 200, 120, 0.7);
-  box-shadow: 0 0 14px rgba(0, 200, 120, 0.3);
+  box-shadow: 0 0 0.14rem rgba(0, 200, 120, 0.3);
 }
 
 .switch-off {
@@ -2678,30 +2858,30 @@ onMounted(() => {
 .switch-off:hover {
   background: rgba(255, 80, 80, 0.3);
   border-color: rgba(255, 80, 80, 0.7);
-  box-shadow: 0 0 14px rgba(255, 80, 80, 0.3);
+  box-shadow: 0 0 0.14rem rgba(255, 80, 80, 0.3);
 }
 
 /* 视频卡片 */
 .video-card-body {
-  padding: 10px;
-  height: 150px;
+  padding: 0.1rem;
+  height: 1.5rem;
 }
 
 .video-card-body :deep(.video-player-wrap) {
   width: 100%;
   height: 100%;
-  border-radius: 6px;
+  border-radius: 0.06rem;
   overflow: hidden;
 }
 
 /* 视频列表卡片 */
 .video-card-list {
-  max-height: 320px;
+  max-height: 3.2rem;
   overflow-y: auto;
 }
 
 .video-card-item {
-  padding: 8px 10px;
+  padding: 0.08rem 0.1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -2711,8 +2891,8 @@ onMounted(() => {
 
 .video-item-name {
   color: rgba(255, 255, 255, 0.85);
-  font-size: 12px;
-  margin-bottom: 6px;
+  font-size: 0.12rem;
+  margin-bottom: 0.06rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2720,14 +2900,14 @@ onMounted(() => {
 
 .video-card-item :deep(.video-player-wrap) {
   width: 100%;
-  height: 130px;
-  border-radius: 6px;
+  height: 1.3rem;
+  border-radius: 0.06rem;
   overflow: hidden;
 }
 
 /* 详情（回路）卡片 */
 .detail-card-list {
-  max-height: 260px;
+  max-height: 2.6rem;
   overflow-y: auto;
 }
 
@@ -2735,7 +2915,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 14px;
+  padding: 0.08rem 0.14rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   transition: background 0.2s ease;
 }
@@ -2746,16 +2926,16 @@ onMounted(() => {
 
 .circuit-name {
   color: rgba(255, 255, 255, 0.9);
-  font-size: 12px;
+  font-size: 0.12rem;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 10px;
+  margin-right: 0.1rem;
 }
 
 .circuit-status {
-  font-size: 12px;
+  font-size: 0.12rem;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -2771,10 +2951,10 @@ onMounted(() => {
 .space-submenu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: 0.08rem;
+  padding: 0.09rem 0.14rem;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 12px;
+  font-size: 0.12rem;
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -2796,18 +2976,18 @@ onMounted(() => {
 }
 
 .space-submenu-empty {
-  padding: 14px;
+  padding: 0.14rem;
   color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
+  font-size: 0.12rem;
   text-align: center;
 }
 
 /* ===== 视频监控弹框 ===== */
 .video-modal-wrap {
   background: #0b1a2f;
-  border-radius: 6px;
-  /* 固定内容区高度：tab 导航约 52px + 播放器区 420px，空数据时保持一致 */
-  height: 472px;
+  border-radius: 0.06rem;
+  /* 固定内容区高度：tab 导航约 0.52rem + 播放器区 4.2rem，空数据时保持一致 */
+  height: 4.72rem;
   overflow: hidden;
 }
 
@@ -2826,9 +3006,9 @@ onMounted(() => {
 }
 
 .video-modal-item {
-  height: 420px;
+  height: 4.2rem;
   background: #060d1a;
-  border-radius: 6px;
+  border-radius: 0.06rem;
   overflow: hidden;
 }
 
@@ -2838,9 +3018,9 @@ onMounted(() => {
 }
 
 /* ===== 详情模式标点四页签弹框 ===== */
-/* 内容区固定高度：四页签切换时弹框尺寸稳定（400px，视频页签播放器与之契合） */
+/* 内容区固定高度：页签切换时弹框尺寸稳定（4.4rem，视频页签播放器与之契合） */
 .space-tabs :deep(.ant-tabs-content-holder) {
-  height: 400px;
+  height: 4.4rem;
 }
 
 /* 页签内容撑满高度，保证上下居中生效 */
@@ -2861,7 +3041,7 @@ onMounted(() => {
 .space-tabs :deep(.ant-tabs-tab) {
   flex: 1;
   margin: 0 !important;
-  padding: 8px 0 !important;
+  padding: 0.06rem 0 !important;  /* 压缩 tab 高度，让下部表格更宽绰 */
   justify-content: center;
   text-align: center;
   border-radius: 0 !important;
@@ -2874,129 +3054,159 @@ onMounted(() => {
 
 /* 四页签弹框内视频播放器：与内容区高度契合 */
 .space-tabs .video-modal-item {
-  height: 400px;
+  height: 4.4rem;
 }
 
-/* 1. 回路概览：标签 + 大数字 + 电流信息，垂直水平居中 */
-.tabs-summary {
+/* 1. 灯光控制（整合页签）：一键开关（上）→ 回路列表（下），纵向排列 */
+.light-pane {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
+  gap: 0.1rem;
   height: 100%;
 }
 
-.summary-nums {
+/* 一键开关区（最上边）：两按钮居中，绿/红扁平风格（对称内边距保证按钮上下居中）
+   注意：本区域位于 teleport 弹窗内，rem 基于 html 根字号全局生效（useScreenScale），同样随屏缩放 */
+.pane-switch {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: center;  /* 按钮垂直居中 */
+  justify-content: center;
+  gap: 0.18rem;
+  padding: 0.08rem 0;  /* 上下对称，按钮在开关区内上下居中 */
+  border-bottom: 1px dashed rgba(0, 150, 255, 0.25);
 }
 
-.summary-num {
-  font-size: 48px;
-  font-weight: 700;
-  color: #e8f4ff;
-  line-height: 1;
-  text-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
-}
-
-.summary-num.summary-on {
+/* 全开：对齐全开全关弹框 switch-on 风格（半透明底 + 同色描边 + 同色文字，扁平化） */
+.pane-switch .icon-btn {
+  padding: 0.08rem 0.28rem;
+  border-radius: 0.06rem;
+  background: rgba(0, 200, 120, 0.15);
+  border: 1px solid rgba(0, 200, 120, 0.45);
   color: #00e676;
-  text-shadow: 0 0 12px rgba(0, 230, 118, 0.5);
 }
 
-.summary-divider {
-  font-size: 40px;
-  color: rgba(255, 255, 255, 0.3);
+.pane-switch .icon-btn:hover {
+  background: rgba(0, 200, 120, 0.3);
+  border-color: rgba(0, 200, 120, 0.7);
+  box-shadow: 0 0 0.14rem rgba(0, 200, 120, 0.3);
 }
 
-.summary-label {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 1px;
+/* 全关：对齐 switch-off 风格 */
+.pane-switch .icon-btn.dark-btn {
+  background: rgba(255, 80, 80, 0.15);
+  border: 1px solid rgba(255, 80, 80, 0.45);
+  color: #ff5252;
 }
 
-/* 概览页签：电流信息 */
-.summary-power {
+.pane-switch .icon-btn.dark-btn:hover {
+  background: rgba(255, 80, 80, 0.3);
+  border-color: rgba(255, 80, 80, 0.7);
+  box-shadow: 0 0 0.14rem rgba(255, 80, 80, 0.3);
+}
+
+.pane-switch .icon-btn svg {
+  width: 0.18rem;
+  height: 0.18rem;
+}
+
+.pane-switch .icon-btn .btn-text {
+  font-size: 0.13rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+/* 回路列表区（最下边）：标签 + 表格纵向排列，撑满剩余高度 */
+.pane-table {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 回路统计标签：占满整行，标签左、数字右（space-between），整体加粗
+   注意：位于 teleport 弹窗内，rem 全局生效随屏缩放 */
+.circuit-count-tag {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 0.08rem;
+  padding: 0.06rem 0.12rem;
+  font-size: 0.13rem;
+  color: #8fe8ff;
+  background: rgba(0, 200, 255, 0.1);
+  border: 1px solid rgba(0, 200, 255, 0.3);
+  border-radius: 0.04rem;
+  white-space: nowrap;
 }
 
-.summary-power .power-label {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 1px;
+.circuit-count-tag .stat-label {
+  font-size: 0.13rem;
+  font-weight: 700;  /* 加粗 */
+  color: #8fe8ff;
 }
 
-.summary-power .power-num {
-  font-size: 22px;
-  font-weight: 600;
-  color: #38bdf8;
-  text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+.circuit-count-tag .stat-value {
+  font-size: 0.2rem;  /* 数字放大，与主界面回路统计一致 */
+  font-weight: 700;
+  color: #00d9ff;
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.6);
 }
 
-.summary-power .power-unit {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+.circuit-count-tag .stat-value .highlight-text {
+  color: #00e676;
+  text-shadow: 0 0 0.1rem rgba(0, 230, 118, 0.8);
 }
 
-/* 2. 一键开关：按钮与左侧面板样式一致，弹框内加大尺寸与间距，上下居中 */
-.space-tabs .mini-action-group {
+/* 表格加载区：撑满剩余高度 */
+.pane-table .pane-spin {
+  flex: 1;
+  min-height: 0;
+}
+
+.pane-table .pane-spin :deep(.ant-spin-nested-loading),
+.pane-table .pane-spin :deep(.ant-spin-container) {
   height: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
+  min-height: 0;
 }
 
-.space-tabs .mini-action-group .icon-btn {
-  padding: 12px 28px;
-  font-size: 14px;
-}
-
-.space-tabs .mini-action-group .icon-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* 4. 详情页签：回路表格容器（与内容区高度一致，表格与弹框契合） */
+/* 回路表格容器：自适应剩余高度（表格与弹框契合） */
 .space-tabs .circuit-vxe-table-wrap {
-  height: 400px;
+  height: 100%;
 }
 
 /* ===== 地块功能弹框内容（弹框头部/内容主题见文件底部全局样式） ===== */
 .space-modal-subtitle {
-  padding: 2px 2px 10px;
+  padding: 2px 2px 0.1rem;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
+  font-size: 0.12rem;
   letter-spacing: 0.5px;
   border-bottom: 1px dashed rgba(0, 150, 255, 0.2);
-  margin-bottom: 10px;
+  margin-bottom: 0.1rem;
 }
 
 /* 全开全关弹框按钮（放大） */
 .all-modal-body {
-  padding: 6px 2px 2px;
+  padding: 0.06rem 2px 2px;
 }
 
 .all-modal-body .switch-btn {
-  padding: 14px 0;
-  font-size: 15px;
+  padding: 0.14rem 0;
+  font-size: 0.15rem;
   letter-spacing: 2px;
-  border-radius: 6px;
+  border-radius: 0.06rem;
 }
 
 /* 场景虚拟列表：场景名单元格（颜色指示点 + 名称） */
 .scene-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.08rem;
 }
 
 .scene-cell-name {
   color: #e8f4ff;
-  font-size: 13px;
+  font-size: 0.16rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3007,7 +3217,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.06rem;
 }
 
 /* tab 标签栏深色主题 */
@@ -3016,7 +3226,7 @@ onMounted(() => {
 }
 
 .video-tabs :deep(.ant-tabs-nav) {
-  margin-bottom: 12px;
+  margin-bottom: 0.06rem;  /* 压缩 tab 与内容的间距 */
 }
 
 .video-tabs :deep(.ant-tabs-nav-wrap) {
@@ -3027,7 +3237,7 @@ onMounted(() => {
   background: rgba(255, 255, 255, 0.06) !important;
   border: 1px solid rgba(0, 200, 255, 0.25) !important;
   color: rgba(255, 255, 255, 0.7) !important;
-  border-radius: 4px;
+  border-radius: 0.04rem;
   transition: all 0.2s ease;
 }
 
@@ -3042,8 +3252,8 @@ onMounted(() => {
 }
 
 .scene-color-dot {
-  width: 8px;
-  height: 8px;
+  width: 0.08rem;
+  height: 0.08rem;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -3056,7 +3266,7 @@ onMounted(() => {
 }
 
 .scene-enable {
-  font-size: 10px;
+  font-size: 0.1rem;
   flex-shrink: 0;
 }
 
@@ -3070,14 +3280,68 @@ onMounted(() => {
 </style>
 
 <style>
+/* ===== 场景区域筛选下拉框：深色科技风 + 高层级（teleport 渲染到 body，需全局样式） ===== */
+.scene-area-dropdown {
+  background: linear-gradient(180deg, #0c1e38 0%, #081527 100%) !important;
+  border: 1px solid rgba(0, 200, 255, 0.3) !important;
+  border-radius: 0.06rem !important;
+  box-shadow: 0 0.12rem 0.4rem rgba(0, 0, 0, 0.6), 0 0 0.2rem rgba(0, 180, 255, 0.15) !important;
+  padding: 0.04rem !important;
+  z-index: 70000 !important;  /* 高于控制面板 60000 与地图标点 50000，避免被遮挡 */
+}
+
+.scene-area-dropdown .ant-select-item {
+  font-size: 0.13rem;
+  color: rgba(255, 255, 255, 0.85);
+  background: transparent;
+  border-radius: 0.04rem;
+  min-height: 0.32rem;
+  line-height: 0.32rem;
+}
+
+.scene-area-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: rgba(0, 200, 255, 0.15);
+  color: #00e5ff;
+}
+
+.scene-area-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: rgba(0, 150, 255, 0.25);
+}
+
+.scene-area-dropdown .ant-select-item-empty {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.scene-area-dropdown .ant-empty-description {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* 搜索输入框（show-search 时面板内会出现） */
+.scene-area-dropdown .ant-select-selection-search-input {
+  color: #e8f4ff;
+}
+
+.scene-area-dropdown ::-webkit-scrollbar {
+  width: 0.05rem;
+}
+
+.scene-area-dropdown ::-webkit-scrollbar-thumb {
+  background: rgba(0, 150, 255, 0.4);
+  border-radius: 0.03rem;
+}
+
+.scene-area-dropdown ::-webkit-scrollbar-track {
+  background: rgba(0, 30, 60, 0.2);
+}
+
 /* ===== 地块功能弹框 / 视频弹框 深色科技主题 =====
    弹框经 teleport 渲染到 body，scoped 样式不生效，需全局样式（class + wrapClassName 均挂载到 .ant-modal-root） */
 .video-modal .ant-modal-header,
 .space-modal .ant-modal-header {
   background: linear-gradient(135deg, #102a4a 0%, #0a1a30 100%) !important;
   border-bottom: 1px solid rgba(0, 200, 255, 0.35) !important;
-  border-radius: 8px 8px 0 0 !important;
-  padding: 16px 24px !important;
+  border-radius: 0.08rem 0.08rem 0 0 !important;
+  padding: 0.16rem 0.24rem !important;
   position: relative;
 }
 
@@ -3097,10 +3361,10 @@ onMounted(() => {
 .video-modal .ant-modal-title,
 .space-modal .ant-modal-title {
   color: #00d9ff !important;
-  font-size: 16px !important;
+  font-size: 0.16rem !important;
   font-weight: 600 !important;
   letter-spacing: 1px;
-  text-shadow: 0 0 10px rgba(0, 217, 255, 0.55);
+  text-shadow: 0 0 0.1rem rgba(0, 217, 255, 0.55);
 }
 
 .video-modal .ant-modal-close,
@@ -3108,10 +3372,10 @@ onMounted(() => {
   color: rgba(255, 255, 255, 0.55) !important;
   background: rgba(0, 200, 255, 0.08) !important;
   border-radius: 50% !important;
-  top: 15px !important;
-  right: 15px !important;
-  width: 30px !important;
-  height: 30px !important;
+  top: 0.15rem !important;
+  right: 0.15rem !important;
+  width: 0.3rem !important;
+  height: 0.3rem !important;
   transition: all 0.25s ease;
 }
 
@@ -3119,7 +3383,7 @@ onMounted(() => {
 .space-modal .ant-modal-close:hover {
   color: #ffffff !important;
   background: rgba(0, 200, 255, 0.28) !important;
-  box-shadow: 0 0 14px rgba(0, 200, 255, 0.5);
+  box-shadow: 0 0 0.14rem rgba(0, 200, 255, 0.5);
   transform: rotate(90deg);
 }
 
@@ -3127,8 +3391,8 @@ onMounted(() => {
 .space-modal .ant-modal-content {
   background: linear-gradient(180deg, #0c1e38 0%, #081527 100%) !important;
   border: 1px solid rgba(0, 200, 255, 0.3) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7), 0 0 24px rgba(0, 180, 255, 0.18) !important;
+  border-radius: 0.08rem !important;
+  box-shadow: 0 0.16rem 0.48rem rgba(0, 0, 0, 0.7), 0 0 0.24rem rgba(0, 180, 255, 0.18) !important;
 }
 
 /* 弹框遮罩 */
@@ -3136,83 +3400,6 @@ onMounted(() => {
 .space-modal .ant-modal-mask {
   background: rgba(2, 10, 22, 0.6) !important;
   backdrop-filter: blur(2px);
-}
-
-/* ===== 二次确认弹窗（Modal.confirm，全开全关/场景操作统一深色风格） =====
-   wrapClassName: 'dark-confirm-modal' 挂载到 .ant-modal-wrap，全局生效；
-   白色底在 .ant-modal-content（cssinjs 生成），需同时覆盖 content 与 confirm 两层 */
-.dark-confirm-modal .ant-modal-content,
-.dark-confirm-modal .ant-modal-confirm {
-  background: linear-gradient(180deg, #15253c 0%, #0f1a2b 100%) !important;
-}
-
-.dark-confirm-modal .ant-modal-content {
-  border: 1px solid rgba(0, 200, 255, 0.3) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 20px rgba(0, 180, 255, 0.15) !important;
-}
-
-.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-body {
-  padding: 20px 24px 6px !important;
-}
-
-.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-title {
-  color: #ffffff !important;
-  font-size: 15px !important;
-  font-weight: 600 !important;
-  letter-spacing: 0.5px;
-}
-
-.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-content {
-  color: rgba(240, 245, 255, 0.85) !important;
-  font-size: 13px !important;
-  margin-top: 8px !important;
-}
-
-/* 警告图标：黄色警示，深底上更醒目 */
-.dark-confirm-modal .ant-modal-confirm-body > .anticon {
-  color: #ffc53d !important;
-  font-size: 20px !important;
-}
-
-.dark-confirm-modal .ant-modal-confirm .ant-modal-confirm-btns {
-  padding: 12px 24px 18px !important;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.dark-confirm-modal .ant-modal-confirm-btns .ant-btn {
-  border-radius: 6px !important;
-  height: 32px !important;
-  padding: 0 18px !important;
-  font-size: 13px !important;
-}
-
-/* 取消按钮：深灰底 + 浅灰边框 */
-.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-default {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.35) !important;
-  color: rgba(240, 245, 255, 0.85) !important;
-}
-
-.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-default:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border-color: rgba(255, 255, 255, 0.6) !important;
-  color: #ffffff !important;
-}
-
-/* 确认按钮：系统主蓝渐变 */
-.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-primary {
-  background: linear-gradient(135deg, #409eff 0%, #6b5ce7 100%) !important;
-  border: none !important;
-  color: #ffffff !important;
-  box-shadow: 0 0 12px rgba(64, 158, 255, 0.35);
-}
-
-.dark-confirm-modal .ant-modal-confirm-btns .ant-btn-primary:hover {
-  background: linear-gradient(135deg, #55aaff 0%, #7d6ff0 100%) !important;
-  box-shadow: 0 0 16px rgba(64, 158, 255, 0.5) !important;
 }
 
 /* ===== 弹框层级：高于一级列表浮层（space-menu z-index: 70000） ===== */
@@ -3241,7 +3428,7 @@ onMounted(() => {
   --vxe-ui-layout-background-color: #0b1a2f;
   --vxe-ui-table-background-color: transparent;
   --vxe-ui-table-border-color: rgba(0, 200, 255, 0.15);
-  --vxe-ui-table-border-radius: 6px;
+  --vxe-ui-table-border-radius: 0.06rem;
   --vxe-ui-table-header-background-color: rgba(0, 40, 80, 0.35);
   --vxe-ui-table-header-hover-background-color: rgba(0, 60, 110, 0.45);
   --vxe-ui-table-header-font-color: #00d9ff;
@@ -3254,11 +3441,16 @@ onMounted(() => {
   --vxe-ui-table-column-current-background-color: rgba(0, 200, 255, 0.08);
   --vxe-ui-table-row-current-background-color: rgba(0, 200, 255, 0.12);
   --vxe-ui-base-popup-border-color: rgba(0, 200, 255, 0.25);
-  --vxe-ui-base-popup-box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --vxe-ui-base-popup-box-shadow: 0 0.08rem 0.24rem rgba(0, 0, 0, 0.6);
   /* 元素级兜底 */
   background: transparent !important;
   color: rgba(255, 255, 255, 0.85) !important;
-  font-size: 13px;
+  font-size: 0.13rem;
+}
+
+/* 场景列表：最小宽度 5.68rem（比原内容区 4.68rem 宽 1rem，配合弹框加宽到 6rem） */
+.scene-vxe-table-wrap {
+  min-width: 5.68rem;
 }
 
 .scene-vxe-table-wrap .vxe-table--header-wrapper,
@@ -3270,8 +3462,14 @@ onMounted(() => {
 .circuit-vxe-table-wrap .vxe-header--column {
   background: transparent !important;
   color: #00d9ff !important;
-  font-weight: 600;
   border-bottom: 1px solid rgba(0, 200, 255, 0.25) !important;
+}
+
+/* 回路表头：字号调小、不加粗，与正文内容拉开层次
+   注意：位于 teleport 弹窗内，rem 全局生效（useScreenScale），随屏缩放 */
+.circuit-vxe-table-wrap .vxe-header--column {
+  font-size: 0.12rem;
+  font-weight: 400;
 }
 
 .scene-vxe-table-wrap .vxe-body--column,
@@ -3290,13 +3488,33 @@ onMounted(() => {
 /* 单元格内边距：列间距更透气 */
 .scene-vxe-table-wrap .vxe-cell,
 .circuit-vxe-table-wrap .vxe-cell {
-  padding: 0 10px !important;
+  padding: 0 0.1rem !important;
+}
+
+/* 回路表格深色滚动条（列表超宽/超高时可滚动查看） */
+.circuit-vxe-table-wrap ::-webkit-scrollbar {
+  width: 0.06rem;
+  height: 0.06rem;
+}
+
+.circuit-vxe-table-wrap ::-webkit-scrollbar-track {
+  background: rgba(0, 30, 60, 0.2);
+  border-radius: 0.03rem;
+}
+
+.circuit-vxe-table-wrap ::-webkit-scrollbar-thumb {
+  background: rgba(0, 150, 255, 0.4);
+  border-radius: 0.03rem;
+}
+
+.circuit-vxe-table-wrap ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 200, 255, 0.6);
 }
 
 /* 固定列分隔阴影 */
 .scene-vxe-table-wrap .vxe-table--fixed-left-wrapper,
 .circuit-vxe-table-wrap .vxe-table--fixed-left-wrapper {
-  box-shadow: 4px 0 12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0.04rem 0 0.12rem rgba(0, 0, 0, 0.25);
 }
 
 .scene-vxe-table-wrap .vxe-table--border-line,
@@ -3315,14 +3533,14 @@ onMounted(() => {
 
 .scene-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar,
 .circuit-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 0.06rem;
+  height: 0.06rem;
 }
 
 .scene-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar-thumb,
 .circuit-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar-thumb {
   background: rgba(0, 150, 255, 0.4);
-  border-radius: 3px;
+  border-radius: 0.03rem;
 }
 
 .scene-vxe-table-wrap .vxe-table--body-wrapper::-webkit-scrollbar-track,
@@ -3334,22 +3552,22 @@ onMounted(() => {
 .scene-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 0.1rem;
 }
 
 .scene-indicator-icon {
-  width: 8px;
-  height: 8px;
+  width: 0.12rem;
+  height: 0.12rem;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
+  box-shadow: 0 0 0.06rem currentColor;
 }
 
 .scene-cell-name {
   flex: 1;
   min-width: 0;
   color: #e8f4ff;
-  font-size: 13px;
+  font-size: 0.16rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3359,27 +3577,26 @@ onMounted(() => {
 .scene-mid-detail {
   flex-shrink: 0;
   margin: 0 !important;
-  padding: 3px 10px;
-  height: 24px;
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 0.04rem 0.18rem;
+  height: 0.34rem;
+  min-width: 0.68rem;
+  border-radius: 0.08rem;
+  font-size: 0.17rem;
   font-weight: 600;
   letter-spacing: 1px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 80, 150, 0.15);
-  border: 1px solid rgba(0, 150, 255, 0.45);
-  color: #00d9ff;
-  text-shadow: 0 0 6px rgba(0, 217, 255, 0.5);
+  background: rgba(0, 150, 255, 0.25);
+  border: 1px solid rgba(0, 180, 255, 0.55);
+  color: #ffffff;
   transition: all 0.2s ease;
 }
 
 .scene-mid-detail:hover {
-  background: rgba(56, 189, 248, 0.25);
-  border-color: rgba(56, 189, 248, 0.7);
-  box-shadow: 0 0 12px rgba(0, 200, 255, 0.35);
+  background: rgba(0, 170, 255, 0.4);
+  border-color: rgba(0, 200, 255, 0.85);
   transform: translateY(-1px);
 }
 
@@ -3388,16 +3605,16 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 0.06rem;
 }
 
 .scene-btn-group .detail-btn,
 .scene-btn-group .scene-action-btn {
-  padding: 3px 10px;
-  height: 24px;
-  min-width: 40px;
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 0.03rem 0.1rem;
+  height: 0.24rem;
+  min-width: 0.4rem;
+  border-radius: 0.04rem;
+  font-size: 0.11rem;
   font-weight: 600;
   letter-spacing: 1px;
   cursor: pointer;
@@ -3408,14 +3625,14 @@ onMounted(() => {
   background: rgba(0, 80, 150, 0.15);
   border: 1px solid rgba(0, 150, 255, 0.45);
   color: #00d9ff;
-  text-shadow: 0 0 6px rgba(0, 217, 255, 0.5);
+  text-shadow: 0 0 0.06rem rgba(0, 217, 255, 0.5);
   transition: all 0.2s ease;
 }
 
 .scene-btn-group .detail-btn:hover {
   background: rgba(56, 189, 248, 0.25);
   border-color: rgba(56, 189, 248, 0.7);
-  box-shadow: 0 0 12px rgba(0, 200, 255, 0.35);
+  box-shadow: 0 0 0.12rem rgba(0, 200, 255, 0.35);
   transform: translateY(-1px);
 }
 
@@ -3423,13 +3640,13 @@ onMounted(() => {
   background: rgba(16, 120, 80, 0.15);
   border-color: rgba(34, 197, 94, 0.5);
   color: #34d399;
-  text-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
+  text-shadow: 0 0 0.06rem rgba(52, 211, 153, 0.5);
 }
 
 .scene-btn-group .on-btn:hover {
   background: rgba(34, 197, 94, 0.25);
   border-color: rgba(34, 197, 94, 0.8);
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
+  box-shadow: 0 0 0.12rem rgba(34, 197, 94, 0.35);
   transform: translateY(-1px);
 }
 
@@ -3437,30 +3654,30 @@ onMounted(() => {
   background: rgba(180, 40, 40, 0.15);
   border-color: rgba(239, 68, 68, 0.5);
   color: #f87171;
-  text-shadow: 0 0 6px rgba(248, 113, 113, 0.5);
+  text-shadow: 0 0 0.06rem rgba(248, 113, 113, 0.5);
 }
 
 .scene-btn-group .off-btn:hover {
   background: rgba(239, 68, 68, 0.25);
   border-color: rgba(239, 68, 68, 0.8);
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 0.12rem rgba(239, 68, 68, 0.35);
   transform: translateY(-1px);
 }
 
 /* 回路状态徽章（全局兜底） */
 .circuit-vxe-table-wrap .circuit-status {
-  font-size: 12px;
+  font-size: 0.12rem;
   font-weight: 600;
   flex-shrink: 0;
 }
 
 .circuit-vxe-table-wrap .circuit-status.is-on {
   color: #00e676;
-  text-shadow: 0 0 8px rgba(0, 230, 118, 0.45);
+  text-shadow: 0 0 0.08rem rgba(0, 230, 118, 0.45);
 }
 
 .circuit-vxe-table-wrap .circuit-status.is-off {
   color: #ff5252;
-  text-shadow: 0 0 8px rgba(255, 82, 82, 0.45);
+  text-shadow: 0 0 0.08rem rgba(255, 82, 82, 0.45);
 }
 </style>

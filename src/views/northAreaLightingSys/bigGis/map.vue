@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadMapScripts } from '/@/components/map/loadMapScripts'
-import { getAllAreaApi, openAreaApi, closeAreaApi } from '../comprehensivePreview/comprehensivePreview.api'
+import { getAllAreaApi, getAllCircuitApi, openAreaApi, closeAreaApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { VideoCamera } from '@element-plus/icons-vue'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import spaceBoundariesData from './space-boundaries.json'
@@ -68,12 +68,19 @@ let openedListEl: HTMLElement | null = null;
 // 展开列表时对应 marker 容器的原始 z-index（关闭时还原）
 let openedMarkerEl: HTMLElement | null = null;
 let openedMarkerOriginalZ: string = '';
+// 展开列表的滚轮拦截处理函数（收起时移除）
+let openedListWheelHandler: ((e: WheelEvent) => void) | null = null;
 
 /**
  * 关闭当前展开的成员列表
  */
 function closeAllMarkerLists() {
   if (openedListEl) {
+    // 移除滚轮拦截监听，避免内存泄漏
+    if (openedListWheelHandler) {
+      openedListEl.removeEventListener('wheel', openedListWheelHandler, true);
+      openedListWheelHandler = null;
+    }
     openedListEl.style.display = 'none';
     // 清除边界适配残留的内联样式（top/bottom/transform/maxHeight），下次展开重新计算
     openedListEl.style.top = '';
@@ -90,6 +97,30 @@ function closeAllMarkerLists() {
   }
   // 清除列表项激活高亮
   document.querySelectorAll('.marker-list-item.is-active').forEach((li) => li.classList.remove('is-active'));
+}
+
+/**
+ * 列表滚轮拦截：鼠标悬停在列表内滚动时只滚动列表本身，不穿透到地图触发缩放
+ * - 捕获阶段拦截，阻止 wheel 事件到达地图容器的监听器
+ * - 列表滚动到顶部/底部或无需滚动时，阻止默认行为（防止地图缩放）
+ */
+function bindListWheelGuard(listEl: HTMLElement) {
+  if (openedListWheelHandler) {
+    listEl.removeEventListener('wheel', openedListWheelHandler, true);
+    openedListWheelHandler = null;
+  }
+  const handler = (e: WheelEvent) => {
+    e.stopPropagation();
+    const { scrollTop, scrollHeight, clientHeight } = listEl;
+    const canScroll = scrollHeight > clientHeight;
+    const atTop = scrollTop <= 0;
+    const atBottom = scrollTop + clientHeight >= scrollHeight - 1;
+    if (!canScroll || (e.deltaY > 0 && atBottom) || (e.deltaY < 0 && atTop)) {
+      e.preventDefault();
+    }
+  };
+  listEl.addEventListener('wheel', handler, { passive: false, capture: true });
+  openedListWheelHandler = handler;
 }
 
 /**
@@ -497,7 +528,7 @@ function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number,
   // 说明：SDK 以 anchor:'bottom' 创建 marker（外层 translate(-50%,-100%)，底部中心对齐坐标点），
   // 内层容器需 translate(0, 50%) 补偿，使图标视觉中心正好落在坐标点上（否则图标整体偏左上 35px、上 70px，看起来不在地块内）
   const markerHTML = `
-    <div class="space-marker" data-space-name="${spaceName}" style="
+    <div class="space-marker" data-space-name="${spaceName}" data-space-id="${spaceid || ''}" style="
       position: relative;
       width: 70px;
       height: 70px;
@@ -505,8 +536,8 @@ function addSpaceMarker(spaceName: string, centerLon: number, centerLat: number,
       transform: translate(0, 50%);
       pointer-events: none;
     " title="${spaceName}">
-      <!-- 灯泡图标 -->
-      <img src="${lightOnImg}" style="
+      <!-- 灯泡图标：默认熄灭，点击地块模式请求 scenes 接口后按回路状态切换亮/灭 -->
+      <img src="${lightOffImg}" style="
         position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
         width: 70px; height: 70px; object-fit: contain;
         pointer-events: auto;
@@ -544,6 +575,23 @@ function setSpaceMarkerActive(spaceName: string, active: boolean) {
   els.forEach((el) => {
     if (el.getAttribute('data-space-name') === spaceName) {
       el.classList.toggle('is-active', active);
+    }
+  });
+}
+
+/**
+ * 更新地块标点亮/灭状态（直接操作标点内 img 的 src，避免重建标点导致坐标错乱）
+ * @param spaceName 地块名
+ * @param isOn true=亮灯（任一回路开启），false=熄灭（全部回路关闭）
+ */
+function updateSpaceMarkerState(spaceName: string, isOn: boolean) {
+  if (!spaceName) return;
+  const imgSrc = isOn ? lightOnImg : lightOffImg;
+  const els = document.querySelectorAll('.space-marker[data-space-name="' + spaceName + '"]');
+  els.forEach((el) => {
+    const img = el.querySelector('img');
+    if (img && img.getAttribute('src') !== imgSrc) {
+      img.setAttribute('src', imgSrc);
     }
   });
 }
@@ -942,6 +990,12 @@ function adjustMarkerListPosition(el: HTMLElement, listEl: HTMLElement) {
   // display 已置为 block 后再测量实际尺寸
   const listW = listEl.offsetWidth;
   const listH = listEl.offsetHeight;
+  // 滚动阈值：6 条以内完整展示（不出现滚动条），超过 6 条才限高滚动
+  const itemEls = listEl.querySelectorAll<HTMLElement>('.marker-list-item');
+  const headerH = listEl.querySelector<HTMLElement>('.marker-list-header')?.offsetHeight || 0;
+  const itemH = itemEls.length > 0 ? (itemEls[0].offsetHeight || 0) : 0;
+  // 内容自然总高：直接用 scrollHeight 实测（含列表底部 padding，避免估算偏矮几像素导致误出滚动条）
+  const fullListH = listEl.scrollHeight;
 
   // 水平偏移（dx > 0 右移、dx < 0 左移，叠加在默认的 -50% 居中之上）
   const centerX = rect.left + rect.width / 2;
@@ -970,7 +1024,13 @@ function adjustMarkerListPosition(el: HTMLElement, listEl: HTMLElement) {
       maxH = Math.min(listH, spaceAbove - TOP_SAFE);
     }
   }
-  listEl.style.maxHeight = `${Math.max(60, maxH)}px`;
+  // 超过 6 条：限制为表头 + 6 行高度（视口更小时按视口），多出的条目滚动查看；
+  // 6 条以内：不压缩（完整展示全部条目，即使视口空间不足也不出现滚动条）
+  const finalMaxH =
+    itemEls.length > 6
+      ? Math.min(Math.max(60, maxH - 6), headerH + itemH * 6)
+      : Math.max(fullListH, Math.max(60, maxH - 6));
+  listEl.style.maxHeight = `${finalMaxH}px`;
   listEl.style.transform = `translate(-50%, ${dy}px) translateX(${dx}px)`;
 }
 
@@ -995,12 +1055,14 @@ const handleMarkerMainClick = (data: any, group: any[]) => {
       const isHidden = listEl.style.display === 'none';
       listEl.style.display = isHidden ? 'block' : 'none';
       openedListEl = isHidden ? listEl : null;
-      // 展开时将 marker 容器（含 SDK wrapper）提升到最高层级，确保弹框列表不被其他标点遮挡
+      // 展开时将 marker 容器（含 SDK wrapper）提升到最高层级，确保弹框列表不被其他标点/地图文字遮挡
       if (isHidden && el) {
         const wrapper = (el.parentElement && el.parentElement !== document.body) ? el.parentElement : el;
         openedMarkerEl = wrapper;
         openedMarkerOriginalZ = wrapper.style.zIndex;
-        wrapper.style.zIndex = '400';
+        wrapper.style.zIndex = '60000';
+        // 拦截列表内滚轮事件，避免穿透到地图触发缩放
+        bindListWheelGuard(listEl);
         // 展开后做视口边界适配，避免列表靠近屏幕边缘时被截断
         adjustMarkerListPosition(el, listEl);
       }
@@ -1072,24 +1134,31 @@ const customizeMarker = (
 
 /**
  * 根据单个设备数据生成对应的标记 DOM
+ * @param forceOff 详情模式下统一先熄灭，亮灭状态随后由 getAllCircuitApi 回路数据驱动（避免双状态源不一致）
  */
-function buildMarkerDom(item: any, group: any[] = []): string {
+function buildMarkerDom(item: any, group: any[] = [], forceOff = false): string {
   let lightIcon: string;
-  if (item.status === '关闭') {
+  if (forceOff || item.status === '关闭') {
     lightIcon = item.type == 1 ? lightOff : areaLightOff;
   } else {
     lightIcon = item.type == 1 ? lightOn : areaLightOn;
   }
   // 统一 type/id 为字符串，避免数字与字符串混用导致 DOM id 碰撞
   const domId = `light-${String(item.type)}-${String(item.id)}`;
-  // 标点成员列表（点击标点主体时切换展示，点击某一项打开对应设备详情）
+  // 标点成员列表（点击标点主体时切换展示，点击某一项打开对应设备详情），列表顶部展示“区域名称”表头；
+  // 超过 6 条时加 marker-list-many 类（CSS 限高滚动），6 条以内不加（CSS 默认完整展示，不出现滚动条）
   const listItems = group
     .map(
       (g) =>
         `<div class="marker-list-item" data-id="${String(g.id)}" data-type="${String(g.type)}">${g.areaName || '灯光'}</div>`
     )
     .join('');
-  const listHtml = listItems ? `<div class="marker-list" style="display: none;">${listItems}</div>` : '';
+  const listHtml = listItems
+    ? `<div class="marker-list${group.length > 6 ? ' marker-list-many' : ''}" style="display: none;">
+      <div class="marker-list-header">区域名称22</div>
+      ${listItems}
+    </div>`
+    : '';
   // 同坐标成员个数徽标（大于 1 时展示）
   const badgeHtml =
     group.length > 1
@@ -1160,6 +1229,22 @@ async function AddLightingMarker() {
     locGroupMap.get(key)!.push(item);
   });
 
+  // 2.1 坐标点 -> 标点信息映射：同坐标合并后，收集该坐标关联的全部 areaId（用于后续按回路数据点亮标点）
+  // 空间复杂度 O(k)（k=有坐标标点数）；标点 DOM id = light-{type}-{id}，其中 id 即 areaId
+  const areaIdByMarker = new Map<string, { domId: string; type: any; areaIds: string[] }>();
+  locGroupMap.forEach((group, locKey) => {
+    const main = group[0];
+    const areaIds = new Set<string>();
+    group.forEach((g) => {
+      if (g.id !== undefined && g.id !== null && g.id !== '') areaIds.add(String(g.id));
+    });
+    areaIdByMarker.set(locKey, {
+      domId: `light-${String(main.type)}-${String(main.id)}`,
+      type: main.type,
+      areaIds: Array.from(areaIds),
+    });
+  });
+
   // 3. 遍历数据，为有经纬度的点位生成标记（同坐标合并为一个标点）
   let markerFail = 0;
   const handledLoc = new Set<string>();
@@ -1179,7 +1264,8 @@ async function AddLightingMarker() {
     const main = group[0];
     const domId = `light-${String(main.type)}-${String(main.id)}`;
 
-    const elDom = buildMarkerDom(main, group);
+    // 详情模式统一先熄灭：标点亮灭状态由 getAllCircuitApi 的回路数据驱动（避免双状态源不一致）
+    const elDom = buildMarkerDom(main, group, true);
     const marker = customizeMarker(elDom, lat, lng, main.areaName || '泛光照明', main, group, domId);
     if (!marker) {
       markerFail++;
@@ -1192,6 +1278,8 @@ async function AddLightingMarker() {
   // 等待标点 DOM 渲染完成后，按屏幕 y 坐标排序层级（前面的盖住后面的）
   setTimeout(() => {
     sortMarkerZByY();
+    // 每次进入详情模式重新请求最新回路数据后点亮标点（不做缓存，保证状态最新）
+    lightMarkersByCircuitStatus(areaIdByMarker);
   }, 300);
 }
 
@@ -1222,6 +1310,51 @@ function sortMarkerZByY() {
   markers.forEach((m, index) => {
     // 基础 100 + 排名，确保前面的（y 大）盖住后面的，且低于 header（500）
     m.el.style.zIndex = String(100 + index);
+  });
+}
+
+/**
+ * 按 getAllCircuitApi 回路数据点亮详情模式标点（性能优化）：
+ * 1. 每次点击详情模式重新请求 getAllCircuitApi，不做缓存（保证标点状态为最新）；
+ * 2. 单次遍历回路数组（O(m)），用 Set 以 O(1) 收集 areaId -> 是否有开启回路；
+ * 3. 遍历坐标标点（O(k)），任一组内 areaId 有开启回路即点亮（some 短路，发现即停）；
+ * 4. DOM 用 getElementById O(1) 定位（标点 id 即 areaId），不做全量 DOM 扫描。
+ */
+async function lightMarkersByCircuitStatus(
+  areaIdByMarker: Map<string, { domId: string; type: any; areaIds: string[] }>
+) {
+  if (!areaIdByMarker.size) return;
+
+  // 1. 每次进入详情模式重新请求最新回路状态（不做缓存，保证标点亮灭反映最新数据）
+  let circuits: any[] = [];
+  try {
+    const res: any = await getAllCircuitApi();
+    circuits = Array.isArray(res) ? res : [];
+  } catch (e) {
+    console.error('[map] 获取全部回路数据失败，标点保持熄灭:', e);
+    return;
+  }
+  if (!circuits.length) return;
+
+  // 2. 单次遍历回路数组，收集“有开启回路”的 areaId 集合（status === '开启'，Set 去重 O(1)）
+  const onAreaIds = new Set<string>();
+  for (const c of circuits) {
+    if (!c || c.status !== '开启') continue;
+    const aid = String(c.areaId ?? '');
+    if (aid) onAreaIds.add(aid);
+  }
+  if (!onAreaIds.size) return;
+
+  // 3. 遍历坐标标点：组内任一 areaId 有开启回路即点亮（some 短路，发现即停）
+  areaIdByMarker.forEach(({ domId, type, areaIds }) => {
+    const lit = areaIds.some((aid) => onAreaIds.has(aid));
+    if (!lit) return;
+    const el = document.getElementById(domId);
+    if (!el) return;
+    const lightIcon = type == 1 ? lightOn : areaLightOn;
+    if (el.style.backgroundImage !== `url('${lightIcon}')`) {
+      el.style.backgroundImage = `url('${lightIcon}')`;
+    }
   });
 }
 
@@ -1413,6 +1546,7 @@ defineExpose({
   AddLightingMarker,  // 添加标点
   openLightDetail,  // 灯光详情弹窗（父组件非详情模式回退调用）
   setSpaceMarkerActive,  // 设置地块标点 active 状态
+  updateSpaceMarkerState,  // 更新地块标点亮/灭状态（任一回路开启=亮灯）
   clearMarkerListActive,  // 清除成员列表项激活高亮（列表保持展示）
   collapseMarkerList  // 收起成员列表（非详情模式点击列表项时保持原行为）
 });
@@ -1442,10 +1576,12 @@ onUnmounted(() => {
 <style scoped>
 .map-container {
   width: 100%;
-  height: 820px;
-  border-radius: 6px;
+  height: 820px;  /* 地图容器固定高度（SDK 依赖稳定尺寸），不随缩放 */
+  border-radius: 0.06rem;
   overflow: hidden;
   position: relative;
+  /* 隔离大屏页 rem 基准（calc(100vw/192)），地图 UI 保持固定字号不受缩放影响 */
+  font-size: 16px;
   /* 修复地图滚动问题：允许鼠标滚轮事件穿透到地图 SDK */
   pointer-events: auto;
 }
@@ -1463,12 +1599,12 @@ onUnmounted(() => {
   position: absolute;
   inset: 18% 18% 24% 18%;
   border: 2px dashed rgba(14, 165, 233, 0.9);
-  border-radius: 16px;
+  border-radius: 0.16rem;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #e0f2fe;
-  font-size: 18px;
+  font-size: 0.18rem;
   font-weight: 600;
   letter-spacing: 1px;
   background: rgba(2, 6, 23, 0.2);
@@ -1477,15 +1613,15 @@ onUnmounted(() => {
 
 /* 弹窗样式 */
 .detail-body {
-  padding: 0 4px;
+  padding: 0 0.04rem;
 }
 
 .video-wrapper {
   width: 100%;
-  height: 260px;
-  border-radius: 6px;
+  height: 2.6rem;
+  border-radius: 0.06rem;
   overflow: hidden;
-  margin-bottom: 16px;
+  margin-bottom: 0.16rem;
   background: #000;
 }
 
@@ -1500,24 +1636,24 @@ onUnmounted(() => {
 }
 
 .video-placeholder {
-  height: 200px;
+  height: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   background: #1a2d47;
-  border-radius: 6px;
-  margin-bottom: 16px;
+  border-radius: 0.06rem;
+  margin-bottom: 0.16rem;
   color: #8899aa;
-  font-size: 14px;
+  font-size: 0.14rem;
 }
 
 .video-placeholder p {
-  margin-top: 8px;
+  margin-top: 0.08rem;
 }
 
 .info-table {
-  margin-top: 4px;
+  margin-top: 0.04rem;
 }
 </style>
 
@@ -1529,42 +1665,109 @@ onUnmounted(() => {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  min-width: 130px;
-  max-width: 220px;
-  max-height: 300px;
-  overflow-y: auto;
-  background: rgba(10, 22, 40, 0.95);
-  border: 1px solid #2a4a6f;
-  border-radius: 6px;
-  padding: 4px;
+  /* 保底 200px：min-width 用 max() 兜底，根字号异常（<100px，如视口<1920 或 useScreenScale 未生效）时列表宽度也至少 200px；大屏根字号>100px 时仍随屏放大 */
+  min-width: max(2rem, 200px);   /* 2rem = 200px @1920，随屏缩放 + 200px 保底 */
+  max-width: max(3.4rem, 340px);   /* 340px @1920 */
+  /* 6 条以内不设高度限制且 overflow 为 visible：内容完整展示，彻底不出现滚动条；
+     超过 6 条由 .marker-list-many 切换为限高滚动 */
+  max-height: none;
+  overflow-y: visible;
+  /* 与地块模式功能浮层（.space-menu）样式保持一致 */
+  background: linear-gradient(180deg, rgba(12, 28, 52, 1) 0%, rgba(8, 18, 36, 1) 100%);
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  border-radius: 0.08rem;
+  /* 顶部不设 padding：表头（区域名称）sticky 贴顶时才能完全盖住滚动内容，不留漏缝；底部留足空间避免最后一项被截断 */
+  padding: 0 0.04rem 0.08rem;
   /* 列表在 marker 容器内最上层（容器展开时 z-index:50000，列表自身再 +1） */
   z-index: 10000;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0.12rem 0.4rem rgba(0, 0, 0, 0.6), 0 0 0.2rem rgba(0, 180, 255, 0.15);
+  backdrop-filter: blur(0.12rem);
+  animation: markerListIn 0.18s ease-out;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 200, 255, 0.45) transparent;
+}
+
+/* 超过 6 条：限高滚动，多出的条目滚动查看（300px @1920）；表头 sticky 贴顶盖住滚动内容 */
+.light-marker .marker-list.marker-list-many {
+  max-height: max(3rem, 300px);
+  overflow-y: auto;
+}
+
+.light-marker .marker-list.marker-list-many .marker-list-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+/* 列表自定义滚动条（数据多时提示可滚动，避免最后一项“看似截断”） */
+.light-marker .marker-list::-webkit-scrollbar {
+  width: 0.05rem;
+}
+
+.light-marker .marker-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 200, 255, 0.45);
+  border-radius: 0.03rem;
+}
+
+.light-marker .marker-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 217, 255, 0.75);
+}
+
+.light-marker .marker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 列表表头（区域名称）：默认普通流定位（6 条以内不滚动，表头始终在顶部）；
+   超过 6 条滚动时由 .marker-list-many 切换为 sticky 固定在列表顶部 */
+.light-marker .marker-list-header {
+  position: relative;
+  padding: 0.08rem 0.14rem;
+  font-size: 0.12rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #8fe8ff;
+  background: linear-gradient(180deg, rgba(12, 28, 52, 1) 0%, rgba(10, 22, 40, 1) 100%);
+  border-bottom: 1px solid rgba(0, 200, 255, 0.35);
+  border-radius: 0.06rem 0.06rem 0 0;
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.5);
+  pointer-events: none;
+}
+
+/* 与地块模式功能浮层一致的入场动画（列表定位依赖 translateX，动画仅用透明度避免位移） */
+@keyframes markerListIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .light-marker .marker-list-item {
-  padding: 6px 10px;
-  color: #e0e6ed;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.1rem 0.14rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.13rem;
   line-height: 1.4;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  border-radius: 4px;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .light-marker .marker-list-item:hover {
-  background: rgba(56, 189, 248, 0.18);
-  color: #38bdf8;
+  background: rgba(0, 200, 255, 0.15);
+  color: #00d9ff;
+  padding-left: 0.18rem;
 }
 
-/* 列表项激活高亮（点击列表项弹出弹框期间保持） */
+/* 列表项激活高亮（点击列表项弹出弹框期间保持），与地块模式功能浮层激活态一致 */
 .light-marker .marker-list-item.is-active {
-  background: rgba(56, 189, 248, 0.3);
-  color: #38bdf8;
+  background: rgba(0, 200, 255, 0.25);
+  color: #00d9ff;
+  border-left: 0.03rem solid #00d9ff;
   font-weight: 600;
-  box-shadow: inset 2px 0 0 #38bdf8;
+  text-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.6);
 }
 
 /* 深色弹窗样式（全局，因为 el-dialog 会 teleport 到 body） */
@@ -1624,7 +1827,7 @@ onUnmounted(() => {
 
 .space-marker img:hover {
   transform: translate(-50%, -50%) scale(1.25) !important;
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 16px rgba(0, 200, 255, 0.8)) !important;
+  filter: drop-shadow(0 0 0.12rem rgba(255, 255, 255, 0.8)) drop-shadow(0 0 0.16rem rgba(0, 200, 255, 0.8)) !important;
 }
 
 /* 地块标点 active 状态（一级列表展示时标点保持高亮 + 呼吸发光） */
@@ -1636,10 +1839,10 @@ onUnmounted(() => {
 
 @keyframes spaceMarkerActivePulse {
   0%, 100% {
-    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.85)) drop-shadow(0 0 16px rgba(0, 217, 255, 0.85));
+    filter: drop-shadow(0 0 0.1rem rgba(255, 255, 255, 0.85)) drop-shadow(0 0 0.16rem rgba(0, 217, 255, 0.85));
   }
   50% {
-    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 1)) drop-shadow(0 0 30px rgba(0, 217, 255, 1));
+    filter: drop-shadow(0 0 0.18rem rgba(255, 255, 255, 1)) drop-shadow(0 0 0.3rem rgba(0, 217, 255, 1));
   }
 }
 </style>

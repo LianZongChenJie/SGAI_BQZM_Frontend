@@ -2,7 +2,7 @@
   <a-modal
     v-model:open="visible"
     :title="'场景详情 - ' + currentScene?.name"
-    width="650px"
+    width="850px"
     wrapClassName="scene-detail-modal"
     :zIndex="91000"
     :footer="null"
@@ -51,14 +51,19 @@
       </div>
     </div>
   </a-modal>
+
+  <!-- 统一二次确认弹框（提示样式：标题栏 + 信息图标 + 动作词高亮） -->
+  <ConfirmModal ref="confirmModalRef" />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { planDetailApiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
+import ConfirmModal from '../../equipmentMonitoring/components/ConfirmModal.vue'
 
 // 状态
+const confirmModalRef = ref<InstanceType<typeof ConfirmModal> | null>(null)
 const visible = ref(false)
 const currentScene = ref<any>(null)
 const tableData = ref<any[]>([])
@@ -103,13 +108,8 @@ async function showDetail(scene: any) {
 /** 行操作：开启/关闭 */
 function handleRowAction(row: any, action: '开启' | '关闭') {
   const actionText = action === '开启' ? '开启' : '关闭'
-  Modal.confirm({
-    title: '确认操作',
-    content: `确定要${actionText}该回路吗？`,
-    okText: '确认',
-    cancelText: '取消',
-    zIndex: 102000,  // 二次确认最高层级：高于四页签/详情弹框(90000)
-    wrapClassName: 'dark-confirm-modal',
+  confirmModalRef.value?.showModal({
+    content: `确定要 <strong class="tip-action">${actionText}</strong> 该回路吗？`,
     onOk: async () => {
       try {
         await postSceneSwitchApi({
