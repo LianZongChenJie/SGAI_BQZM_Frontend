@@ -604,7 +604,7 @@ defineExpose({ showModal, closeModal });
 .filter-label {
   white-space: nowrap;
   flex-shrink: 0;
-  color: #b0c0d6;
+  color: #8ba9d4;
   font-size: 13px;
 }
 
@@ -613,6 +613,16 @@ defineExpose({ showModal, closeModal });
   flex: 1 1 0;
   min-width: 0;
   width: 100%;
+}
+
+.filter-cell :deep(.ant-select-selector) {
+  background: #0d243c !important;
+  border: 1px solid #2a4a6c !important;
+}
+
+.filter-cell :deep(.ant-input-affix-wrapper) {
+  background: #0d243c !important;
+  border: 1px solid #2a4a6c !important;
 }
 
 /* 操作按钮单元格：固定在最后一列、右对齐 */
@@ -627,10 +637,11 @@ defineExpose({ showModal, closeModal });
 /* ==================== 搜索项分组（高亮蓝 / 高饱和蓝） ==================== */
 .search-section {
   margin-bottom: 8px;
+  margin-top: -16px;
   padding: 10px 14px 12px;
   /* 原型图：搜索项区域为更高亮、更高饱和度的蓝，与下方深蓝形成对比 */
-  background: linear-gradient(180deg, #1f4373 0%, #1a385f 100%);
-  border: 1px solid #3a6398;
+  background: linear-gradient(180deg, #205385 0%, #1b4876 100%);
+  border: 1px solid #4a7aaf;
   border-radius: 6px;
   box-shadow:
     inset 0 0 28px rgba(0, 212, 255, 0.08),
@@ -694,8 +705,8 @@ defineExpose({ showModal, closeModal });
 
   /* 深色主题 - select（高亮蓝区域内：稍深的输入框背景以区分容器） */
   :deep(.ant-select-selector) {
-    background: #15304f !important;
-    border: 1px solid #4a6f96 !important;
+    background: #0f2c4f !important;
+    border: 1px solid #3d6fa3 !important;
     color: #ffffff !important;
     border-radius: 4px !important;
     display: flex !important;
@@ -740,14 +751,13 @@ defineExpose({ showModal, closeModal });
     justify-content: center !important;
   }
   :deep(.ant-select-clear) {
-    background: #15304f !important;
-    color: #7a96b5 !important;
+    background: #0f2c4f !important;
   }
 
   /* 深色主题 - input */
   :deep(.ant-input-affix-wrapper) {
-    background: #15304f !important;
-    border: 1px solid #4a6f96 !important;
+    background: #0f2c4f !important;
+    border: 1px solid #3d6fa3 !important;
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
@@ -802,10 +812,12 @@ defineExpose({ showModal, closeModal });
 
 /* ==================== 表单分组（表格区/场景信息区） ==================== */
 .form-section {
+  position: relative;
   margin-bottom: 8px;
   padding: 10px 14px 12px;
-  background: linear-gradient(180deg, #121c2b 0%, #0f1823 100%);
-  border: 1px solid #2a3a52;
+  background: rgba(6, 22, 42, 0.55);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-left: 3px solid rgba(0, 212, 255, 0.35);
   border-radius: 6px;
   box-shadow:
     inset 0 0 24px rgba(0, 162, 232, 0.05),
@@ -867,8 +879,8 @@ defineExpose({ showModal, closeModal });
 
   /* 深色主题 - select */
   :deep(.ant-select-selector) {
-    background: #1b2533 !important;
-    border: 1px solid #303d50 !important;
+    background: #0d243c !important;
+    border: 1px solid #2a4a6c !important;
     color: #ffffff !important;
     border-radius: 4px !important;
     display: flex !important;
@@ -913,14 +925,14 @@ defineExpose({ showModal, closeModal });
     justify-content: center !important;
   }
   :deep(.ant-select-clear) {
-    background: #1b2533 !important;
+    background: #0d243c !important;
     color: #5a6a80 !important;
   }
 
   /* 深色主题 - input */
   :deep(.ant-input-affix-wrapper) {
-    background: #1b2533 !important;
-    border: 1px solid #303d50 !important;
+    background: #0d243c !important;
+    border: 1px solid #2a4a6c !important;
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
@@ -975,8 +987,8 @@ defineExpose({ showModal, closeModal });
 
 /* ==================== 场景信息 section —— 复用搜索项高亮蓝样式 ==================== */
 .form-section.scene-info {
-  background: linear-gradient(180deg, #1f4373 0%, #1a385f 100%);
-  border: 1px solid #3a6398;
+  background: linear-gradient(180deg, #205385 0%, #1b4876 100%);
+  border: 1px solid #4a7aaf;
   box-shadow:
     inset 0 0 28px rgba(0, 212, 255, 0.08),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
@@ -1015,9 +1027,11 @@ defineExpose({ showModal, closeModal });
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
-  padding: 8px 0 0;
-  border-top: 1px solid #303d50;
-  margin-top: 8px;
+  padding: 16px 24px 12px;
+  margin: 24px -24px -24px;
+  border-top: 1px dashed rgba(0, 212, 255, 0.25);
+  background: rgba(6, 18, 36, 0.55);
+  border-radius: 0 0 6px 6px;
 }
 
 .btn {
@@ -1027,26 +1041,29 @@ defineExpose({ showModal, closeModal });
   border-radius: 4px;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.2s, opacity 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-cancel {
   background: transparent;
-  color: #a0aabf;
-  border: 1px solid #303d50;
+  color: #7fa6d4;
+  border: 1px solid rgba(0, 212, 255, 0.25);
 
   &:hover {
-    border-color: #00a2e8;
-    color: #00a2e8;
+    border-color: #00d4ff;
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.06);
   }
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #00a2e8, #0078d4);
-  color: #ffffff;
+  background: linear-gradient(135deg, #00d4ff, #0088cc);
+  color: #061224;
+  font-weight: 600;
 
   &:hover {
     opacity: 0.9;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
   }
 }
 
@@ -1054,10 +1071,10 @@ defineExpose({ showModal, closeModal });
 .table-wrapper {
   overflow: hidden;
   margin-bottom: 4px;
-  background: linear-gradient(180deg, #141d2b 0%, #0f1823 100%);
-  border: 1px solid #1f2b3d;
+  background: rgba(8, 23, 40, 0.65);
+  border: 1px solid rgba(0, 212, 255, 0.12);
   border-radius: 4px;
-  box-shadow: inset 0 0 16px rgba(0, 162, 232, 0.04);
+  box-shadow: inset 0 0 16px rgba(0, 212, 255, 0.04);
 }
 
 .table-wrapper :deep(.vxe-table) {
@@ -1190,65 +1207,146 @@ defineExpose({ showModal, closeModal });
 <style lang="less">
 .create-scene-modal {
   .ant-modal {
-    top: 20px !important;
+    top: 10px !important;
   }
 }
 
-/* ==================== create-scene-modal 弹框样式 ==================== */
-/* 使用 body 前缀提升特异性，覆盖全局 ant-modal 默认样式（如 src/components/Modal/src/index.less
-   中的 .ant-modal .ant-modal-content box-shadow） */
+/* ==================== create-scene-modal 弹框样式（科技感强化 v2） ==================== */
+/* 设计决策:
+   ① 背景对比: #0f2845 / #143358 蓝,与项目背景 #020817 形成明度落差
+   ② 渐变描边 + 三层 box-shadow 发光,模拟 LED 灯条
+   ③ 四角 L 型装饰: 工业仪表盘风格
+   ④ 信息卡 accent 左边条
+   ⑤ 状态徽章: 青绿色软徽章 */
 body .create-scene-modal {
-  .ant-modal-content {
-    background: #0c1828 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
+  /* 遮罩层 */
+  background: rgba(2, 8, 23, 0.78) !important;
+  backdrop-filter: blur(2px);
+
+  .ant-modal {
+    overflow: visible !important;
   }
 
+  /* ---- 弹框主体 ---- */
+  .ant-modal-content {
+    position: relative;
+    background: linear-gradient(180deg, #143358 0%, #0f2845 100%) !important;
+    border-radius: 6px !important;
+    border: none !important;
+    box-shadow:
+      0 0 0 1px rgba(0, 212, 255, 0.45),
+      0 0 24px rgba(0, 212, 255, 0.25),
+      0 0 60px rgba(0, 212, 255, 0.10),
+      0 12px 40px rgba(0, 0, 0, 0.7) !important;
+    overflow: visible !important;
+  }
+
+  /* 渐变描边(关键发光边框) */
+  .ant-modal-content::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 7px;
+    padding: 1px;
+    background: linear-gradient(135deg,
+      rgba(0, 212, 255, 0.95) 0%,
+      rgba(0, 212, 255, 0.25) 35%,
+      rgba(77, 159, 255, 0.55) 65%,
+      rgba(0, 255, 209, 0.85) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* 四角 L 型装饰 */
+  .ant-modal-content::after {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    pointer-events: none;
+    z-index: 2;
+    background:
+      /* TL */ linear-gradient(#00d4ff, #00d4ff) top left / 18px 2px no-repeat,
+                linear-gradient(#00d4ff, #00d4ff) top left / 2px 18px no-repeat,
+      /* TR */ linear-gradient(#00d4ff, #00d4ff) top right / 18px 2px no-repeat,
+                linear-gradient(#00d4ff, #00d4ff) top right / 2px 18px no-repeat,
+      /* BL */ linear-gradient(#00d4ff, #00d4ff) bottom left / 18px 2px no-repeat,
+                linear-gradient(#00d4ff, #00d4ff) bottom left / 2px 18px no-repeat,
+      /* BR */ linear-gradient(#00d4ff, #00d4ff) bottom right / 18px 2px no-repeat,
+                linear-gradient(#00d4ff, #00d4ff) bottom right / 2px 18px no-repeat;
+    filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.35));
+  }
+
+  /* ---- 头部 ---- */
   .ant-modal-header {
-    background: linear-gradient(180deg, #1b2533 0%, #162033 100%) !important;
-    border-bottom: 1px solid #303d50 !important;
-    padding: 12px 20px 10px !important;
+    padding: 18px 24px !important;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.08) 0%, transparent 100%) !important;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.20) !important;
     border-radius: 6px 6px 0 0 !important;
   }
 
+  /* 标题前小竖条(科技标识) */
   .ant-modal-title {
-    color: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    color: #e6f4ff !important;
     font-size: 16px !important;
     font-weight: 600 !important;
     font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-    letter-spacing: 0.8px !important;
+    letter-spacing: 1px !important;
   }
 
+  .ant-modal-title::before {
+    content: "";
+    display: block;
+    width: 4px;
+    height: 16px;
+    background: linear-gradient(180deg, #00d4ff, #00ffd1);
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.35);
+    border-radius: 1px;
+    flex-shrink: 0;
+  }
+
+  /* ---- 关闭按钮(科技感, hover 旋转 90°) ---- */
   .ant-modal-close {
-    color: #a0aabf !important;
-    top: 10px !important;
-    right: 14px !important;
     width: 28px !important;
     height: 28px !important;
+    border-radius: 4px !important;
+    background: rgba(0, 212, 255, 0.04) !important;
+    border: 1px solid rgba(0, 212, 255, 0.15) !important;
+    transition: all 0.25s !important;
+    top: 14px !important;
+    right: 16px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    border-radius: 4px !important;
-    transition: all 0.2s !important;
 
     &:hover {
-      color: #ffffff !important;
-      background: rgba(0, 162, 232, 0.15) !important;
+      background: rgba(0, 212, 255, 0.12) !important;
+      border-color: #00d4ff !important;
+      transform: rotate(90deg);
     }
   }
 
-  .ant-modal-body {
-    padding: 10px 16px 12px !important;
-    background: #0c1828 !important;
+  .ant-modal-close-x {
+    color: #7fa6d4 !important;
+    line-height: 28px !important;
   }
 
+  /* ---- 内容区 ---- */
+  .ant-modal-body {
+    padding: 24px !important;
+    background: linear-gradient(180deg, #143358 0%, #0f2845 100%) !important;
+    color: #c9dfff;
+  }
+
+  /* ---- 底部 ---- */
   .ant-modal-footer {
     display: none !important;
   }
-}
-
-.create-scene-modal.ant-modal-wrap .ant-modal .ant-modal-content {
-  background-color: #0c1828 !important;
 }
 
 

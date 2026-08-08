@@ -6,7 +6,7 @@
     width="720px"
     :destroyOnClose="true"
     :maskClosable="false"
-    wrapClassName="dark-tech-modal video-monitor-modal"
+    wrapClassName="video-monitor-modal"
     @cancel="closeModal"
   >
     <div class="video-modal-body">
@@ -89,13 +89,18 @@ defineExpose({ showModal, closeModal });
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  padding-top: 12px;
+  gap: 10px;
+  padding: 16px 24px 12px;
+  margin: 24px -24px -24px;
+  border-top: 1px dashed rgba(0, 212, 255, 0.25);
+  background: rgba(6, 18, 36, 0.55);
+  border-radius: 0 0 6px 6px;
 
   :deep(.ant-btn) {
     min-width: 80px;
-    border-radius: 6px;
-    height: 36px;
+    height: 32px;
+    padding: 0 18px;
+    border-radius: 4px;
     font-size: 13px;
     font-weight: 400;
     transition: all 0.2s;
@@ -103,13 +108,13 @@ defineExpose({ showModal, closeModal });
 
   .btn-close {
     background: transparent !important;
-    border: 1px solid #303d50 !important;
-    color: #a0aabf !important;
+    border: 1px solid rgba(0, 212, 255, 0.25) !important;
+    color: #7fa6d4 !important;
 
     &:hover {
-      border-color: #465568 !important;
-      color: #ffffff !important;
-      background: rgba(255, 255, 255, 0.04) !important;
+      border-color: #00d4ff !important;
+      color: #00d4ff !important;
+      background: rgba(0, 212, 255, 0.06) !important;
     }
   }
 }
@@ -119,70 +124,122 @@ defineExpose({ showModal, closeModal });
 <!-- 原因：a-modal 渲染到 document.body，scoped CSS 的 [data-v-xxx] 属性选择器无法匹配传送的 DOM，-->
 <!-- 所以标题/头部等元素必须在非 scoped 块中通过唯一类名精准定位，确保只影响本页面。-->
 <style lang="less">
+/* ==================== video-monitor-modal 弹框样式 ==================== */
 .video-monitor-modal {
-  .ant-modal-content {
-    background: linear-gradient(135deg, rgba(15, 24, 35, 0.98) 0%, rgba(10, 18, 28, 0.98) 100%) !important;
-    border-radius: 8px !important;
-    border: 1px solid rgba(0, 212, 255, 0.4) !important;
-    box-shadow:
-      0 0 20px rgba(0, 212, 255, 0.15),
-      0 0 40px rgba(0, 212, 255, 0.08),
-      0 8px 32px rgba(0, 0, 0, 0.6) !important;
-    overflow: hidden !important;
-    position: relative !important;
+  background: rgba(2, 8, 23, 0.78) !important;
+  backdrop-filter: blur(2px);
 
-    /* 顶部高光线 */
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 10%;
-      right: 10%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.8), transparent);
-      z-index: 1;
-    }
+  .ant-modal {
+    overflow: visible !important;
+  }
+
+  .ant-modal-content {
+    position: relative;
+    background: linear-gradient(180deg, #143358 0%, #0f2845 100%) !important;
+    border-radius: 6px !important;
+    border: none !important;
+    box-shadow:
+      0 0 0 1px rgba(0, 212, 255, 0.45),
+      0 0 24px rgba(0, 212, 255, 0.25),
+      0 0 60px rgba(0, 212, 255, 0.10),
+      0 12px 40px rgba(0, 0, 0, 0.7) !important;
+    overflow: visible !important;
+  }
+
+  .ant-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    padding: 1.5px;
+    background: linear-gradient(135deg,
+        rgba(0, 212, 255, 0.7),
+        rgba(0, 180, 240, 0.4) 25%,
+        rgba(0, 140, 220, 0.6) 50%,
+        rgba(0, 224, 160, 0.3) 75%,
+        rgba(0, 212, 255, 0.7));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .ant-modal-content::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 6px;
+    background:
+      linear-gradient(to right, rgba(0,212,255,0.85), rgba(0,212,255,0)) 2px 0 / 18px 2px no-repeat,
+      linear-gradient(to bottom, rgba(0,212,255,0.85), rgba(0,212,255,0)) 0 2px / 2px 18px no-repeat,
+      linear-gradient(to left, rgba(0,212,255,0.85), rgba(0,212,255,0)) calc(100% - 2px) 0 / 18px 2px no-repeat,
+      linear-gradient(to bottom, rgba(0,212,255,0.85), rgba(0,212,255,0)) 100% 2px / 2px 18px no-repeat,
+      linear-gradient(to right, rgba(0,212,255,0.85), rgba(0,212,255,0)) 2px 100% / 18px 2px no-repeat,
+      linear-gradient(to top, rgba(0,212,255,0.85), rgba(0,212,255,0)) 0 calc(100% - 2px) / 2px 18px no-repeat,
+      linear-gradient(to left, rgba(0,212,255,0.85), rgba(0,212,255,0)) calc(100% - 2px) 100% / 18px 2px no-repeat,
+      linear-gradient(to top, rgba(0,212,255,0.85), rgba(0,212,255,0)) 100% calc(100% - 2px) / 2px 18px no-repeat;
+    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.4));
+    pointer-events: none;
+    z-index: 0;
   }
 
   .ant-modal-header {
-    background: linear-gradient(180deg, rgba(0, 212, 255, 0.06) 0%, transparent 100%) !important;
-    border-bottom: 1px solid rgba(0, 212, 255, 0.2) !important;
-    padding: 16px 24px 14px !important;
-    border-radius: 8px 8px 0 0 !important;
-    margin: 0 !important;
+    position: relative;
+    background: linear-gradient(180deg, rgba(0,30,55,0.02) 0%, rgba(0,30,55,0.35) 100%) !important;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.18) !important;
+    padding: 16px 24px !important;
+    border-radius: 6px 6px 0 0 !important;
+    margin-bottom: 0 !important;
   }
 
-  /* 标题 — 科技感渐变 + 青蓝光晕 */
   .ant-modal-title {
-    background: linear-gradient(135deg, #00d4ff 0%, #7bb3ff 100%) !important;
-    -webkit-background-clip: text !important;
-    background-clip: text !important;
-    -webkit-text-fill-color: transparent !important;
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    letter-spacing: 1.5px !important;
-    filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.4)) !important;
+    position: relative;
+    color: #e8f4ff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding-left: 12px;
+    text-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+  }
+
+  .ant-modal-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    background: linear-gradient(180deg, #00d4ff, #0088cc);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  }
+
+  .ant-modal-close {
+    top: 16px !important;
+    right: 20px !important;
+
+    .ant-modal-close-x {
+      color: #7fa6d4 !important;
+      font-size: 18px !important;
+      line-height: 1 !important;
+      transition: transform 0.3s ease, color 0.2s;
+
+      &:hover {
+        color: #00d4ff !important;
+        transform: rotate(90deg);
+      }
+    }
   }
 
   .ant-modal-body {
-    padding: 20px 24px 24px !important;
-    background: transparent !important;
+    padding: 24px !important;
+    background: linear-gradient(180deg, rgba(15,40,69,0.30) 0%, rgba(15,40,69,0.05) 100%) !important;
   }
 
   .ant-modal-footer {
-    display: none !important;
-  }
-
-  /* 关闭按钮 */
-  .ant-modal-close {
-    color: #5a6a80 !important;
-    transition: color 0.2s, background 0.2s !important;
-
-    &:hover {
-      color: #00d4ff !important;
-      background: rgba(0, 212, 255, 0.08) !important;
-      text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
-    }
+    display: none;
   }
 }
 </style>

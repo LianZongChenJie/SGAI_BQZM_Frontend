@@ -2,7 +2,7 @@
   <a-modal
     v-model:open="visible"
     :title="title"
-    width="1000px"
+    width="1100px"
     wrapClassName="create-timer-modal"
     :footer="null"
     top="20px"
@@ -572,10 +572,11 @@ defineExpose({ showModal, closeModal });
 /* ==================== 搜索项分组（高亮蓝 / 高饱和蓝） ==================== */
 .search-section {
   margin-bottom: 8px;
+  margin-top: -16px;
   padding: 10px 14px 12px;
   /* 原型图：搜索项区域为更高亮、更高饱和度的蓝，与下方深蓝形成对比 */
-  background: linear-gradient(180deg, #1f4373 0%, #1a385f 100%);
-  border: 1px solid #3a6398;
+  background: linear-gradient(180deg, #205385 0%, #1b4876 100%);
+  border: 1px solid #4a7aaf;
   border-radius: 6px;
   box-shadow:
     inset 0 0 28px rgba(0, 212, 255, 0.08),
@@ -637,10 +638,10 @@ defineExpose({ showModal, closeModal });
     width: 100% !important;
   }
 
-  /* 深色主题 - select（高亮蓝区域内：稍深的输入框背景以区分容器） */
+  /* 深色主题 - select（比模态底色略暗，形成层次） */
   :deep(.ant-select-selector) {
-    background: #15304f !important;
-    border: 1px solid #4a6f96 !important;
+    background: #0f2c4f !important;
+    border: 1px solid #3d6fa3 !important;
     color: #ffffff !important;
     border-radius: 4px !important;
     display: flex !important;
@@ -685,14 +686,14 @@ defineExpose({ showModal, closeModal });
     justify-content: center !important;
   }
   :deep(.ant-select-clear) {
-    background: #15304f !important;
+    background: #0f2c4f !important;
     color: #7a96b5 !important;
   }
 
   /* 深色主题 - input */
   :deep(.ant-input-affix-wrapper) {
-    background: #15304f !important;
-    border: 1px solid #4a6f96 !important;
+    background: #0f2c4f !important;
+    border: 1px solid #3d6fa3 !important;
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
@@ -745,18 +746,18 @@ defineExpose({ showModal, closeModal });
   }
 }
 
-/* ==================== 表单分组 / 表格区 / 信息区（深蓝 / 接近黑蓝） ==================== */
+/* ==================== 表单分组（表格区/定时任务信息区） ==================== */
 .form-section {
+  position: relative;
   margin-bottom: 8px;
   padding: 10px 14px 12px;
-  /* 原型图：勾选数据 / 场景信息区域均为更深的蓝（接近黑），与上方高亮蓝形成对比 */
-  background: linear-gradient(180deg, #0d1c2e 0%, #091523 100%);
-  border: 1px solid #1a2e48;
+  background: rgba(6, 22, 42, 0.55);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-left: 3px solid rgba(0, 212, 255, 0.35);
   border-radius: 6px;
   box-shadow:
-    inset 0 0 20px rgba(0, 0, 0, 0.3),
-    0 0 0 1px rgba(0, 162, 232, 0.03),
-    0 2px 8px rgba(0, 0, 0, 0.3);
+    inset 0 0 24px rgba(0, 162, 232, 0.05),
+    0 0 0 1px rgba(0, 162, 232, 0.04);
 
   :deep(.section-title) {
     margin-bottom: 8px;
@@ -814,8 +815,8 @@ defineExpose({ showModal, closeModal });
 
   /* 深色主题 - select */
   :deep(.ant-select-selector) {
-    background: #1b2533 !important;
-    border: 1px solid #303d50 !important;
+    background: #0d243c !important;
+    border: 1px solid #2a4a6c !important;
     color: #ffffff !important;
     border-radius: 4px !important;
     display: flex !important;
@@ -860,14 +861,14 @@ defineExpose({ showModal, closeModal });
     justify-content: center !important;
   }
   :deep(.ant-select-clear) {
-    background: #1b2533 !important;
+    background: #0d243c !important;
     color: #5a6a80 !important;
   }
 
   /* 深色主题 - input */
   :deep(.ant-input-affix-wrapper) {
-    background: #1b2533 !important;
-    border: 1px solid #303d50 !important;
+    background: #0d243c !important;
+    border: 1px solid #2a4a6c !important;
     border-radius: 4px !important;
     display: flex !important;
     align-items: center !important;
@@ -922,8 +923,8 @@ defineExpose({ showModal, closeModal });
 
 /* ==================== 定时任务信息 section —— 复用搜索项高亮蓝样式 ==================== */
 .form-section.task-info {
-  background: linear-gradient(180deg, #1f4373 0%, #1a385f 100%);
-  border: 1px solid #3a6398;
+  background: linear-gradient(180deg, #205385 0%, #1b4876 100%);
+  border: 1px solid #4a7aaf;
   box-shadow:
     inset 0 0 28px rgba(0, 212, 255, 0.08),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
@@ -1012,11 +1013,10 @@ defineExpose({ showModal, closeModal });
 .table-wrapper {
   overflow: hidden;
   margin-bottom: 4px;
-  /* 与 form-section 同色系：深蓝（原型勾选数据区） */
-  background: linear-gradient(180deg, #0a1828 0%, #081320 100%);
-  border: 1px solid #15293f;
+  background: rgba(8, 23, 40, 0.65);
+  border: 1px solid rgba(0, 212, 255, 0.12);
   border-radius: 4px;
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 16px rgba(0, 212, 255, 0.04);
 }
 
 .table-wrapper :deep(.vxe-table) {
@@ -1150,9 +1150,11 @@ defineExpose({ showModal, closeModal });
   justify-content: flex-end;
   align-items: center;
   gap: 10px;
-  padding: 8px 0 0;
-  border-top: 1px solid #303d50;
-  margin-top: 8px;
+  padding: 16px 24px 12px;
+  margin: 24px -24px -24px;
+  border-top: 1px dashed rgba(0, 212, 255, 0.25);
+  background: rgba(6, 18, 36, 0.55);
+  border-radius: 0 0 6px 6px;
 }
 
 .btn {
@@ -1162,93 +1164,162 @@ defineExpose({ showModal, closeModal });
   border-radius: 4px;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.2s, opacity 0.2s;
+  transition: all 0.2s;
 }
 
 .btn-cancel {
   background: transparent;
-  color: #a0aabf;
-  border: 1px solid #303d50;
+  color: #7fa6d4;
+  border: 1px solid rgba(0, 212, 255, 0.25);
 
   &:hover {
-    border-color: #00a2e8;
-    color: #00a2e8;
+    border-color: #00d4ff;
+    color: #00d4ff;
+    background: rgba(0, 212, 255, 0.06);
   }
 }
 
 .btn-submit {
-  background: linear-gradient(135deg, #00a2e8, #0078d4);
-  color: #ffffff;
+  background: linear-gradient(135deg, #00d4ff, #0088cc);
+  color: #061224;
+  font-weight: 600;
 
   &:hover {
     opacity: 0.9;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
   }
 }
 </style>
 
-/* ==================== 全局 Modal 覆盖（深色科技风） ==================== */
 <style lang="less">
 .create-timer-modal {
   .ant-modal {
-    top: 20px !important;
+    top: 10px !important;
   }
 }
-
-/* ==================== create-timer-modal 弹框样式 ==================== */
-/* 使用 body 前缀提升特异性，覆盖全局 ant-modal 默认样式 */
 body .create-timer-modal {
-  /* 覆写 Ant Design 5 默认紫色系 CSS 变量 */
-  --ant-primary-color: #00a2e8 !important;
-  --ant-primary-color-hover: #00d4ff !important;
-  --ant-primary-color-active: #0088cc !important;
-  --ant-primary-color-outline: rgba(0, 162, 232, 0.2) !important;
+  background: rgba(2, 8, 23, 0.78) !important;
+  backdrop-filter: blur(2px);
 
-  .ant-modal-content {
-    background: #0c1828 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7) !important;
+  /* Modal 容器允许伪元素溢出显示（渐变边框 / 四角 L 型装饰） */
+  .ant-modal {
+    overflow: visible !important;
   }
 
+  .ant-modal-content {
+    position: relative;
+    background: linear-gradient(180deg, #143358 0%, #0f2845 100%) !important;
+    border-radius: 6px !important;
+    border: none !important;
+    box-shadow:
+      0 0 0 1px rgba(0, 212, 255, 0.45),
+      0 0 24px rgba(0, 212, 255, 0.25),
+      0 0 60px rgba(0, 212, 255, 0.10),
+      0 12px 40px rgba(0, 0, 0, 0.7) !important;
+    overflow: visible !important;
+  }
+
+  /* ========== LED 渐变发光边框（::before mask 镂空方案） ========== */
+  .ant-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    padding: 1.5px;
+    background: linear-gradient(135deg,
+        rgba(0, 212, 255, 0.7),
+        rgba(0, 180, 240, 0.4) 25%,
+        rgba(0, 140, 220, 0.6) 50%,
+        rgba(0, 224, 160, 0.3) 75%,
+        rgba(0, 212, 255, 0.7));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ========== 四角 L 型装饰（::after 多段 linear-gradient） ========== */
+  .ant-modal-content::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 6px;
+    background:
+      /* 左上横 */ linear-gradient(to right, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) 2px 0 / 18px 2px no-repeat,
+      /* 左上竖 */ linear-gradient(to bottom, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) 0 2px / 2px 18px no-repeat,
+      /* 右上横 */ linear-gradient(to left, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) calc(100% - 2px) 0 / 18px 2px no-repeat,
+      /* 右上竖 */ linear-gradient(to bottom, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) 100% 2px / 2px 18px no-repeat,
+      /* 左下横 */ linear-gradient(to right, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) 2px 100% / 18px 2px no-repeat,
+      /* 左下竖 */ linear-gradient(to top, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) 0 calc(100% - 2px) / 2px 18px no-repeat,
+      /* 右下横 */ linear-gradient(to left, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) calc(100% - 2px) 100% / 18px 2px no-repeat,
+      /* 右下竖 */ linear-gradient(to top, rgba(0, 212, 255, 0.85), rgba(0, 212, 255, 0)) 100% calc(100% - 2px) / 2px 18px no-repeat;
+    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.4));
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ========== 标题栏（保留蓝系渐变底色 + accent 左边条） ========== */
   .ant-modal-header {
-    background: linear-gradient(180deg, #1b2533 0%, #162033 100%) !important;
-    border-bottom: 1px solid #303d50 !important;
-    padding: 12px 20px 10px !important;
+    position: relative;
+    background: linear-gradient(180deg, rgba(0, 30, 55, 0.02) 0%, rgba(0, 30, 55, 0.35) 100%) !important;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.18) !important;
+    padding: 16px 24px !important;
     border-radius: 6px 6px 0 0 !important;
+    margin-bottom: 0 !important;
   }
 
   .ant-modal-title {
-    color: #ffffff !important;
-    font-size: 16px !important;
-    font-weight: 600 !important;
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif !important;
-    letter-spacing: 0.8px !important;
+    position: relative;
+    color: #e8f4ff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding-left: 12px;
+    text-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
   }
 
-  .ant-modal-close {
-    color: #a0aabf !important;
-    top: 10px !important;
-    right: 14px !important;
-    width: 28px !important;
-    height: 28px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 4px !important;
-    transition: all 0.2s !important;
+  /* accent 左边条 */
+  .ant-modal-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    background: linear-gradient(180deg, #00d4ff, #0088cc);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  }
 
-    &:hover {
-      color: #ffffff !important;
-      background: rgba(0, 162, 232, 0.15) !important;
+  /* 关闭按钮（hover 旋转 90°） */
+  .ant-modal-close {
+    top: 16px !important;
+    right: 20px !important;
+
+    .ant-modal-close-x {
+      color: #7fa6d4 !important;
+      font-size: 18px !important;
+      line-height: 1 !important;
+      transition: transform 0.3s ease, color 0.2s;
+
+      &:hover {
+        color: #00d4ff !important;
+        transform: rotate(90deg);
+      }
     }
   }
 
+  /* 内容区 */
   .ant-modal-body {
-    padding: 10px 16px 12px !important;
-    background: #0c1828 !important;
+    padding: 24px !important;
+    background: linear-gradient(180deg, rgba(15, 40, 69, 0.30) 0%, rgba(15, 40, 69, 0.05) 100%) !important;
   }
 
+  /* 底部默认隐藏（使用自定义 footer） */
   .ant-modal-footer {
-    display: none !important;
+    display: none;
   }
 
   /* ==================== 表单覆盖 ==================== */
@@ -1312,8 +1383,8 @@ body .create-timer-modal {
 
     /* Input 外层包裹器（统一高度 32px，强制锁定，不受 size="small" 与全局样式污染影响） */
     .ant-input-affix-wrapper {
-      background: #1b2533 !important;
-      border: 1px solid #303d50 !important;
+      background: #0d243c !important;
+      border: 1px solid #2a4a6c !important;
       color: #ffffff !important;
       border-radius: 4px !important;
       transition: all 0.2s !important;
@@ -1361,8 +1432,8 @@ body .create-timer-modal {
 
     /* 无 allowClear 时的普通 input */
     .ant-input:not(.ant-input-affix-wrapper .ant-input) {
-      background: #1b2533 !important;
-      border: 1px solid #303d50 !important;
+      background: #0d243c !important;
+      border: 1px solid #2a4a6c !important;
       color: #ffffff !important;
       border-radius: 4px !important;
       font-size: 12px !important;
@@ -1391,8 +1462,8 @@ body .create-timer-modal {
 
     /* Select */
     .ant-select-selector {
-      background: #1b2533 !important;
-      border: 1px solid #303d50 !important;
+      background: #0d243c !important;
+      border: 1px solid #2a4a6c !important;
       color: #ffffff !important;
       border-radius: 4px !important;
       font-size: 12px !important;
@@ -1435,7 +1506,7 @@ body .create-timer-modal {
 
     .ant-select-clear {
       color: #5a6a80 !important;
-      background: #1b2533 !important;
+      background: #0d243c !important;
 
       &:hover {
         color: #a0aabf !important;
@@ -1492,18 +1563,18 @@ body .create-timer-modal {
   .ant-input-affix-wrapper-disabled .ant-input,
   .ant-input-disabled,
   .ant-input[disabled] {
-    background: #1b2533 !important;
+    background: #0d243c !important;
     color: #ffffff !important;
-    border-color: #303d50 !important;
+    border-color: #2a4a6c !important;
     -webkit-text-fill-color: #ffffff !important;
     opacity: 1 !important;
     cursor: not-allowed !important;
   }
 
   .ant-select-disabled .ant-select-selector {
-    background: #1b2533 !important;
+    background: #0d243c !important;
     color: #ffffff !important;
-    border-color: #303d50 !important;
+    border-color: #2a4a6c !important;
     opacity: 1 !important;
     cursor: not-allowed !important;
   }
@@ -1518,8 +1589,8 @@ body .create-timer-modal {
 
 /* ==================== Select 下拉面板（全局深色） ==================== */
 .ant-select-dropdown {
-  background: #1b2533 !important;
-  border: 1px solid #303d50 !important;
+  background: #0d243c !important;
+  border: 1px solid #2a4a6c !important;
   border-radius: 4px !important;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
 

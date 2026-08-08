@@ -51,9 +51,9 @@
       <div class="table-wrapper">
         <table class="log-table">
           <colgroup>
-            <col style="width: 150px;" />
+            <col style="width: 100px;" />
             <col style="width: 70px;" />
-            <col style="width: 180px;" />
+            <col style="width: 230px;" />
             <col style="width: 80px;" />
             <col style="width: 80px;" />
             <col style="width: 100px;" />
@@ -109,7 +109,7 @@
     <a-modal
       v-model:open="detailVisible"
       title="操作日志详情"
-      width="680px"
+      width="880px"
       :footer="null"
       wrapClassName="control-log-detail-modal"
       :getContainer="false"
@@ -587,10 +587,11 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 16px;
-  background: rgba(0, 162, 232, 0.05);
-  border-left: 3px solid #00a2e8;
-  border-radius: 0 6px 6px 0;
+  padding: 14px 18px;
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.15);
+  border-left: 3px solid #00d4ff;
+  border-radius: 4px;
   margin-bottom: 16px;
 
   .title-left {
@@ -602,8 +603,9 @@ onMounted(() => {
   .title-icon {
     width: 22px;
     height: 22px;
-    color: #00a2e8;
+    color: #00d4ff;
     flex-shrink: 0;
+    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.3));
   }
 
   .title-text {
@@ -619,9 +621,10 @@ onMounted(() => {
   }
 
   .title-value {
-    color: #00c6ff;
+    color: #00d4ff;
     font-weight: 600;
     font-size: 15px;
+    text-shadow: 0 0 6px rgba(0, 212, 255, 0.3);
   }
 
   .title-meta {
@@ -678,16 +681,16 @@ onMounted(() => {
   }
 
   thead th {
-    color: #a0aabf;
+    color: #7fa6d4;
     font-weight: 500;
-    border-bottom: 1px solid #303d50;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.15);
     user-select: none;
-    background: #0f1823;
+    background: rgba(10, 30, 55, 0.45);
   }
 
   tbody td {
-    color: #ffffff;
-    border-bottom: 1px solid #303d50;
+    color: #e8f4ff;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.08);
     vertical-align: middle;
   }
 
@@ -745,85 +748,155 @@ onMounted(() => {
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  padding-top: 16px;
-  margin-top: 16px;
-  border-top: 1px solid #303d50;
+  padding: 16px 24px 12px;
+  margin: 20px -24px -24px;
+  border-top: 1px dashed rgba(0, 212, 255, 0.25);
+  background: rgba(6, 18, 36, 0.55);
+  border-radius: 0 0 6px 6px;
 }
 
 .btn-cancel {
   background: transparent !important;
-  border: 1px solid #303d50 !important;
-  color: #a0aabf !important;
-  height: 34px;
-  padding: 0 20px;
+  border: 1px solid rgba(0, 212, 255, 0.25) !important;
+  color: #7fa6d4 !important;
+  height: 32px;
+  padding: 0 18px;
   border-radius: 4px;
   font-size: 13px;
   cursor: pointer;
+  transition: all 0.2s;
 
   &:hover {
-    border-color: #5a6a80 !important;
-    color: #ffffff !important;
-    background: rgba(255, 255, 255, 0.04) !important;
-  }
-}
-
-/* ==================== 详情 Modal 覆盖（深色科技风） ==================== */
-:deep(.control-log-detail-modal) {
-  .ant-modal-content {
-    background: #141d2b !important;
-    border: 1px solid #303d50 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 162, 232, 0.08) !important;
-    overflow: hidden;
-
-    &::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, #00a2e8, transparent);
-      opacity: 0.6;
-    }
-  }
-
-  .ant-modal-header {
-    background: #1b2533 !important;
-    border-bottom: 1px solid #303d50 !important;
-    padding: 18px 24px 14px !important;
-    border-radius: 8px 8px 0 0 !important;
-  }
-
-  .ant-modal-title {
-    color: #ffffff !important;
-    font-size: 16px !important;
-    font-weight: 600 !important;
-  }
-
-  .ant-modal-close {
-    color: #a0aabf !important;
-    top: 18px !important;
-    right: 20px !important;
-
-    &:hover {
-      color: #ffffff !important;
-      background: rgba(255, 255, 255, 0.08) !important;
-    }
-  }
-
-  .ant-modal-body {
-    padding: 20px 24px 24px !important;
-    background: #141d2b !important;
+    border-color: #00d4ff !important;
+    color: #00d4ff !important;
+    background: rgba(0, 212, 255, 0.06) !important;
   }
 }
 </style>
 
-<style>
+<!-- ==================== control-log-detail-modal 弹框样式（非 scoped 全局，通过唯一类名隔离） ==================== -->
+<style lang="less">
+.control-log-detail-modal {
+  background: rgba(2, 8, 23, 0.78) !important;
+  backdrop-filter: blur(2px);
+
+  .ant-modal {
+    overflow: visible !important;
+  }
+
+  .ant-modal-content {
+    position: relative;
+    background: linear-gradient(180deg, #143358 0%, #0f2845 100%) !important;
+    border-radius: 6px !important;
+    border: none !important;
+    box-shadow:
+      0 0 0 1px rgba(0, 212, 255, 0.45),
+      0 0 24px rgba(0, 212, 255, 0.25),
+      0 0 60px rgba(0, 212, 255, 0.10),
+      0 12px 40px rgba(0, 0, 0, 0.7) !important;
+    overflow: visible !important;
+  }
+
+  .ant-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 6px;
+    padding: 1.5px;
+    background: linear-gradient(135deg,
+        rgba(0, 212, 255, 0.7),
+        rgba(0, 180, 240, 0.4) 25%,
+        rgba(0, 140, 220, 0.6) 50%,
+        rgba(0, 224, 160, 0.3) 75%,
+        rgba(0, 212, 255, 0.7));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .ant-modal-content::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 6px;
+    background:
+      linear-gradient(to right, rgba(0,212,255,0.85), rgba(0,212,255,0)) 2px 0 / 18px 2px no-repeat,
+      linear-gradient(to bottom, rgba(0,212,255,0.85), rgba(0,212,255,0)) 0 2px / 2px 18px no-repeat,
+      linear-gradient(to left, rgba(0,212,255,0.85), rgba(0,212,255,0)) calc(100% - 2px) 0 / 18px 2px no-repeat,
+      linear-gradient(to bottom, rgba(0,212,255,0.85), rgba(0,212,255,0)) 100% 2px / 2px 18px no-repeat,
+      linear-gradient(to right, rgba(0,212,255,0.85), rgba(0,212,255,0)) 2px 100% / 18px 2px no-repeat,
+      linear-gradient(to top, rgba(0,212,255,0.85), rgba(0,212,255,0)) 0 calc(100% - 2px) / 2px 18px no-repeat,
+      linear-gradient(to left, rgba(0,212,255,0.85), rgba(0,212,255,0)) calc(100% - 2px) 100% / 18px 2px no-repeat,
+      linear-gradient(to top, rgba(0,212,255,0.85), rgba(0,212,255,0)) 100% calc(100% - 2px) / 2px 18px no-repeat;
+    filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.4));
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .ant-modal-header {
+    position: relative;
+    background: linear-gradient(180deg, rgba(0,30,55,0.02) 0%, rgba(0,30,55,0.35) 100%) !important;
+    border-bottom: 1px solid rgba(0, 212, 255, 0.18) !important;
+    padding: 16px 24px !important;
+    border-radius: 6px 6px 0 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .ant-modal-title {
+    position: relative;
+    color: #e8f4ff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding-left: 12px;
+    text-shadow: 0 0 12px rgba(0, 212, 255, 0.4);
+  }
+
+  .ant-modal-title::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 18px;
+    background: linear-gradient(180deg, #00d4ff, #0088cc);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+  }
+
+  .ant-modal-close {
+    top: 16px !important;
+    right: 20px !important;
+
+    .ant-modal-close-x {
+      color: #7fa6d4 !important;
+      font-size: 18px !important;
+      line-height: 1 !important;
+      transition: transform 0.3s ease, color 0.2s;
+
+      &:hover {
+        color: #00d4ff !important;
+        transform: rotate(90deg);
+      }
+    }
+  }
+
+  .ant-modal-body {
+    padding: 24px !important;
+    background: linear-gradient(180deg, rgba(15,40,69,0.30) 0%, rgba(15,40,69,0.05) 100%) !important;
+  }
+
+  .ant-modal-footer {
+    display: none;
+  }
+}
+
 /* 原生 option 在浏览器 OS 层渲染，scoped 无法覆盖，需非 scoped */
 .page-container .select option {
   background: var(--bg) !important;
   color: #ffffff !important;
 }
 </style>
-

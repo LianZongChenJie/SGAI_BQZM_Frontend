@@ -317,11 +317,20 @@ defineExpose({ showModal, closeModal });
 }
 
 .operation-indicator .indicator-text {
-  line-height: 1;
+  display: inline-block;
+  padding: 2px 10px;
+  line-height: 1.6;
+  font-size: 12px;
+  border-radius: 4px;
 }
 
 .operation-indicator.online {
   color: rgb(244, 234, 42);
+}
+
+.operation-indicator.online .indicator-text {
+  color: #f4c82a;
+  background: rgba(244, 200, 42, 0.15);
 }
 
 .operation-indicator.online .indicator-icon {
@@ -330,6 +339,11 @@ defineExpose({ showModal, closeModal });
 
 .operation-indicator.offline {
   color: #8a99ab;
+}
+
+.operation-indicator.offline .indicator-text {
+  color: #d0d5dd;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .operation-indicator.offline .indicator-icon {
