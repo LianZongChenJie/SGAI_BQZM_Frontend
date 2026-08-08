@@ -815,11 +815,20 @@ onUnmounted(() => {
 }
 
 .status-indicator .status-text {
-  line-height: 1;
+  display: inline-block;
+  padding: 2px 10px;
+  line-height: 1.6;
+  font-size: 12px;
+  border-radius: 4px;
 }
 
 .status-indicator.online {
   color: rgb(244, 234, 42);
+}
+
+.status-indicator.online .status-text {
+  color: #f4c82a;
+  background: rgba(244, 200, 42, 0.15);
 }
 
 .status-indicator.online .status-icon {
@@ -828,6 +837,11 @@ onUnmounted(() => {
 
 .status-indicator.offline {
   color: #8a99ab;
+}
+
+.status-indicator.offline .status-text {
+  color: #d0d5dd;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .status-indicator.offline .status-icon {

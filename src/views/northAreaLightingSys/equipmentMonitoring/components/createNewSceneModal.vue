@@ -470,6 +470,7 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     formData.relType = record.relType || '';
     formData.operationType = record.operationType || '';
     formData.planName = record.planName || '';
+     formData.tagName = record.tagName || '';
     selectedRowKeys.value = record.relIds ? [...record.relIds] : [];
     // 表单 + 表格一起进入 loading
     tableLoading.value = true;

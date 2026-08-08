@@ -647,6 +647,36 @@ defineExpose({
   overflow-y: auto;
   overflow-x: auto;
   border-top: none;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 229, 160, 0.85) rgba(255, 255, 255, 0.1);
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 229, 160, 0.85);
+    border-radius: 8px;
+    border: 1px solid rgba(0, 255, 180, 0.35);
+    box-shadow: 0 0 8px rgba(0, 229, 160, 0.5);
+
+    &:hover {
+      background: rgba(0, 255, 180, 1);
+      box-shadow: 0 0 12px rgba(0, 255, 180, 0.8);
+    }
+  }
+
+  &::-webkit-scrollbar-thumb:active {
+    background: rgba(0, 255, 180, 1);
+    box-shadow: 0 0 14px rgba(0, 255, 180, 0.9);
+  }
 }
 
 .device-table {
@@ -878,23 +908,29 @@ defineExpose({
 }
 
 .status-indicator .status-text {
-  line-height: 1;
+  display: inline-block;
+  padding: 2px 10px;
+  line-height: 1.6;
+  font-size: 12px;
+  border-radius: 4px;
 }
 
 .status-indicator.online {
   color: rgb(244, 234, 42);
 }
 
-.status-indicator.online .status-icon {
-  filter: none;
+.status-indicator.online .status-text {
+  color: #f4c82a;
+  background: rgba(244, 200, 42, 0.15);
 }
 
 .status-indicator.offline {
   color: #8a99ab;
 }
 
-.status-indicator.offline .status-icon {
-  filter: grayscale(1) brightness(1.4) contrast(0.8);
+.status-indicator.offline .status-text {
+  color: #d0d5dd;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* 操作按钮 */
