@@ -3,7 +3,7 @@
     v-model:open="open"
     title="事件详情"
     :footer="null"
-    width="720px"
+    width="820px"
     :destroyOnClose="true"
     :maskClosable="true"
     wrapClassName="calendar-event-detail-modal"
