@@ -3,8 +3,8 @@ import { defHttp } from '/@/utils/http/axios';
 enum Api {
   overviewStats = '/sgai-bqzm/bems/lighting/home/areaStatistics',
   blockList = '/northAreaLighting/overview/blockList',
-  allOn = '/sgai-bqzm/bems/lighting/home/controlAll?action=open',
-  allOff = '/sgai-bqzm/bems/lighting/home/controlAll?action=close',
+  allOn = '/sgai-bqzm/bems/lighting/plan/control',
+  allOff = '/sgai-bqzm/bems/lighting/plan/control',
   getAllSpace = '/sgai-bqzm//bems/lighting/district/listPage',
   getAllCircuit = '/sgai-bqzm/bems/lighting/circuit/all',
   openArea = '/sgai-bqzm/bems/lighting/area/open',
@@ -23,10 +23,10 @@ export const getOverviewStatsApi = () => defHttp.get({ url: Api.overviewStats })
 export const getBlockListApi = () => defHttp.get({ url: Api.blockList });
 
 /** 全区开灯 */
-export const allOnApi = () => defHttp.post({ url: Api.allOn });
+export const allOnApi  = (params) => defHttp.post({ url: Api.allOn, params });
 
 /** 全区关灯 */
-export const allOffApi = () => defHttp.post({ url: Api.allOff });
+export const allOffApi = (params) => defHttp.post({ url: Api.allOff, params });
 
 /** 获取所有地块 */
 export const getAllSpaceApi = () => defHttp.get({ url: Api.getAllSpace });

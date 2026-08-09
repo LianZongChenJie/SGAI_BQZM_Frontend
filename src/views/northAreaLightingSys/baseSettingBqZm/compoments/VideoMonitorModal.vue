@@ -16,9 +16,13 @@
       <!-- 视频播放 -->
       <div class="video-box">
         <VideoPlayer
+          v-if="currentUrl"
           :key="currentUrl"
           :url="currentUrl"
         />
+        <div v-else class="video-empty">
+          <span class="error-text">暂无监控视频</span>
+        </div>
       </div>
     </div>
 
@@ -40,6 +44,7 @@ const currentUrl = ref('');
 
 function showModal(row: { monitorAdr?: string; monitorName?: string }) {
   cameraName.value = '监控名称：' + (row.monitorName || '摄像头');
+  // 接口返回的 monitorAdr 已是完整播放地址（http://10.168.47.23:4000/index.html?id=xxx），直接使用
   currentUrl.value = row.monitorAdr || '';
   open.value = true;
 }
@@ -82,6 +87,20 @@ defineExpose({ showModal, closeModal });
   border-radius: 6px;
   overflow: hidden;
   position: relative;
+}
+
+.video-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  color: rgba(255, 255, 255, 0.5);
+
+  .error-text {
+    font-size: 13px;
+  }
 }
 
 /* ==================== 底部按钮 ==================== */

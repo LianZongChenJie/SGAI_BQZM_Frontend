@@ -65,7 +65,7 @@
           <table class="overview-table">
             <thead>
               <tr>
-                <th>地块名称</th>
+                <th>标签</th>
                 <th>回路数</th>
                 <th>回路开启数</th>
                 <th>回路关闭数</th>
@@ -180,12 +180,13 @@
   import { useScreenScale } from '../useScreenScale';
   import { message } from 'ant-design-vue';
   import ConfirmModal from '../equipmentMonitoring/components/ConfirmModal.vue';
-  import { getCircuitListApi, setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';
+  import { getCircuitListApi } from '@/api/baseSettingBqZm';
+  import { postSceneSwitchApi, getLightingPlanAPiNew } from '@/api/equipmentMonitoring';
   import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue';
 
   // 大屏自适应：动态 rem 基准（1rem = 100px @1920），样式统一 rem + flex + vw/vh
   useScreenScale();
-  import { getOverviewStatsApi, allOnApi, allOffApi, getAllSpaceApi, getAllCircuitApi, openAreaApi, closeAreaApi } from './comprehensivePreview.api';
+  import { getOverviewStatsApi, allOnApi, allOffApi, getAllSpaceApi, getAllCircuitApi, getSceneSpaceApi } from './comprehensivePreview.api';
   import { useMessage } from '/@/hooks/web/useMessage';
 
   const mapViewRef = ref<InstanceType<typeof MapView> | null>(null);
@@ -275,48 +276,65 @@
     mapViewRef.value?.clearMarkerListActive?.();
   }
 
-  /** 详情弹框全开（调用 setAreaOpenApi，按 areaId） */
-  function handleLightAreaOn() {
-    if (!lightAreaId.value) {
-      message.warning('该标点无地块 ID，无法执行全开');
+  // ==================== 场景控制（与设备监控页场景配置同一逻辑：/plan/control） ====================
+  // 进入页面先查询所有场景（/scene/listPage），再按固定场景 id 过滤出目标场景（relIds / relType 等），全开/全关时作为 /plan/control 参数
+  const SCENE_ID = '2086280558308143106';
+  const sceneInfo = ref<any>(null);
+
+  /** 查询场景信息（/scene/listPage?pageNo=1&pageSize=999 全量查询后按场景 id 过滤） */
+  async function loadSceneInfo() {
+    try {
+      const data: any = await getLightingPlanAPiNew({ pageNo: 1, pageSize: 999 });
+      // 兼容分页结构（records/list/result/data）与纯数组返回
+      const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.result || data?.data || []);
+      const target = (records as any[]).find((item: any) => String(item.id) === String(SCENE_ID));
+      console.log('[preview] 场景列表:', records, '目标场景:', target);
+      sceneInfo.value = target || null;
+    } catch (error) {
+      console.error('[preview] 查询场景信息失败:', error);
+      sceneInfo.value = null;
+    }
+  }
+
+  /** 场景全开/全关（与设备监控页场景配置的开启/关闭一致：postSceneSwitchApi → /plan/control） */
+  function handleSceneSwitch(operationType: '开启' | '关闭') {
+    const actionText = operationType === '开启' ? '全开' : '全关';
+    if (!sceneInfo.value) {
+      message.warning('场景信息未加载，无法执行' + actionText);
       return;
     }
+    const sceneName = sceneInfo.value.planName || sceneInfo.value.name || SCENE_ID;
     showLightConfirm({
-      content: `确定要 <strong class="tip-action">全开</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
+      content: `确定要 <strong class="tip-action">${actionText}</strong> 场景“${sceneName}”吗？`,
       onOk: async () => {
         try {
-          await setAreaOpenApi({ id: lightAreaId.value });
-          message.success('全开成功');
+          await postSceneSwitchApi({
+            operationType,
+            relIds: sceneInfo.value.relIds,
+            relType: sceneInfo.value.relType,
+            sceneId: sceneInfo.value.id || SCENE_ID,
+          });
+          message.success(actionText + '成功');
           // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
-          await loadLightCircuit(lightAreaId.value);
+          if (lightAreaId.value) {
+            await loadLightCircuit(lightAreaId.value);
+          }
         } catch (error) {
-          console.error('全开失败:', error);
-          message.error('全开失败，请重试');
+          console.error(actionText + '失败:', error);
+          message.error(actionText + '失败，请重试');
         }
       },
     });
   }
 
-  /** 详情弹框全关（调用 setAreaCloseApi，按 areaId） */
+  /** 详情弹框全开（调用 /plan/control，按场景控制） */
+  function handleLightAreaOn() {
+    handleSceneSwitch('开启');
+  }
+
+  /** 详情弹框全关（调用 /plan/control，按场景控制） */
   function handleLightAreaOff() {
-    if (!lightAreaId.value) {
-      message.warning('该标点无地块 ID，无法执行全关');
-      return;
-    }
-    showLightConfirm({
-      content: `确定要 <strong class="tip-action">全关</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
-      onOk: async () => {
-        try {
-          await setAreaCloseApi({ id: lightAreaId.value });
-          message.success('全关成功');
-          // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
-          await loadLightCircuit(lightAreaId.value);
-        } catch (error) {
-          console.error('全关失败:', error);
-          message.error('全关失败，请重试');
-        }
-      },
-    });
+    handleSceneSwitch('关闭');
   }
 
   const { createMessage } = useMessage();
@@ -333,8 +351,8 @@
     offline: 0,
   });
 
-  /** 所有地块数据（新接口字段：id / districtName） */
-  const allSpaceList = ref<{ id: string; districtName: string }[]>([]);
+  /** 所有地块数据（新接口字段：id / districtName / spaceIds） */
+  const allSpaceList = ref<{ id: string; districtName: string; spaceIds?: any }[]>([]);
 
   /** 回路总数 */
   const circuitCount = ref(0);
@@ -357,10 +375,62 @@
   /** 所有回路原始数据 */
   const circuitList = ref<any[]>([]);
 
+  /** 将接口返回的 spaceIds（逗号分隔字符串，如 "901,902"；或数组；或空字符串/空数组）解析为数字数组 */
+  function parseSpaceIds(spaceIds: any): number[] {
+    if (spaceIds == null) return [];
+    const arr = Array.isArray(spaceIds)
+      ? spaceIds
+      : String(spaceIds)
+          .replace(/[\[\]\s]/g, '')
+          .split(',');
+    return arr.map((v: any) => Number(v)).filter((n: number) => !isNaN(n) && n > 0);
+  }
+
+  /** 按 id 合并数组（保留顺序，id 相同只保留第一个；无 id 的项直接追加） */
+  function mergeById(list: any[], incoming: any): any[] {
+    if (!Array.isArray(incoming)) return list;
+    const exists = new Set(list.map((i: any) => i?.id).filter((v: any) => v != null));
+    for (const item of incoming) {
+      if (item?.id == null || !exists.has(item.id)) {
+        list.push(item);
+        if (item?.id != null) exists.add(item.id);
+      }
+    }
+    return list;
+  }
+
+  /** 从 getSceneSpaceApi 返回的 result 中取回路列表（circuits 为回路数组） */
+  function getCircuitListFromRes(res: any): any[] {
+    return Array.isArray(res?.circuits) ? res.circuits : [];
+  }
+
+  /** 各地块回路数据（按地块名索引：spaceIds 循环调用 /scene/space 后按 id 合并的 circuits） */
+  const spaceCircuitMap = ref<Record<string, any[]>>({});
+
+  /** 加载各地块回路数据：与 bigGis fetchSpaceSceneData 逻辑一致，按 spaceIds 循环调用，再按 id 合并 */
+  async function loadSpaceCircuitData() {
+    for (const space of allSpaceList.value) {
+      const spaceIds = parseSpaceIds(space?.spaceIds);
+      if (spaceIds.length === 0) continue;
+      const merged: any[] = [];
+      await Promise.all(
+        spaceIds.map(async (sid) => {
+          try {
+            const res: any = await getSceneSpaceApi(String(sid));
+            mergeById(merged, getCircuitListFromRes(res));
+          } catch (e) {
+            console.error(`[preview] 地块 [${space.districtName}] spaceId=${sid} 回路数据请求失败:`, e);
+          }
+        }),
+      );
+      spaceCircuitMap.value[space.districtName] = merged;
+    }
+  }
+
   /** 按地块聚合的表格数据 */
   const spaceTableData = computed(() =>
     allSpaceList.value.map((space) => {
-      const circuits = circuitList.value.filter((c: any) => c.spaceName === space.districtName);
+      const circuits = spaceCircuitMap.value[space.districtName] || [];
       const onlineCircuits = circuits.filter((c: any) => c.comstat === '在线');
       const openCircuits = circuits.filter((c: any) => c.status === '开启');
       const closeCircuits = circuits.filter((c: any) => c.status === '关闭');
@@ -430,13 +500,22 @@
     }
   }
 
-  /** 全区开灯 */
+  /** 全区开灯（/plan/control 场景级控制，参数与场景开关一致） */
   function handleAllOn() {
+    if (!sceneInfo.value) {
+      createMessage.warning('场景信息未加载，无法执行全区开灯');
+      return;
+    }
     showLightConfirm({
       content: '确定要 <strong class="tip-action">执行全区开灯操作</strong> 吗？',
       onOk: async () => {
         try {
-          await allOnApi();
+          await allOnApi({
+            operationType: '开启',
+            relIds: sceneInfo.value.relIds,
+            relType: sceneInfo.value.relType,
+            sceneId: sceneInfo.value.id || SCENE_ID,
+          });
           createMessage.success('全区开灯指令已下发');
         } catch {
           createMessage.error('操作失败');
@@ -445,13 +524,22 @@
     });
   }
 
-  /** 全区关灯 */
+  /** 全区关灯（/plan/control 场景级控制，参数与场景开关一致） */
   function handleAllOff() {
+    if (!sceneInfo.value) {
+      createMessage.warning('场景信息未加载，无法执行全区关灯');
+      return;
+    }
     showLightConfirm({
       content: '确定要 <strong class="tip-action">执行全区关灯操作</strong> 吗？',
       onOk: async () => {
         try {
-          await allOffApi();
+          await allOffApi({
+            operationType: '关闭',
+            relIds: sceneInfo.value.relIds,
+            relType: sceneInfo.value.relType,
+            sceneId: sceneInfo.value.id || SCENE_ID,
+          });
           createMessage.success('全区关灯指令已下发');
         } catch {
           createMessage.error('操作失败');
@@ -460,15 +548,24 @@
     });
   }
 
-  /** 地块开灯控制 */
+  /** 地块开灯控制（/plan/control 场景级控制，与设备监控页一致） */
   function handleControlOn(item: any) {
+    if (!sceneInfo.value) {
+      createMessage.warning('场景信息未加载，无法执行开启');
+      return;
+    }
     // 聚焦地图到该地块
     mapViewRef.value?.focusToSpace(item.spaceName);
     showLightConfirm({
       content: `确定要 <strong class="tip-action">开启</strong> 【${item.spaceName}】的灯光吗？`,
       onOk: async () => {
         try {
-          await openAreaApi(item.spaceId);
+          await postSceneSwitchApi({
+            operationType: '开启',
+            relIds: sceneInfo.value.relIds,
+            relType: sceneInfo.value.relType,
+            sceneId: sceneInfo.value.id || SCENE_ID,
+          });
           createMessage.success(`${item.spaceName} 开灯指令已下发`);
         } catch {
           createMessage.error('操作失败');
@@ -477,15 +574,24 @@
     });
   }
 
-  /** 地块关灯控制 */
+  /** 地块关灯控制（/plan/control 场景级控制，与设备监控页一致） */
   function handleControlOff(item: any) {
+    if (!sceneInfo.value) {
+      createMessage.warning('场景信息未加载，无法执行关闭');
+      return;
+    }
     // 聚焦地图到该地块
     mapViewRef.value?.focusToSpace(item.spaceName);
     showLightConfirm({
       content: `确定要 <strong class="tip-action">关闭</strong> 【${item.spaceName}】的灯光吗？`,
       onOk: async () => {
         try {
-          await closeAreaApi(item.spaceId);
+          await postSceneSwitchApi({
+            operationType: '关闭',
+            relIds: sceneInfo.value.relIds,
+            relType: sceneInfo.value.relType,
+            sceneId: sceneInfo.value.id || SCENE_ID,
+          });
           createMessage.success(`${item.spaceName} 关灯指令已下发`);
         } catch {
           createMessage.error('操作失败');
@@ -495,8 +601,10 @@
   }
 
   onMounted(() => {
+    // 进入页面先查询场景信息（固定场景 id），供弹框全开/全关的 /plan/control 控制使用
+    loadSceneInfo();
     loadStats();
-    loadAllSpace();
+    loadAllSpace().then(() => loadSpaceCircuitData());
     loadAllCircuit();
   });
 </script>
