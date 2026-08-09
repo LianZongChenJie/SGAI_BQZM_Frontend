@@ -22,7 +22,7 @@
       <div v-if="showControlPanel" class="control-panel">
         <div class="panel-body">
           <!-- 回路模块 -->
-          <div class="module-card stat-section">
+          <div class="module-card">
             <div class="section-title">回路</div>
             <div class="stat-row">
               <span class="stat-label">回路已开/回路总数</span>
@@ -35,7 +35,7 @@
           </div>
           
           <!-- 一键开关模块 -->
-          <div class="module-card action-section">
+          <div class="module-card">
             <div class="section-title">一键开关</div>
             <div class="mini-action-group">
               <button class="icon-btn with-text" @click="handleAllOn" title="全开">
@@ -71,11 +71,10 @@
             </div>
             <div class="space-list-scroll-container">
               <div class="space-list">
-                <div 
-                  v-for="(scene, index) in filteredSceneList" 
+                <div
+                  v-for="(scene, index) in filteredSceneList"
                   :key="index"
                   class="space-item-row"
-                  @click="selectScene(scene.id)"
                 >
                   <span class="scene-indicator-icon" :style="{ backgroundColor: scene.color }"></span>
                   <div class="item-info">
@@ -156,25 +155,6 @@
               </tr>
             </tbody>
           </table>
-        </div>
-      </div>
-    </div>
-    
-    <!-- 地块列表面板 -->
-    <div v-if="showSpacePanel" class="space-panel">
-      <div class="panel-header">
-        <h3>地块列表</h3>
-        <button class="close-btn" @click="showSpacePanel = false">✕</button>
-      </div>
-      <div class="panel-body">
-        <div 
-          v-for="(space, index) in spaceList" 
-          :key="index"
-          class="space-item"
-          @click="selectSpace(space.name)"
-        >
-          <span class="space-color" :style="{ backgroundColor: space.color }"></span>
-          <span class="space-name">{{ space.name }}</span>
         </div>
       </div>
     </div>
@@ -377,7 +357,7 @@
       </a-spin>
     </a-modal>
 
-    <!-- 详情模式标点四页签弹框（点击详情模式标点且仅单条数据时打开：回路概览/一键开关/监控视频/详情） -->
+    <!-- 详情模式标点弹框（点击详情模式标点且仅单条数据时打开：一键开关/监控视频） -->
     <a-modal
       v-model:open="lightTabsModalVisible"
       :title="(currentSpaceName) +'-'+ (lightAreaName)"
@@ -391,7 +371,7 @@
       @cancel="onSpaceModalCancel"
     >
       <a-tabs type="card" class="video-tabs space-tabs">
-        <!-- 1. 灯光控制（整合页签）：一键开关（上）→ 回路概览（中）→ 回路列表（下，左上侧展示已开启/总回路数） -->
+        <!-- 1. 灯光控制页签：一键开关（上）→ 回路列表（下，左上侧展示已开启/总回路数） -->
         <a-tab-pane key="control" tab="一键开关">
           <div class="light-pane">
             <!-- 一键开关（最上边） -->
@@ -472,7 +452,7 @@ import { useScreenScale } from '../useScreenScale'
 // teleport 弹窗渲染到 body 后 rem 依然基于 html 根字号，同样随屏缩放
 useScreenScale()
 import { getAllCircuitApi, getAllSpaceApi, getRunTimeCompareApi, getSceneSpaceApi, getVideoListBySpaceApi, allOnApi, allOffApi } from '../comprehensivePreview/comprehensivePreview.api'
-import { getCircuitListApi, getAllSpace } from '@/api/baseSettingBqZm'
+import { getCircuitListApi } from '@/api/baseSettingBqZm'
 import { postSceneControlApi, getAreaListAllTagApi, getLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import { setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';
@@ -481,7 +461,6 @@ import ConfirmModal from '../equipmentMonitoring/components/ConfirmModal.vue'
 
 const mapViewRef = ref<any>(null)
 const sceneDetailModalRef = ref<any>(null)
-const showSpacePanel = ref(false)
 const showControlPanel = ref(false)
 const showStatsPanel = ref(false)  // 统计面板开关
 const activeMode = ref<'area' | 'detail' | null>(null)  // 当前激活模式
@@ -536,8 +515,6 @@ const runtimeTableData = ref<any[]>([])
 // 所有地块 ID 列表（用于运行时长查询）
 const allSpaceIdList = ref<string[]>([])
 const spaceList = ref<any[]>([])
-// area/getAllSpace 返回的全量地块（每条含 spaceId / spaceName）
-const allAreaSpaceOptions = ref<any[]>([])
 // 最终 spaceId 列表：由有 tagId 的场景详情（/scene/detail）areaList.space 去重得到，替代 district/all 的 spaceIds 字段关联
 const finalSpaceIdList = ref<number[]>([])
 
@@ -599,39 +576,26 @@ const spaceSceneLoadingMap = ref<Record<string, boolean>>({})
 
 // 照明控制相关数据
 const circuitStats = ref({
-  total: 0,      // 总回路数
-  active: 0,     // 已开启回路数
-  offline: 0,    // 离线回路数
-  alert: 0       // 告警回路数
+  total: 0,   // 总回路数
+  active: 0,  // 已开启回路数
 })
 
-// "地块模式"按钮 - 绘制地块边框和标记点
-// 已处于地块模式时重复点击：不取消、不重绘（缓存优化）
+// "地块模式"按钮 - 绘制地块边框和标记点（已处于地块模式时重复点击：不取消、不重绘）
 function handleShowArea() {
-  console.log('地块模式按钮点击')
-  
   // 已处于地块模式：直接返回，避免重复清空/重绘
   if (activeMode.value === 'area') return
-  
-  // 切换到地块模式（去掉二次取消，点击即进入并展示标点）
+
   activeMode.value = 'area'
-  
+
   // 先清除其他模式的绘制（如详情模式的灯光标点）
-  if (mapViewRef.value?.clearAllDrawings) {
-    mapViewRef.value.clearAllDrawings()
-    console.log('已清除地图上的所有绘制')
-  }
-  
+  mapViewRef.value?.clearAllDrawings?.()
+
   // 绘制地块边框和标记点
-  if (mapViewRef.value?.drawAllSpacesExceptNorth) {
-    mapViewRef.value.drawAllSpacesExceptNorth()
-    console.log('已添加地块边框')
-    // 标点创建后立即用已缓存的状态点亮/熄灭（数据可能早于标点加载完成，直接更新会因标点不存在而丢失）
-    applyAllSpaceMarkerStates()
-    // 点击地块模式时批量请求所有地块的场景数据，
-    // 请求完成后按 circuits 状态更新标点亮/灭（任一回路开启=亮灯，否则熄灭）
-    fetchAllSpaceSceneData()
-  }
+  mapViewRef.value?.drawAllSpacesExceptNorth?.()
+  // 标点创建后立即用已缓存的状态点亮/熄灭（数据可能早于标点加载完成，直接更新会因标点不存在而丢失）
+  applyAllSpaceMarkerStates()
+  // 批量请求所有地块的场景数据，请求完成后按 circuits 状态更新标点亮/灭（任一回路开启=亮灯，否则熄灭）
+  fetchAllSpaceSceneData()
 }
 
 // ===== 地块标点 hover 功能浮层 =====
@@ -639,16 +603,14 @@ function handleShowArea() {
 // 视口外边距
 const VIEWPORT_MARGIN = 8
 // 浮层预估尺寸
-const MENU_WIDTH_LEVEL1 = 150
-const MENU_WIDTH_LEVEL2 = 240
-const MENU_GAP = 2
+const MENU_WIDTH = 150
 const MENU_HEIGHT_MAX = 360
 
 // 限制浮层位置在视口内（不能超出视图边界）
-function clampMenuPosition(x: number, y: number, expandLevel2: boolean) {
+function clampMenuPosition(x: number, y: number) {
   const vw = window.innerWidth
   const vh = window.innerHeight
-  const totalWidth = expandLevel2 ? (MENU_WIDTH_LEVEL1 + MENU_GAP + MENU_WIDTH_LEVEL2) : MENU_WIDTH_LEVEL1
+  const totalWidth = MENU_WIDTH
   if (x + totalWidth > vw - VIEWPORT_MARGIN) {
     x = vw - totalWidth - VIEWPORT_MARGIN
   }
@@ -680,8 +642,8 @@ function onMapClick(event: MouseEvent) {
     const rect = markerEl.getBoundingClientRect()
     let x = Math.round(rect.left + rect.width / 2 + 20)
     let y = Math.round(rect.top - 180)
-    // 边界限制（仅一级时预估尺寸）
-    const clamped = clampMenuPosition(x, y, false)
+    // 边界限制
+    const clamped = clampMenuPosition(x, y)
     spaceMenu.value = {
       visible: true,
       x: clamped.x,
@@ -902,7 +864,6 @@ async function fetchSpaceSceneData(spaceName: string) {
   }
   try {
     spaceSceneLoadingMap.value[key] = true
-    console.log(`[index] 地块 [${key}] 合并 spaceId 数据:`, spaceIds)
     // 每个 spaceId 走 spaceId 级缓存（同一 spaceId 只请求一次），再按 id 合并到地块
     const merged: any = { scenes: [], circuits: [] }
     let hasError = false
@@ -963,7 +924,6 @@ function fetchAllSpaceSceneData() {
     console.warn('[index] 暂无地块列表数据，请稍后再试')
     return
   }
-  console.log(`[index] 批量请求 ${spaces.length} 个地块场景数据...`)
   spaces.forEach((space: any) => {
     fetchSpaceSceneData(space.name)
   })
@@ -978,7 +938,6 @@ function applyAllSpaceMarkerStates() {
     const isOn =
       data?._isOn ??
       (Array.isArray(data?.circuits) ? data.circuits.some((c: any) => c.status === '开启') : false)
-    console.log(`[index] 重放灯泡状态: ${space.name} → ${isOn ? '亮' : '灭'}`)
     getSpaceMarkerNames(space.name).forEach((n) => {
       mapViewRef.value?.updateSpaceMarkerState?.(n, isOn)
     })
@@ -1124,7 +1083,6 @@ function handleSpaceAllOn(spaceName: string) {
     message.warning(`地块【${spaceName}】无匹配场景，无法执行全开`)
     return
   }
-  console.log('[bigGis] 地块全开场景列表:', scenes.map((s: any) => ({ id: s.id, sceneName: s.sceneName || s.planName, relIds: s.relIds, relType: s.relType })))
   showLightConfirm({
     content: `确定要 <strong class="tip-action">全开</strong> 地块“${spaceName}”的 ${scenes.length} 个场景吗？`,
     onOk: async () => {
@@ -1171,7 +1129,6 @@ function handleSpaceAllOff(spaceName: string) {
     message.warning(`地块【${spaceName}】无匹配场景，无法执行全关`)
     return
   }
-  console.log('[bigGis] 地块全关场景列表:', scenes.map((s: any) => ({ id: s.id, sceneName: s.sceneName || s.planName, relIds: s.relIds, relType: s.relType })))
   showLightConfirm({
     content: `确定要 <strong class="tip-action">全关</strong> 地块“${spaceName}”的 ${scenes.length} 个场景吗？`,
     onOk: async () => {
@@ -1217,7 +1174,6 @@ async function loadSceneInfo() {
     // 兼容分页结构（records/list/result/data）与纯数组返回
     const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.result || data?.data || [])
     const target = (records as any[]).find((item: any) => String(item.id) === String(SCENE_ID))
-    console.log('[bigGis] 场景列表:', records, '目标场景:', target)
     sceneInfo.value = target || null
   } catch (error) {
     console.error('[bigGis] 查询场景信息失败:', error)
@@ -1281,53 +1237,23 @@ function handleAllOff() {
 async function fetchCircuitStats() {
   try {
     const circuitData = await getAllCircuitApi()
-    
-    console.log('回路数据:', circuitData)
-    
+
     // 解析回路总数
-    if (circuitData && Array.isArray(circuitData)) {
+    if (Array.isArray(circuitData)) {
       circuitStats.value.total = circuitData.length
-      
-      // 参考综合预览：统计 status === '开启' 的回路数
-      const openCircuits = circuitData.filter((c: any) => c.status === '开启')
-      circuitStats.value.active = openCircuits.length
-      
-      console.log(`回路初始化完成 - 总数: ${circuitStats.value.total}, 开启: ${circuitStats.value.active}`)
+      // 统计 status === '开启' 的回路数
+      circuitStats.value.active = circuitData.filter((c: any) => c.status === '开启').length
     } else if (circuitData && typeof circuitData === 'object') {
       circuitStats.value.total = circuitData.total || circuitData.count || circuitData.length || 0
-      // 如果对象中有 status 字段，也可以尝试解析
       circuitStats.value.active = circuitData.open || circuitData.active || 0
     }
-    
-    console.log('最终回路统计:', circuitStats.value)
   } catch (error) {
     console.error('获取回路统计数据失败:', error)
     // 设置默认值
-    circuitStats.value = {
-      total: 0,
-      active: 0,
-      offline: 0,
-      alert: 0
-    }
+    circuitStats.value = { total: 0, active: 0 }
   }
 }
 
-
-// 获取全量地块（area/getAllSpace，返回每条含 spaceId / spaceName），初始化时优先调用，
-// 作为 /scene/space 请求 spaceId 的来源；场景数据按 district/all 每条数据的 id/name 归组组装
-async function fetchAllAreaSpaces() {
-  try {
-    const res: any = await getAllSpace()
-    // 兼容分页结构（records/list/result/data）与纯数组返回
-    const list = Array.isArray(res) ? res : (res?.records || res?.list || res?.result || res?.data || [])
-    allAreaSpaceOptions.value = list
-    console.log('[index] 全量地块数据(area/getAllSpace):', list)
-    return list
-  } catch (error) {
-    console.error('获取全量地块数据(area/getAllSpace)失败:', error)
-    return []
-  }
-}
 
 // 全量场景列表：scene/listPage 返回的有 tagId 的场景（场景模式弹框按地块 id 匹配 tagId 使用）
 const allTagScenes = ref<any[]>([])
@@ -1342,7 +1268,6 @@ async function fetchTagSceneList(): Promise<any[]> {
     // 兼容分页结构（records/list/result/data）与纯数组返回
     const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.result || data?.data || [])
     allTagScenes.value = (records as any[]).filter((item: any) => getSceneTagId(item) != null)
-    console.log('[index] 有 tagId 的场景:', allTagScenes.value.length, allTagScenes.value)
     return allTagScenes.value
   } catch (error) {
     console.error('[index] 查询场景列表失败:', error)
@@ -1367,7 +1292,6 @@ async function fetchAllDistrictTags() {
     const districtSpaceMap = new Map<string, Set<number>>()
     // 每个 spaceId 关联的场景 tagId（districtId 匹配不上时按场景所属片区兑底归属，避免 detail 里有 space 却不发起请求）
     const spaceIdToTagIds = new Map<number, Set<string>>()
-    console.log(`[index] 初始化并行查询 ${tagScenes.length} 个场景详情:`, tagScenes.map((s: any) => s.id))
     await Promise.all(
       tagScenes.map(async (scene: any) => {
         try {
@@ -1396,7 +1320,6 @@ async function fetchAllDistrictTags() {
       }),
     )
     finalSpaceIdList.value = Array.from(spaceIdSet)
-    console.log('[index] 最终 spaceId 列表(场景 areaList.space 去重):', finalSpaceIdList.value)
 
     // 3. allSpaceIdList 直接用最终 spaceId 数组组装（不再用 spaceIds 字段关联）
     allSpaceIdList.value = finalSpaceIdList.value.map(String)
@@ -1405,7 +1328,6 @@ async function fetchAllDistrictTags() {
     // 各地块 spaceIds = districtId 归属 + 场景 tagId 归属（兑底）合并去重，保证 detail 里引用过的 spaceId 全部被请求
     const res: any = await getAreaListAllTagApi()
     const list = Array.isArray(res) ? res : (res?.records || res?.list || res?.result || res?.data || [])
-    console.log('[index] 所有片区数据(district/all):', list)
     if (list.length > 0) {
       spaceList.value = list.map((space: any, index: number) => {
         const base = districtSpaceMap.has(String(space.id)) ? Array.from(districtSpaceMap.get(String(space.id))!) : []
@@ -1419,7 +1341,6 @@ async function fetchAllDistrictTags() {
           enabled: false
         }
       })
-      console.log('[index] spaceList 已由 district/all + 场景详情归属初始化:', spaceList.value.length, '个地块')
       // 校验：仍有 spaceId 无法归属到任何地块（districtId/tagId 均匹配不上）
       const lostSpaceIds = finalSpaceIdList.value.filter((sid) => !spaceList.value.some((s: any) => s.spaceIds.includes(sid)))
       if (lostSpaceIds.length) {
@@ -1441,7 +1362,6 @@ async function fetchAllSpaceIds() {
     const list = Array.isArray(res) ? res : (res?.records || res?.list || res?.result || res?.data || [])
     // 新接口字段：id / districtName
     allSpaceIdList.value = list.map((item: any) => item.id).filter(Boolean)
-    console.log('所有地块 ID:', allSpaceIdList.value)
     // 注意：不再用 getAllSpaceApi 的旧 spaceIds 字段初始化 spaceList / 发起 /scene/space 请求，
     // spaceList 与 space 请求统一由 fetchAllDistrictTags（detail 全部完成后）驱动，避免在 detail 之前提前调用
     return allSpaceIdList.value
@@ -1479,8 +1399,6 @@ async function fetchRunTimeCompare() {
       `&endTime=${encodeURIComponent(endTime)}`
 
     const res: any = await getRunTimeCompareApi(queryStr)
-
-    console.log('运行时长对比数据:', res)
 
     const data = Array.isArray(res) ? res : res?.result || res?.data || []
     if (!Array.isArray(data)) {
@@ -1541,53 +1459,16 @@ function toggleStatsPanel() {
   }
 }
 
-// 选择地块并绘制边框（粗红线）
-function selectSpace(spaceName: string) {
-  console.log('选择地块:', spaceName)
-  
-  // 调用地图组件，用粗红线绘制该地块边框
-  mapViewRef.value?.highlightSpaceBySelected?.(spaceName)
-  
-  // 关闭面板
-  showSpacePanel.value = false
-}
-
-// 选择场景并绘制边框
-function selectScene(sceneId: string) {
-  console.log('选择场景:', sceneId)
-  const scene = filteredSceneList.value.find(s => s.id === sceneId)
-  if (scene) {
-    // TODO: 根据场景ID绘制对应的地块边框
-    console.log('场景信息:', scene)
-  }
-}
-
-// 显示场景详情
-async function showSceneDetail(scene: any) {
-  console.log('查看场景详情:', scene)
-  console.log('场景 ID:', scene.id)
-  
-  // 先清除地图上的所有绘制（包括地块边框、标点等）
-  if (mapViewRef.value?.clearAllDrawings) {
-    mapViewRef.value.clearAllDrawings()
-    console.log('✓ 已清除地图上的所有绘制')
-  } else {
-    console.warn('⚠️ mapViewRef 或 clearAllDrawings 不存在')
-  }
-  
-  // 额外检查：直接调用 clearLightingMarkers 确保标点也被清除
-  if (mapViewRef.value?.clearLightingMarkers) {
-    mapViewRef.value.clearLightingMarkers()
-    console.log('✓ 已额外清除灯光标点')
-  }
-  
-  // 打开详情弹窗（显示表格数据）
+// 显示场景详情（先清除地图上的所有绘制，再打开详情弹窗）
+function showSceneDetail(scene: any) {
+  mapViewRef.value?.clearAllDrawings?.()
+  mapViewRef.value?.clearLightingMarkers?.()
   sceneDetailModalRef.value?.showDetail(scene)
 }
 
 // 场景开/关通用操作
 async function handleSceneAction(scene: any, action: '开启' | '关闭') {
-  const actionText = action === '开启' ? '开启' : '关闭'
+  const actionText = action
   return new Promise<void>((resolve, reject) => {
     if (!confirmModalRef.value) {
       resolve()
@@ -1630,21 +1511,15 @@ function handleSceneOff(scene: any) {
 
 // "详情模式"按钮 - 显示所有标点，清除地块
 function handleShowDetails() {
-  console.log('详情模式按钮点击')
-  
   // 切换激活状态（再点一次取消）
   activeMode.value = activeMode.value === 'detail' ? null : 'detail'
-  
+
   // 先清除地块绘制（如果存在）
-  if (mapViewRef.value?.clearAllDrawings) {
-    mapViewRef.value.clearAllDrawings()
-    console.log('已清除地图上的地块绘制')
-  }
-  
+  mapViewRef.value?.clearAllDrawings?.()
+
   // 激活时添加标点（数据已在初始化时加载）
-  if (activeMode.value === 'detail' && mapViewRef.value?.AddLightingMarker) {
-    mapViewRef.value.AddLightingMarker()
-    console.log('✅ 已添加标点')
+  if (activeMode.value === 'detail') {
+    mapViewRef.value?.AddLightingMarker?.()
   }
 }
 
@@ -1701,7 +1576,6 @@ async function loadSpaceVideoList(spaceName: string) {
     const space = spaceList.value.find((s: any) => s.name === normalizeSpaceName(spaceName))
     const res: any = await getVideoListBySpaceApi(space?.id ? String(space.id) : '')
     spaceVideoList.value = Array.isArray(res) ? res : (res?.result || res?.data || [])
-    console.log('地块视频列表:', spaceVideoList.value)
   } catch (error) {
     console.error('获取地块视频列表失败:', error)
     spaceVideoList.value = []
@@ -1717,10 +1591,8 @@ function getVideoPlayUrl(item: any) {
 }
 
 onMounted(() => {
-  console.log('页面已挂载')
-  // 初始化先调用 area/getAllSpace 获取全量地块（scene/space 请求的 spaceId 来源），
-  // 完成后再加载 district/all 填充地块列表 spaceList 并批量请求各地块场景数据
-  fetchAllAreaSpaces().then(() => fetchAllDistrictTags())
+  // 初始化：加载 district/all 填充地块列表 spaceList，并批量请求各地块场景数据（更新标点亮灭）
+  fetchAllDistrictTags()
   // 初始化时获取回路统计数据
   fetchCircuitStats()
   // 获取各地块运行时长对比
@@ -1936,19 +1808,6 @@ onMounted(() => {
   filter: drop-shadow(0 0 0.208vw rgba(0, 217, 255, 0.6));
 }
 
-/* 指示灯 - 未激活时暗淡 */
-.control-toggle-btn .indicator-dot {
-  position: absolute;
-  top: 0.06rem;
-  right: 0.06rem;
-  width: 0.08rem;
-  height: 0.08rem;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  box-shadow: none;
-}
-
 /* Hover效果 */
 .control-toggle-btn:hover {
   background: linear-gradient(135deg, rgba(0, 40, 80, 0.9) 0%, rgba(0, 30, 60, 0.85) 100%);
@@ -1957,12 +1816,6 @@ onMounted(() => {
     0 0.06rem 0.24rem rgba(0, 150, 255, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   transform: translateY(-2px);
-}
-
-/* 激活状态 - 指示灯亮起 */
-.control-toggle-btn.is-active .indicator-dot {
-  background: #00d9ff;
-  box-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.8), 0 0 0.04rem rgba(0, 217, 255, 1);
 }
 
 /* Click效果 */
@@ -1986,52 +1839,6 @@ onMounted(() => {
   flex-direction: column;
 }
 
-/* 紧凑状态栏 - 直接显示统计信息，无标题 */
-.stat-bar.compact {
-  padding: 0.521vw 0.729vw;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.05), rgba(16, 185, 129, 0.03));  /* 更低透明度 */
-  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.521vw;
-}
-
-.stat-bar .stat-text {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.625vw;  /* 0.12rem @1920 */
-  line-height: 1.4;
-  flex: 1;
-  white-space: nowrap;
-}
-
-.stat-bar .stat-text .highlight {
-  color: #38bdf8;
-  font-weight: 600;
-}
-
-.close-btn-small {
-  width: 0.22rem;
-  height: 0.22rem;
-  min-width: 0.22rem;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 0.04rem;
-  color: #ef4444;
-  font-size: 0.14rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.close-btn-small:hover {
-  background: rgba(239, 68, 68, 0.3);
-  transform: scale(1.1);
-}
-
 .control-panel .panel-body {
   flex: 1;
   overflow-y: auto;
@@ -2049,47 +1856,6 @@ onMounted(() => {
 .control-panel .panel-body::-webkit-scrollbar-thumb {
   background: rgba(56, 189, 248, 0.3);
   border-radius: 0.03rem;
-}
-
-/* 面板头部 */
-.panel-header-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.1rem 0.14rem;  /* 减小内边距 */
-  background: transparent;  /* 移除渐变背景 */
-  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 0.08rem;
-  color: #38bdf8;
-  font-size: 0.14rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.close-btn-small {
-  width: 0.22rem;
-  height: 0.22rem;
-  background: rgba(255, 255, 255, 0.08);  /* 透明度从 0.05 提高到 0.08 */
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 0.04rem;
-  color: rgba(255, 255, 255, 0.6);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.14rem;
-  transition: all 0.2s ease;
-}
-
-.close-btn-small:hover {
-  background: rgba(255, 77, 77, 0.2);
-  border-color: rgba(255, 77, 77, 0.4);
-  color: #ff6b6b;
 }
 
 /* 面板主体 */
@@ -2123,36 +1889,7 @@ onMounted(() => {
   background: linear-gradient(90deg, transparent, rgba(0, 200, 255, 0.4), transparent);
 }
 
-/* 覆盖原有的 stat-section / action-section 透明样式 */
-.stat-section.module-card {
-  background: rgba(0, 30, 60, 0.5);
-  border: 1px solid rgba(0, 150, 255, 0.2);
-  border-radius: 0.313vw;
-  padding: 0.521vw 0.625vw;
-}
-
-.action-section.module-card {
-  background: rgba(0, 30, 60, 0.5);
-  border: 1px solid rgba(0, 150, 255, 0.2);
-  border-radius: 0.313vw;
-  padding: 0.521vw 0.625vw;
-}
-
-.space-section.module-card {
-  background: rgba(0, 30, 60, 0.5);
-  border: 1px solid rgba(0, 150, 255, 0.2);
-  border-radius: 0.313vw;
-  padding: 0.521vw 0.625vw;
-}
-
 /* 统计区域 */
-.stat-section {
-  background: transparent;  /* 完全透明 */
-  border: none;  /* 移除边框 */
-  border-radius: 0;
-  padding: 0.08rem 0.12rem;  /* 减小内边距 */
-}
-
 .stat-row {
   display: flex;
   align-items: baseline;
@@ -2187,13 +1924,6 @@ onMounted(() => {
 }
 
 /* 一键操作区域 */
-.action-section {
-  background: transparent;  /* 完全透明 */
-  border: none;  /* 移除边框 */
-  border-radius: 0;
-  padding: 0.06rem 0;  /* 简化间距 */
-}
-
 .mini-action-group {
   display: flex;
   gap: 0.08rem;
@@ -2410,14 +2140,6 @@ onMounted(() => {
   transform: translateX(0);
 }
 
-.space-indicator {
-  width: 0.08rem;
-  height: 0.08rem;
-  min-width: 0.08rem;
-  border-radius: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
 .scene-indicator-icon {
   width: 0.12rem;
   height: 0.12rem;
@@ -2443,34 +2165,6 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow: 0 0 0.313vw rgba(0, 217, 255, 0.5);
-}
-
-.item-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.item-space {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.573vw;  /* 0.11rem @1920 */
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.item-space.empty {
-  color: rgba(255, 255, 255, 0.2);
-}
-
-.scene-info {
-  color: #00d9ff;  /* 青色 */
-  font-size: 0.573vw;  /* 0.11rem @1920 */
-  font-weight: 500;
-  margin-right: 0.417vw;
-  flex-shrink: 0;
-  text-shadow: 0 0 0.208vw rgba(0, 217, 255, 0.4);
 }
 
 /* 详情按钮 */
@@ -2542,171 +2236,6 @@ onMounted(() => {
   background: rgba(255, 80, 80, 0.3);
   border-color: rgba(255, 80, 80, 0.6);
   box-shadow: 0 0 0.1rem rgba(255, 80, 80, 0.3);
-}
-
-/* 现代开关 - 更简洁 */
-.toggle-switch {
-  position: relative;
-  width: 0.42rem;
-  height: 0.24rem;
-  flex-shrink: 0;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.toggle-slider {
-  position: absolute;
-  cursor: pointer;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.08);  /* 更低透明度 */
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0.24rem;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.toggle-slider:before {
-  content: "";
-  position: absolute;
-  height: 0.18rem;
-  width: 0.18rem;
-  left: 2px;
-  bottom: 2px;
-  background: rgba(255, 255, 255, 0.5);  /* 更淡的滑块 */
-  border-radius: 50%;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 0.04rem rgba(0, 0, 0, 0.2);
-}
-
-.toggle-switch input:checked + .toggle-slider {
-  background: rgba(56, 189, 248, 0.3);  /* 更柔和的开启色 */
-  border-color: rgba(56, 189, 248, 0.5);
-}
-
-.toggle-switch input:checked + .toggle-slider:before {
-  transform: translateX(0.18rem);
-  background: #38bdf8;  /* 开启时显示蓝色 */
-  box-shadow: 0 2px 0.08rem rgba(56, 189, 248, 0.5);
-}
-
-/* 地块列表面板 */
-.space-panel {
-  position: absolute;
-  right: 0.2rem;
-  top: 0.8rem;
-  width: 2.8rem;
-  max-height: calc(100vh - 2rem);
-  background: rgba(10, 22, 40, 0.95);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  border-radius: 0.08rem;
-  backdrop-filter: blur(0.1rem);
-  box-shadow: 0 0.08rem 0.32rem rgba(0, 0, 0, 0.5), 0 0 0.2rem rgba(56, 189, 248, 0.2);
-  z-index: 60000;  /* 高于地图标点，确保不被遮挡 */
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.14rem 0.16rem;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(16, 185, 129, 0.1));
-  border-bottom: 1px solid rgba(56, 189, 248, 0.3);
-}
-
-.panel-header h3 {
-  margin: 0;
-  color: #fff;
-  font-size: 0.16rem;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-}
-
-.close-btn {
-  width: 0.28rem;
-  height: 0.28rem;
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  border-radius: 0.04rem;
-  color: #ef4444;
-  font-size: 0.16rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.close-btn:hover {
-  background: rgba(239, 68, 68, 0.4);
-  transform: scale(1.1);
-}
-
-.panel-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0.08rem;
-}
-
-.panel-body::-webkit-scrollbar {
-  width: 0.06rem;
-}
-
-.panel-body::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.panel-body::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.3);
-  border-radius: 0.03rem;
-}
-
-.panel-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.5);
-}
-
-.space-item {
-  display: flex;
-  align-items: center;
-  gap: 0.1rem;
-  padding: 0.12rem 0.12rem;
-  margin-bottom: 0.06rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.06rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.space-item:hover {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.3);
-  transform: translateX(-0.04rem);
-  box-shadow: 0 2px 0.08rem rgba(56, 189, 248, 0.15);
-}
-
-.space-item:active {
-  transform: translateX(-2px);
-}
-
-.space-color {
-  width: 0.12rem;
-  height: 0.12rem;
-  min-width: 0.12rem;
-  border-radius: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.space-name {
-  flex: 1;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.14rem;
-  font-weight: 500;
 }
 
 /* ========== 右上角统计面板 - 科技蓝主题 ========== */
@@ -2814,12 +2343,7 @@ onMounted(() => {
   box-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.8);
 }
 
-/* 激活状态 - 指示灯亮起（整体管控按钮） */
-.control-toggle-btn.is-active .indicator-dot {
-  background: #00d9ff;
-  box-shadow: 0 0 0.08rem rgba(0, 217, 255, 0.8), 0 0 0.04rem rgba(0, 217, 255, 1);
-}
-
+/* 统计按钮图标 */
 .stats-toggle-btn svg {
   flex-shrink: 0;
   width: 1.25vw;  /* 0.24rem @1920，覆盖模板固定属性，随屏缩放 */
@@ -3121,40 +2645,6 @@ onMounted(() => {
   flex: 1;
 }
 
-.menu-arrow {
-  color: rgba(0, 200, 255, 0.6);
-  font-size: 0.12rem;
-}
-
-/* 二级菜单（位于一级项内部，left:100% 相对一级项定位） */
-.space-menu-item {
-  position: relative;
-}
-
-.space-card {
-  position: absolute;
-  left: 100%;
-  top: -0.04rem;
-  width: 2.4rem;
-  margin-left: 2px;
-  background: linear-gradient(180deg, rgba(12, 28, 52, 0.98) 0%, rgba(8, 18, 36, 0.98) 100%);
-  border: 1px solid rgba(0, 200, 255, 0.35);
-  border-radius: 0.08rem;
-  box-shadow: 0 0.12rem 0.32rem rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(0.12rem);
-  animation: spaceMenuIn 0.15s ease-out;
-  overflow: hidden;
-}
-
-.space-card-title {
-  padding: 0.09rem 0.14rem;
-  color: #00d9ff;
-  font-size: 0.12rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid rgba(0, 200, 255, 0.2);
-}
-
 /* 全开全关卡片 */
 .switch-card-body {
   display: flex;
@@ -3196,79 +2686,6 @@ onMounted(() => {
   box-shadow: 0 0 0.14rem rgba(255, 80, 80, 0.3);
 }
 
-/* 视频卡片 */
-.video-card-body {
-  padding: 0.1rem;
-  height: 1.5rem;
-}
-
-.video-card-body :deep(.video-player-wrap) {
-  width: 100%;
-  height: 100%;
-  border-radius: 0.06rem;
-  overflow: hidden;
-}
-
-/* 视频列表卡片 */
-.video-card-list {
-  max-height: 3.2rem;
-  overflow-y: auto;
-}
-
-.video-card-item {
-  padding: 0.08rem 0.1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.video-card-item:last-child {
-  border-bottom: none;
-}
-
-.video-item-name {
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.12rem;
-  margin-bottom: 0.06rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.video-card-item :deep(.video-player-wrap) {
-  width: 100%;
-  height: 1.3rem;
-  border-radius: 0.06rem;
-  overflow: hidden;
-}
-
-/* 详情（回路）卡片 */
-.detail-card-list {
-  max-height: 2.6rem;
-  overflow-y: auto;
-}
-
-.circuit-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.08rem 0.14rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  transition: background 0.2s ease;
-}
-
-.circuit-row:hover {
-  background: rgba(0, 200, 255, 0.12);
-}
-
-.circuit-name {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.12rem;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-right: 0.1rem;
-}
-
 .circuit-status {
   font-size: 0.12rem;
   font-weight: 600;
@@ -3280,33 +2697,6 @@ onMounted(() => {
 }
 
 .circuit-status.is-off {
-  color: #ff5252;
-}
-
-.space-submenu-item {
-  display: flex;
-  align-items: center;
-  gap: 0.08rem;
-  padding: 0.09rem 0.14rem;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.12rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.space-submenu-item:hover {
-  background: rgba(0, 200, 255, 0.15);
-  color: #fff;
-}
-
-.all-on:hover {
-  background: rgba(0, 200, 120, 0.2);
-  color: #00e676;
-}
-
-.all-off:hover {
-  background: rgba(255, 80, 80, 0.2);
   color: #ff5252;
 }
 
@@ -3511,15 +2901,6 @@ onMounted(() => {
 }
 
 /* ===== 地块功能弹框内容（弹框头部/内容主题见文件底部全局样式） ===== */
-.space-modal-subtitle {
-  padding: 2px 2px 0.1rem;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.12rem;
-  letter-spacing: 0.5px;
-  border-bottom: 1px dashed rgba(0, 150, 255, 0.2);
-  margin-bottom: 0.1rem;
-}
-
 /* 全开全关弹框按钮（放大） */
 .all-modal-body {
   padding: 0.06rem 2px 2px;
@@ -3545,14 +2926,6 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* 场景虚拟列表操作列按钮组 */
-.scene-btn-group {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.06rem;
 }
 
 /* tab 标签栏深色主题 */
@@ -3586,32 +2959,6 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.scene-color-dot {
-  width: 0.08rem;
-  height: 0.08rem;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.submenu-label {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.scene-enable {
-  font-size: 0.1rem;
-  flex-shrink: 0;
-}
-
-.scene-enable.is-on {
-  color: #00e676;
-}
-
-.scene-enable.is-off {
-  color: #ff5252;
-}
 </style>
 
 <style>
