@@ -164,14 +164,14 @@
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     </span>
-                    <span class="info-label">操作类型</span>
+                    <span class="info-label">上次操作类型</span>
                     <span style="padding-left: 3px;" class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
                   </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </span>
-                    <span class="info-label">上次操作</span>
+                    <span class="info-label">上次操作时间</span>
                     <span style="padding-left: 3px;" class="info-value">{{ s.updateTime || '-' }}</span>
                   </div>
                 </div>
@@ -286,14 +286,14 @@
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     </span>
-                    <span class="info-label">操作类型</span>
+                    <span class="info-label">上次操作类型</span>
                     <span class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
                   </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </span>
-                    <span class="info-label">上次操作</span>
+                    <span class="info-label">上次操作时间</span>
                     <span class="info-value">{{ s.updateTime || '-' }}</span>
                   </div>
                 </div>
@@ -315,7 +315,7 @@
                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                       </svg>
                     </button>
-                    <button class="scene-icon-btn danger" title="删除" @click="onDeleteSceneBtn(s)">
+                    <button v-if="s.category !== '一键开关'" class="scene-icon-btn danger" title="删除" @click="onDeleteSceneBtn(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"/>
                         <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>

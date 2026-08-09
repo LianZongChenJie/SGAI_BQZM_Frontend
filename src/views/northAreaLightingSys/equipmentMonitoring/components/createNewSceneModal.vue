@@ -21,142 +21,184 @@
         :disabled="isDetail"
         autocomplete="off"
       >
-        <!-- ==================== 搜索项分组 ==================== -->
-        <div class="search-section" v-if="!isDetail">
-          <div class="section-title">搜索项</div>
-          <!-- 第 1 行：控制类型 / 区域 / 名称 -->
-          <a-row :gutter="10">
-            <a-col :span="8">
-              <a-form-item label="控制类型" name="relType">
-                <div style="width:100%">
-                  <a-select
-                    style="width:100%"
-                    v-model:value="formData.relType"
-                    placeholder="请选择控制类型"
-                    :options="relTypeOptions"
-                    allowClear
-                    @change="handleChangeRelType"
-                  />
-                </div>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="地块名称">
-                <div style="width:100%">
-                  <a-select
-                    style="width:100%"
-                    v-model:value="filterSpaceName"
-                    :options="spaceOptions"
-                    placeholder="请选择地块名称"
-                    allowClear
-                    show-search
-                    :filter-option="handleFilterTagOption"
-                    :loading="spaceLoading"
-                  />
-                </div>
-              </a-form-item>
-            </a-col>
-            <a-col :span="8">
-              <a-form-item label="区域名称">
-                <div style="width:100%">
-                  <a-input
-                    style="width:100%"
-                    v-model:value="filterAreaName"
-                    placeholder="请输入区域名称"
-                    allowClear
-                    autocomplete="off"
-                  />
-                </div>
-              </a-form-item>
-            </a-col>
-          </a-row>
-          <!-- 第 2 行：回路名称 -->
-          <a-row :gutter="10">
-            <a-col :span="8" v-if="formData.relType === '回路'">
-              <a-form-item label="回路名称">
-                <div style="width:100%">
-                  <a-input
-                    style="width:100%"
-                    v-model:value="filterCircuitName"
-                    placeholder="请输入回路名称"
-                    allowClear
-                    autocomplete="off"
-                  />
-                </div>
-              </a-form-item>
-            </a-col>
-            <a-col :span="formData.relType === '回路' ? 16 : 24"></a-col>
-          </a-row>
-        </div>
+        <!-- ==================== Tab：场景 / 节目 ==================== -->
+        <a-tabs
+          v-model:activeKey="activeTab"
+          class="create-scene-tabs"
+          :destroy-inactive-tab-pane="false"
+        >
+          <!-- ==================== Tab 1：场景 ==================== -->
+          <a-tab-pane key="scene" tab="场景">
+            <!-- ==================== 搜索项分组 ==================== -->
+            <div class="search-section" v-if="!isDetail">
+              <div class="section-title">搜索项</div>
+              <!-- 第 1 行：控制类型 / 区域 / 名称 -->
+              <a-row :gutter="10">
+                <a-col :span="8">
+                  <a-form-item label="控制类型" name="relType">
+                    <div style="width:100%">
+                      <a-select
+                        style="width:100%"
+                        v-model:value="formData.relType"
+                        placeholder="请选择控制类型"
+                        :options="relTypeOptions"
+                        allowClear
+                        @change="handleChangeRelType"
+                      />
+                    </div>
+                  </a-form-item>
+                </a-col>
+                <a-col :span="8">
+                  <a-form-item label="地块名称">
+                    <div style="width:100%">
+                      <a-select
+                        style="width:100%"
+                        v-model:value="filterSpaceName"
+                        :options="spaceOptions"
+                        placeholder="请选择地块名称"
+                        allowClear
+                        show-search
+                        :filter-option="handleFilterTagOption"
+                        :loading="spaceLoading"
+                      />
+                    </div>
+                  </a-form-item>
+                </a-col>
+                <a-col :span="8">
+                  <a-form-item label="区域名称">
+                    <div style="width:100%">
+                      <a-input
+                        style="width:100%"
+                        v-model:value="filterAreaName"
+                        placeholder="请输入区域名称"
+                        allowClear
+                        autocomplete="off"
+                      />
+                    </div>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+              <!-- 第 2 行：回路名称 -->
+              <a-row :gutter="10">
+                <a-col :span="8" v-if="formData.relType === '回路'">
+                  <a-form-item label="回路名称">
+                    <div style="width:100%">
+                      <a-input
+                        style="width:100%"
+                        v-model:value="filterCircuitName"
+                        placeholder="请输入回路名称"
+                        allowClear
+                        autocomplete="off"
+                      />
+                    </div>
+                  </a-form-item>
+                </a-col>
+                <a-col :span="formData.relType === '回路' ? 16 : 24"></a-col>
+              </a-row>
+            </div>
 
-        <!-- ==================== 第 3 行：表格 ==================== -->
-        <div class="form-section">
-          <div class="section-title">数据</div>
-          <a-row :gutter="10">
-            <a-col :span="24">
-              <div class="table-wrapper">
-                <vxe-table
-                  ref="tableRef"
-                  :key="formData.relType"
-                  :data="filteredTableData"
-                  :loading="tableLoading || tableFilterLoading"
-                  :row-config="{ keyField: 'id', height: 32 }"
-                  :checkbox-config="{ checkField: '_checked' }"
-                  max-height="420"
-                  border="none"
-                  @checkbox-change="onCheckboxChange"
-                  @checkbox-all="onCheckboxAll"
-                >
-                  <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
-                  <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
-                  <vxe-column field="spaceName" title="地块名称"></vxe-column>
-                  <vxe-column field="areaName" title="区域名称"></vxe-column>
-                  <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
-                  <vxe-column field="electricCurrent" title="电流" width="100" v-if="formData.relType === '回路'">
-                    <template #default="{ row }">
-                      {{ row.electricCurrent != null ? row.electricCurrent : '-' }}
-                    </template>
-                  </vxe-column>
-                </vxe-table>
-              </div>
-            </a-col>
-          </a-row>
-        </div>
+            <!-- ==================== 第 3 行：表格 ==================== -->
+            <div class="form-section">
+              <div class="section-title">数据</div>
+              <a-row :gutter="10">
+                <a-col :span="24">
+                  <div class="table-wrapper">
+                    <vxe-table
+                      ref="tableRef"
+                      :key="formData.relType"
+                      :data="filteredTableData"
+                      :loading="tableLoading || tableFilterLoading"
+                      :row-config="{ keyField: 'id', height: 32 }"
+                      :checkbox-config="{ checkField: '_checked' }"
+                      max-height="420"
+                      border="none"
+                      @checkbox-change="onCheckboxChange"
+                      @checkbox-all="onCheckboxAll"
+                    >
+                      <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
+                      <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
+                      <vxe-column field="spaceName" title="地块名称"></vxe-column>
+                      <vxe-column field="areaName" title="区域名称"></vxe-column>
+                      <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
+                      <vxe-column field="electricCurrent" title="电流" width="100" v-if="formData.relType === '回路'">
+                        <template #default="{ row }">
+                          {{ row.electricCurrent != null ? row.electricCurrent : '-' }}
+                        </template>
+                      </vxe-column>
+                    </vxe-table>
+                  </div>
+                </a-col>
+              </a-row>
+            </div>
 
-        <!-- ==================== 第 4 行：标签 / 场景名称 ==================== -->
-        <div class="form-section scene-info">
-          <div class="section-title">场景信息</div>
-          <a-row :gutter="10">
-            <a-col :span="12">
-              <a-form-item label="标签" name="tagName">
-                <div style="width:100%">
-                  <a-select
-                    style="width:100%"
-                    v-model:value="formData.tagName"
-                    placeholder="请选择标签"
-                    :options="tagOptions"
-                    allowClear
-                    :filter-option="handleFilterTagOption"
-                    :loading="tagLoading"
-                  />
-                </div>
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item label="场景名称" name="planName">
-                <div style="width:100%">
-                  <a-input
-                    style="width:100%"
-                    v-model:value="formData.planName"
-                    placeholder="请输入场景名称"
-                    allowClear
-                    autocomplete="off"
-                  />
-                </div>
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </div>
+            <!-- ==================== 第 4 行：标签 / 场景名称 ==================== -->
+            <div class="form-section scene-info">
+              <div class="section-title">场景信息</div>
+              <a-row :gutter="10">
+                <a-col :span="12">
+                  <a-form-item label="标签" name="tagName">
+                    <div style="width:100%">
+                      <a-select
+                        style="width:100%"
+                        v-model:value="formData.tagName"
+                        placeholder="请选择标签"
+                        :options="tagOptions"
+                        allowClear
+                        :filter-option="handleFilterTagOption"
+                        :loading="tagLoading"
+                      />
+                    </div>
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="场景名称" name="planName">
+                    <div style="width:100%">
+                      <a-input
+                        style="width:100%"
+                        v-model:value="formData.planName"
+                        placeholder="请输入场景名称"
+                        allowClear
+                        autocomplete="off"
+                      />
+                    </div>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </div>
+          </a-tab-pane>
+
+          <!-- ==================== Tab 2：节目（类型为节目的场景数据表格） ==================== -->
+          <a-tab-pane key="program" tab="节目">
+            <div class="form-section">
+              <div class="section-title">节目场景</div>
+              <a-row :gutter="10">
+                <a-col :span="24">
+                  <div class="table-wrapper">
+                    <vxe-table
+                      ref="programTableRef"
+                      :data="programSceneList"
+                      :loading="programLoading"
+                      :row-config="{ keyField: 'id', height: 32 }"
+                      :checkbox-config="{ checkField: '_checked' }"
+                      max-height="420"
+                      border="none"
+                      @checkbox-change="onProgramCheckboxChange"
+                      @checkbox-all="onProgramCheckboxAll"
+                    >
+                      <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
+                      <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
+                      <vxe-column field="planName" title="场景名称" min-width="180" show-overflow></vxe-column>
+                      <vxe-column field="relType" title="控制类型" width="100" align="center"></vxe-column>
+                      <vxe-column field="operationType" title="操作类型" width="100" align="center"></vxe-column>
+                      <vxe-column field="areaCount" title="区域数" width="90" align="center"></vxe-column>
+                      <vxe-column field="updateTime" title="上次操作时间" width="180" align="center" v-if="mode !== 'add'"></vxe-column>
+                    </vxe-table>
+                  </div>
+                </a-col>
+              </a-row>
+            </div>
+          </a-tab-pane>
+        </a-tabs>
       </a-form>
     </div>
 
@@ -172,7 +214,7 @@
 import { ref, reactive, computed, nextTick, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { getAreaListAll, getCircuitListAll, editLightingPlanAPiNew, addLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring'
+import { getAreaListAll, getCircuitListAll, editLightingPlanAPiNew, addLightingPlanAPiNew, planDetailApiNew, getLightingPlanAPiNew } from '@/api/equipmentMonitoring'
 import { getAllSpace } from '@/api/baseSettingBqZm';
 import { useTagOptionsStore } from '/@/store/modules/tagOptions';
 
@@ -188,6 +230,7 @@ const submitLoading = ref(false);
 const mode = ref<'add' | 'edit' | 'detail'>('add');
 const editRecord = ref<any>(null);
 const formRef = ref<FormInstance>();
+const activeTab = ref<'scene' | 'program'>('scene');
 
 const title = computed(() => (mode.value === 'add' ? '创建新场景' : mode.value === 'edit' ? '编辑场景': '场景详情'));
 const isDetail = computed(() => mode.value === 'detail');
@@ -246,6 +289,54 @@ const tableRef = ref();
 
 // 复选框勾选
 const selectedRowKeys = ref<string[]>([]);
+
+// ==================== 节目 tab（类型为节目的场景数据） ====================
+const programSceneList = ref<any[]>([]);
+const programLoading = ref(false);
+const programTableRef = ref();
+const programSelectedKeys = ref<string[]>([]);
+
+/** vxe-table 复选框变化（节目 tab，含表头全选/反选） */
+function onProgramCheckboxChange({ records }: { records: any[] }) {
+  programSelectedKeys.value = records.map((item: any) => String(item.id));
+}
+
+function onProgramCheckboxAll({ records }: { records: any[] }) {
+  programSelectedKeys.value = records.map((item: any) => String(item.id));
+}
+
+/** 加载节目类型场景列表（groupId 存在即节目类型，数据源与场景配置列表一致） */
+async function loadProgramSceneList() {
+  programLoading.value = true;
+  try {
+    const data = await getLightingPlanAPiNew({ pageNo: 1, pageSize: 999 });
+    const records = data?.records || [];
+    programSceneList.value = (records as any[])
+      .filter((item) => item.groupId)
+      .map((item) => ({
+        ...item,
+        areaCount: item.relIds ? String(item.relIds).split(',').length : 0,
+        // 时间字段兼容：接口可能返回 updateDate / createTime
+        updateTime: item.updateTime || item.updateDate || item.createTime || '',
+      }));
+  } catch (err) {
+    console.error('加载节目场景列表失败：', err);
+    programSceneList.value = [];
+  } finally {
+    programLoading.value = false;
+  }
+}
+
+/** 根据 programSceneIds 勾选节目行 */
+function checkProgramRowsByIds(ids: string[]) {
+  if (!ids.length) return;
+  const idSet = new Set(ids.map(String));
+  programSceneList.value.forEach((item) => (item._checked = idSet.has(String(item.id))));
+  const checkedRows = programSceneList.value.filter((item) => idSet.has(String(item.id)));
+  if (checkedRows.length) {
+    programTableRef.value?.setCheckboxRow(checkedRows, true);
+  }
+}
 
 // ==================== 本地筛选 ====================
 const filterSpaceName = ref<string | undefined>(undefined);
@@ -346,6 +437,7 @@ async function onSubmit() {
       ...formData,
       relIds: Array.from(selectedRowKeys.value).join(','),
       tagId,
+      programSceneIds: programSelectedKeys.value.join(','),
       ...(editRecord.value?.id ? { id: editRecord.value.id } : {}),
     };
      // 根据类型调用对应 API
@@ -362,9 +454,12 @@ async function onSubmit() {
     });
    
   } catch (err: any) {
-    // 表单校验失败由 antd 自带提示，不作额外处理
+    // 表单校验失败：自动跳到必填字段所在的「场景」tab，错误提示由 antd 自带
     console.log(err)
-    if (err?.errorFields) return;
+    if (err?.errorFields) {
+      activeTab.value = 'scene';
+      return;
+    }
   } finally {
     submitLoading.value = false;
   }
@@ -423,9 +518,12 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
   // 预加载地块和标签下拉选项
   loadSpaceOptions();
   loadTagOptions();
+  // 预加载节目场景列表（节目 tab）
+  await loadProgramSceneList();
   if (type === 'add') {
     Object.assign(formData, { ...defaultForm });
     selectedRowKeys.value = [];
+    programSelectedKeys.value = [];
     editRecord.value = null;
     // 默认区域
     formData.relType = '区域';
@@ -464,6 +562,9 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
         tableLoading.value = false;
       }, 200);
     }
+    // ===== 节目：编辑时默认不勾选 =====
+    programSelectedKeys.value = [];
+    programSceneList.value.forEach((item) => (item._checked = false));
   } else if (type === 'detail' && record) {
     console.log('record', record);
     editRecord.value = record;
@@ -574,6 +675,69 @@ defineExpose({ showModal, closeModal });
 </script>
 
 <style scoped lang="less">
+/* ==================== Tab（场景 / 节目）深色科技风 ==================== */
+.create-scene-tabs {
+  margin-bottom: 4px;
+
+  :deep(.ant-tabs-nav) {
+    margin-bottom: 12px;
+    width: 100%;
+
+    &::before {
+      border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+    }
+  }
+
+  /* tab 导航占满整行，两个 tab 平分 */
+  :deep(.ant-tabs-nav-list) {
+    width: 100%;
+    display: flex;
+  }
+
+  :deep(.ant-tabs-tab) {
+    flex: 1;
+    margin: 0;
+    padding: 8px 0;
+    justify-content: center;
+    color: #7fa6d4;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #00d4ff;
+    }
+  }
+
+  /* 文字水平居中 */
+  :deep(.ant-tabs-tab-btn) {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  :deep(.ant-tabs-tab.ant-tabs-tab-active) {
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.25), rgba(0, 212, 255, 0.06));
+    box-shadow:
+      inset 0 1.5px 0 rgba(0, 212, 255, 0.9),
+      inset 1px 0 0 rgba(0, 212, 255, 0.3),
+      inset -1px 0 0 rgba(0, 212, 255, 0.3);
+    border-radius: 6px 6px 0 0;
+  }
+
+  :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: #00eaff !important;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(0, 234, 255, 0.6);
+  }
+
+  :deep(.ant-tabs-ink-bar) {
+    background: linear-gradient(90deg, #00d4ff, #00ffd1) !important;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+    border-radius: 2px;
+  }
+}
+
 /* ==================== Grid 统一布局：每行3列 ==================== */
 .layout-grid {
   display: grid;
