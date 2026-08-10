@@ -13,7 +13,7 @@
       <!-- 欢迎语 -->
       <!-- <span v-if="getShowContent && getShowBreadTitle && !getIsMobile" style="background: #1e293b !important;color: #fff;"> {{t('layout.header.welcomeIn')}} {{ title }} </span> -->
       <span v-if="!isBigGis" style="color: #F1F5F9;font-size: 16px;padding-left: 30px;">{{ menuTitle }}</span>
-      <span v-else style="color: #0EA5E9;font-size: 16px;font-weight: 600;padding-left: 30px;letter-spacing: 1px;">北区照明集控平台</span>
+      <span v-else style="color: #0EA5E9;font-size: 16px;font-weight: 600;padding-left: 30px;letter-spacing: 1px;">首钢园城市亮化平台</span>
       <div class="status-badge">
       <span class="status-dot"></span>
       <span>系统运行正常</span>

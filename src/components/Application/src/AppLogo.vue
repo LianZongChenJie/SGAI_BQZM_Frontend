@@ -7,7 +7,7 @@
     <!-- <img src="../../../assets/images/logo.png" /> -->
     <div class="ml-2 truncate md:opacity-100" style="color: #0EA5E9;" :class="getTitleClass" v-show="showTitle">
       <!-- {{ shortTitle }} -->
-      北区照明集控平台
+      首钢园城市亮化平台
     </div>
   </div>
 </template>

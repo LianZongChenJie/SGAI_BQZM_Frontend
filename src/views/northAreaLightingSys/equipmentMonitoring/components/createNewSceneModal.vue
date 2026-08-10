@@ -21,7 +21,7 @@
         :disabled="isDetail || isExecute"
         autocomplete="off"
       >
-        <!-- ==================== Tab：场景 / 节目 ==================== -->
+        <!-- ==================== Tab：场景 / 节目（tab 置于最上方） ==================== -->
         <a-tabs
           v-model:activeKey="activeTab"
           class="create-scene-tabs"
@@ -30,7 +30,7 @@
         >
           <!-- ==================== Tab 1：场景 ==================== -->
           <a-tab-pane key="scene" tab="场景">
-            <!-- ==================== 搜索项分组 ==================== -->
+            <!-- ==================== 搜索项（仅场景 tab 下展示） ==================== -->
             <div class="search-section" v-if="!isDetail">
               <div class="section-title">搜索项</div>
               <!-- 第 1 行：控制类型 / 区域 / 名称 -->
@@ -98,7 +98,7 @@
               </a-row>
             </div>
 
-            <!-- ==================== 第 3 行：表格 ==================== -->
+            <!-- ==================== 数据表格 ==================== -->
             <div class="form-section">
               <div class="section-title">数据</div>
               <a-row :gutter="10">
@@ -132,44 +132,9 @@
               </a-row>
             </div>
 
-            <!-- ==================== 第 4 行：标签 / 场景名称 ==================== -->
-            <div class="form-section scene-info">
-              <div class="section-title">场景信息</div>
-              <a-row :gutter="10">
-                <a-col :span="12">
-                  <a-form-item label="标签" name="tagName">
-                    <div style="width:100%">
-                      <a-select
-                        style="width:100%"
-                        v-model:value="formData.tagName"
-                        placeholder="请选择标签"
-                        :options="tagOptions"
-                        allowClear
-                        :filter-option="handleFilterTagOption"
-                        :loading="tagLoading"
-                      />
-                    </div>
-                  </a-form-item>
-                </a-col>
-                <a-col :span="12">
-                  <a-form-item label="场景名称" name="planName">
-                    <div style="width:100%">
-                      <a-input
-                        style="width:100%"
-                        v-model:value="formData.planName"
-                        placeholder="请输入场景名称"
-                        allowClear
-                        autocomplete="off"
-                      />
-                    </div>
-                  </a-form-item>
-                </a-col>
-              </a-row>
-            </div>
           </a-tab-pane>
 
-          <!-- ==================== Tab 2：节目（类型为节目的场景数据表格） ==================== -->
-          <!-- 详情/执行模式下仅当 programSceneIds 非空时展示该 tab -->
+          <!-- ==================== Tab 2：节目（独立节目接口数据表格；详情/执行模式下按 programSceneIds 显隐） ==================== -->
           <a-tab-pane key="program" tab="节目" v-if="showProgramTab">
             <div class="form-section">
               <div class="section-title">节目场景</div>
@@ -189,10 +154,9 @@
                     >
                       <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
                       <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
-                      <vxe-column field="planName" title="场景名称" min-width="180" show-overflow></vxe-column>
-                      <vxe-column field="relType" title="控制类型" width="100" align="center"></vxe-column>
-                      <vxe-column field="operationType" title="操作类型" width="100" align="center"></vxe-column>
-                      <vxe-column field="areaCount" title="区域数" width="90" align="center"></vxe-column>
+                      <vxe-column field="programName" title="节目名称" min-width="180" show-overflow></vxe-column>
+                      <vxe-column field="status" title="状态" width="100" align="center"></vxe-column>
+                      <vxe-column field="sysOrgCode" title="所属区域" width="90" align="center"></vxe-column>
                       <vxe-column field="updateTime" title="上次操作时间" width="180" align="center" v-if="mode !== 'add'"></vxe-column>
                     </vxe-table>
                   </div>
@@ -201,6 +165,41 @@
             </div>
           </a-tab-pane>
         </a-tabs>
+
+        <!-- ==================== 场景信息（公共区域，不随 tab 切换） ==================== -->
+        <div class="form-section scene-info">
+          <div class="section-title">场景信息</div>
+          <a-row :gutter="10">
+            <a-col :span="12">
+              <a-form-item label="标签" name="tagName">
+                <div style="width:100%">
+                  <a-select
+                    style="width:100%"
+                    v-model:value="formData.tagName"
+                    placeholder="请选择标签"
+                    :options="tagOptions"
+                    allowClear
+                    :filter-option="handleFilterTagOption"
+                    :loading="tagLoading"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="场景名称" name="planName">
+                <div style="width:100%">
+                  <a-input
+                    style="width:100%"
+                    v-model:value="formData.planName"
+                    placeholder="请输入场景名称"
+                    allowClear
+                    autocomplete="off"
+                  />
+                </div>
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </div>
       </a-form>
     </div>
 
@@ -220,7 +219,7 @@
 import { ref, reactive, computed, nextTick, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { getAreaListAll, getCircuitListAll, editLightingPlanAPiNew, addLightingPlanAPiNew, planDetailApiNew, getLightingPlanAPiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring'
+import { getAreaListAll, getCircuitListAll, editLightingPlanAPiNew, addLightingPlanAPiNew, planDetailApiNew, getLightingProgramList, postSceneSwitchApi } from '@/api/equipmentMonitoring'
 import { getAllSpace } from '@/api/baseSettingBqZm';
 import { useTagOptionsStore } from '/@/store/modules/tagOptions';
 import ConfirmModal from './ConfirmModal.vue';
@@ -306,18 +305,18 @@ const tableRef = ref();
 // 复选框勾选
 const selectedRowKeys = ref<string[]>([]);
 
-// ==================== 节目 tab（类型为节目的场景数据） ====================
+// ==================== 节目 tab（独立节目接口数据） ====================
 const programSceneList = ref<any[]>([]);
 const programLoading = ref(false);
 const programTableRef = ref();
 const programSelectedKeys = ref<string[]>([]);
-// 详情模式：detail 接口返回的 programSceneIds（逗号分隔字符串，解析为数组）
+// 详情/执行模式：detail 接口返回的 programSceneIds（逗号分隔字符串，解析为数组），驱动节目 tab 显隐
 const detailProgramSceneIds = ref<string[]>([]);
 
 /**
  * 节目 tab 展示列表：
- * - 详情/执行模式：仅展示 detail 接口 programSceneIds 关联的节目（未关联则空表）
- * - 新建/编辑模式：展示全部节目类型场景
+ * - 详情/执行模式：仅展示 detail 接口 programSceneIds 关联的节目
+ * - 新建/编辑模式：展示全部节目
  */
 const displayProgramSceneList = computed(() => {
   if (mode.value === 'detail' || mode.value === 'execute') {
@@ -363,22 +362,23 @@ function onProgramCheckboxAll({ records }: { records: any[] }) {
   programSelectedKeys.value = records.map((item: any) => String(item.id));
 }
 
-/** 加载节目类型场景列表（groupId 存在即节目类型，数据源与场景配置列表一致） */
+/** 加载节目列表（独立节目接口 /bems/lighting/program/list，所有模式统一加载） */
 async function loadProgramSceneList() {
   programLoading.value = true;
   try {
-    const data = await getLightingPlanAPiNew({ pageNo: 1, pageSize: 999 });
-    const records = data?.records || [];
-    programSceneList.value = (records as any[])
-      .filter((item) => item.groupId)
-      .map((item) => ({
-        ...item,
-        areaCount: item.relIds ? String(item.relIds).split(',').length : 0,
-        // 时间字段兼容：接口可能返回 updateDate / createTime
-        updateTime: item.updateTime || item.updateDate || item.createTime || '',
-      }));
+    const data = await getLightingProgramList({ pageNo: 1, pageSize: 999 });
+    // 兼容分页结构（records/list/result/data）与纯数组返回
+    const records = Array.isArray(data)
+      ? data
+      : (data?.records || data?.list || data?.result || data?.data || []);
+    programSceneList.value = (records as any[]).map((item) => ({
+      ...item,
+      areaCount: item.relIds ? String(item.relIds).split(',').length : 0,
+      // 时间字段兼容：接口可能返回 updateDate / createTime
+      updateTime: item.updateTime || item.updateDate || item.createTime || '',
+    }));
   } catch (err) {
-    console.error('加载节目场景列表失败：', err);
+    console.error('加载节目列表失败：', err);
     programSceneList.value = [];
   } finally {
     programLoading.value = false;
@@ -484,10 +484,6 @@ async function onSubmit() {
   try {
     await formRef.value!.validate();
     console.log('提交触发---')
-    if (!selectedRowKeys.value.length) {
-      message.warning('请至少勾选一条数据');
-      return;
-    }
     if(submitLoading.value) {
       return;
     }
@@ -529,23 +525,25 @@ async function onSubmit() {
 
 /** 执行模式提交：二次确认展示所选数据，确认后调用开启/关闭 API */
 async function submitExecute() {
-  if (!selectedRowKeys.value.length) {
+  const action = executeAction.value;
+  // 场景与节目均未勾选时提示；支持单独勾选场景或单独勾选节目
+  const hasScene = selectedRowKeys.value.length > 0;
+  const hasProgram = programSelectedKeys.value.length > 0;
+  if (!hasScene && !hasProgram) {
     message.warning('请至少勾选一条数据');
     return;
   }
-  const action = executeAction.value;
   // 拼接所选内容用于二次确认展示
   const sceneNames = tableData.value
     .filter((item: any) => selectedRowKeys.value.includes(String(item.id)))
     .map((item: any) => item.areaName || item.circuitName || item.name || String(item.id));
   const programNames = programSceneList.value
     .filter((item: any) => programSelectedKeys.value.includes(String(item.id)))
-    .map((item: any) => item.planName || item.name || String(item.id));
+    .map((item: any) => item.programName || item.planName || item.name || String(item.id));
   let content = `确定要<strong class="tip-action">${action}</strong>以下内容吗？`;
-  // 场景信息：当前操作的场景名称
-  const sceneName = editRecord.value?.name || editRecord.value?.sceneName || '';
-  if (sceneName) content +=`<br/>${formData.relType}：${sceneNames.join('、')}`;
-  if (programNames.length) content += `<br/>节目：${programNames.join('、')}`;
+  // 场景信息：仅勾选了场景数据时展示
+  if (hasScene) content += `<br/>${formData.relType}：${sceneNames.join('、')}`;
+  if (hasProgram) content += `<br/>节目：${programNames.join('、')}`;
   confirmModalRef.value?.showModal({
     content,
     okText: action,
@@ -555,12 +553,15 @@ async function submitExecute() {
       try {
         const params: any = {
           operationType: action,
-          relIds: selectedRowKeys.value.join(','),
           relType: formData.relType,
           sceneId: editRecord.value?.id,
         };
+        // 勾选了场景数据才携带 relIds
+        if (hasScene) {
+          params.relIds = selectedRowKeys.value.join(',');
+        }
         // 勾选了节目才携带 programSceneIds，避免多余参数
-        if (programSelectedKeys.value.length) {
+        if (hasProgram) {
           params.programSceneIds = programSelectedKeys.value.join(',');
         }
         await postSceneSwitchApi(params);
@@ -618,6 +619,14 @@ function checkRowsByRelIds(ids: string[]) {
   }
 }
 
+/** 将勾选的行排到列表最前（稳定排序，仅编辑模式打开时调用一次；返回新数组，需重新赋值以触发表格重新渲染） */
+function sortCheckedToTop(list: any[]) {
+  const checked: any[] = [];
+  const unchecked: any[] = [];
+  list.forEach((item) => (item._checked ? checked.push(item) : unchecked.push(item)));
+  return [...checked, ...unchecked];
+}
+
 /** 打开弹框 */
 async function showModal(type: 'add' | 'edit' | 'detail' | 'execute', record?: any, action?: '开启' | '关闭') {
   mode.value = type;
@@ -629,7 +638,7 @@ async function showModal(type: 'add' | 'edit' | 'detail' | 'execute', record?: a
   // 预加载地块和标签下拉选项
   loadSpaceOptions();
   loadTagOptions();
-  // 预加载节目场景列表（节目 tab）
+  // 预加载节目列表（节目 tab 数据源，所有模式统一加载；详情/执行模式按 detailProgramSceneIds 过滤展示）
   await loadProgramSceneList();
   if (type === 'add') {
     Object.assign(formData, { ...defaultForm });
@@ -667,6 +676,8 @@ async function showModal(type: 'add' | 'edit' | 'detail' | 'execute', record?: a
       }
       await nextTick();
       checkRowsByRelIds(relIdArr);
+      // 编辑模式：勾选的数据排到最前（赋值新数组，触发表格按新顺序渲染）
+      tableData.value = sortCheckedToTop(tableData.value);
     } finally {
       await nextTick();
       setTimeout(() => {
@@ -684,6 +695,8 @@ async function showModal(type: 'add' | 'edit' | 'detail' | 'execute', record?: a
     if (programIdArr.length) {
       checkProgramRowsByIds(programIdArr);
     }
+    // 编辑模式：勾选的数据排到最前（赋值新数组，触发表格按新顺序渲染）
+    programSceneList.value = sortCheckedToTop(programSceneList.value);
   } else if ((type === 'detail' || type === 'execute') && record) {
     console.log('record', record);
     editRecord.value = record;
@@ -785,7 +798,7 @@ const getDetailInit = async () => {
     const data = await planDetailApiNew(params);
     console.log('获取数据：', data);
     if (data) {
-      // 解析 detail 接口返回的 programSceneIds（兼容字符串逗号分隔 / 数组），驱动节目 tab 回显过滤
+      // 解析 detail 接口返回的 programSceneIds（兼容字符串逗号分隔 / 数组），驱动节目 tab 显隐
       const rawIds = data.programSceneIds ?? '';
       detailProgramSceneIds.value = Array.isArray(rawIds)
         ? rawIds.map(String)
@@ -942,7 +955,6 @@ defineExpose({ showModal, closeModal });
 /* ==================== 搜索项分组（高亮蓝 / 高饱和蓝） ==================== */
 .search-section {
   margin-bottom: 8px;
-  margin-top: -16px;
   padding: 10px 14px 12px;
   /* 原型图：搜索项区域为更高亮、更高饱和度的蓝，与下方深蓝形成对比 */
   background: linear-gradient(180deg, #205385 0%, #1b4876 100%);

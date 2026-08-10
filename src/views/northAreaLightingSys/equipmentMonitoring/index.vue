@@ -102,13 +102,13 @@
                   :filter-option="(input, option) => (option.label || '').toLowerCase().includes(input.toLowerCase())"
                   style="width: 120px"
                 />
-                <a-select
+               <!-- <a-select
                   v-model:value="monitorTypeFilter"
                   placeholder="类型"
                   :options="monitorTypeOptions"
                   allowClear
                   style="width: 100px"
-                />
+                />-->
                 <a-input
                   v-model:value="monitorSearchName"
                   placeholder="请输入名称"
@@ -153,7 +153,7 @@
                 <div class="scene-info">
                   <div class="scene-info-tags">
                     <span class="scene-info-tag scene-info-tag--scene" v-if="!s.groupId">场景</span>
-                    <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId || s.programSceneIds">节目</span>
+                    <span class="scene-info-tag scene-info-tag--program" v-if="s.programSceneIds">节目</span>
                   </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
@@ -235,13 +235,13 @@
                 :filter-option="(input, option) => (option.label || '').toLowerCase().includes(input.toLowerCase())"
                 style="width: 140px"
               />
-              <a-select
+              <!-- <a-select
                 v-model:value="sceneTypeFilter"
                 placeholder="类型"
                 :options="sceneTypeOptions"
                 allowClear
                 style="width: 100px"
-              />
+              /> -->
               <a-input
                 v-model:value="sceneSearchName"
                 placeholder="请输入名称"
@@ -285,7 +285,7 @@
                 <div class="scene-info">
                   <div class="scene-info-tags">
                     <span class="scene-info-tag scene-info-tag--scene" v-if="!s.groupId">场景</span>
-                    <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId || s.programSceneIds">节目</span>
+                    <span class="scene-info-tag scene-info-tag--program" v-if="s.programSceneIds">节目</span>
                   </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
@@ -328,7 +328,7 @@
                       关闭
                     </button>
                   </div>
-                  <div class="scene-actions-right" v-if="!s.groupId">
+                  <div class="scene-actions-right">
                     <button class="scene-icon-btn" title="编辑" @click="onEditScene(s)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -443,7 +443,7 @@
                   </td>
                   <td class="timer-actions">
                     <button v-if="row.status === '禁用'" class="btn btn-secondary" @click="onEditTimer(row, 'edit')">编辑</button>
-                    <button v-else class="btn btn-secondary" @click="onEditTimer(row, 'detail')">详情</button>
+                    <button v-else class="btn btn-secondary" @click="onEditTimer(row, 'detail')">详情1</button>
                    
                     <a-popconfirm
                       v-if="row.status !== '启用'"
@@ -604,7 +604,7 @@ const sceneSearchName = ref('');
 const sceneSearchLoading = ref(false);
 const sceneTypeFilter = ref<string | undefined>(undefined);
 const sceneTypeOptions = [
-  { label: '节目', value: 'program' },
+  /*-----{ label: '节目', value: 'program' },------ */
   { label: '场景', value: 'scene' },
 ];
 
@@ -1919,6 +1919,7 @@ onMounted(() => {
   flex: 1;
   min-height: 0;
   display: grid;
+  /* 每行固定展示 4 个，卡片宽度随容器自适应 */
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   overflow-y: auto;

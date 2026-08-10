@@ -28,7 +28,7 @@
             <line x1="19" y1="35" x2="37" y2="35" stroke="url(#logoGrad)" stroke-width="1" stroke-linecap="round" opacity="0.35" />
           </svg>
         </div>
-        <h1 class="login-title">北区照明集控平台</h1>
+        <h1 class="login-title">首钢园城市亮化平台</h1>
         <p class="login-subtitle">智慧照明 · 数字孪生 · AI驱动</p>
       </div>
 

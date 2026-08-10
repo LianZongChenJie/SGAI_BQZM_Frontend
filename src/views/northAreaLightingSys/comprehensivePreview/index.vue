@@ -7,7 +7,6 @@
         <div class="stat-value" style="color: var(--accent)">{{ allSpaceList.length }}</div>
         <div class="stat-trend trend-up">
           <span>{{ stats.blockCoverage }} 覆盖</span>
-          <span style="margin-left: 0.1rem">开启的回路数： {{ openCircuitCount }}</span>
         </div>
       </div>
       <div class="stat-card green">
@@ -16,8 +15,8 @@
         <div class="stat-trend trend-up">{{ onlineRate }} 在线率</div>
       </div>
       <div class="stat-card orange"> 
-        <div class="stat-label">今日用电</div>
-        <div class="stat-value" style="color: var(--accent3)">{{ todayUsage }} <span style="font-size: 0.14rem; font-weight: 400;">kWh</span></div>
+        <div class="stat-label">已开启回路数</div>
+        <div class="stat-value" style="color: var(--accent2)">{{ openCircuitCount }} </div>
       </div>
       <div class="stat-card red">
         <div class="stat-label">待处理报警</div>

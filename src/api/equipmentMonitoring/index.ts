@@ -25,6 +25,7 @@ enum Api {
   getAllVidoeListApi = '/sgai-bqzm/bems/lighting/videoMonitor/list',
   deleteSceneItemAPi = '/sgai-bqzm/bems/lighting/scene/delete',
   postSceneControlApi = '/sgai-bqzm/bems/lighting/scene/control',
+  getLightingProgramListApi = '/sgai-bqzm/bems/lighting/program/list',
 }
 
 /**
@@ -120,3 +121,6 @@ export const getAreaListAllTagApi = (params) => defHttp.get({ url: Api.getAreaLi
 
 // 获取所有视频列表
 export const getAllVidoeListApi = (params) => defHttp.get({ url: Api.getAllVidoeListApi, params });
+
+// 获取节目列表（新增/编辑场景时节目 tab 数据源）
+export const getLightingProgramList = (params) => defHttp.get({ url: Api.getLightingProgramListApi, params }, { joinParamsToUrl: true });
