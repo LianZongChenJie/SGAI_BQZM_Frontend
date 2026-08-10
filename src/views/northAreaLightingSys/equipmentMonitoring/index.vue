@@ -151,8 +151,10 @@
                   </div>
                 </div>
                 <div class="scene-info">
-                  <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId">节目</span>
-                  <span class="scene-info-tag scene-info-tag--scene" v-else>场景</span>
+                  <div class="scene-info-tags">
+                    <span class="scene-info-tag scene-info-tag--scene" v-if="!s.groupId">场景</span>
+                    <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId || s.programSceneIds">节目</span>
+                  </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 3v4M16 3v4M2 13h20"/></svg>
@@ -164,8 +166,16 @@
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     </span>
-                    <span class="info-label">上次操作类型</span>
-                    <span style="padding-left: 3px;" class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
+                    <template v-if="s.programSceneIds">
+                      <span class="info-label">当前运行节目</span>
+                      <a-tooltip overlay-class-name="scene-program-tooltip" placement="top" :title="getProgramNames(s.programDetail).join('、') || '-'" :mouseLeaveDelay="0.1">
+                        <span style="padding-left: 3px;" class="info-value program-names">{{ getProgramNames(s.programDetail).join('、') || '-' }}</span>
+                      </a-tooltip>
+                    </template>
+                    <template v-else>
+                      <span class="info-label">上次操作类型</span>
+                      <span style="padding-left: 3px;" class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
+                    </template>
                   </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
@@ -273,8 +283,10 @@
 
                 </div>
                 <div class="scene-info">
-                  <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId">节目</span>
-                  <span class="scene-info-tag scene-info-tag--scene" v-else>场景</span>
+                  <div class="scene-info-tags">
+                    <span class="scene-info-tag scene-info-tag--scene" v-if="!s.groupId">场景</span>
+                    <span class="scene-info-tag scene-info-tag--program" v-if="s.groupId || s.programSceneIds">节目</span>
+                  </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 3v4M16 3v4M2 13h20"/></svg>
@@ -286,8 +298,16 @@
                     <span class="info-icon">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     </span>
-                    <span class="info-label">上次操作类型</span>
-                    <span class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
+                    <template v-if="s.programSceneIds">
+                      <span class="info-label">当前运行节目</span>
+                      <a-tooltip overlay-class-name="scene-program-tooltip" placement="top" :title="getProgramNames(s.programDetail).join('、') || '-'" :mouseLeaveDelay="0.1">
+                        <span class="info-value program-names">{{ getProgramNames(s.programDetail).join('、') || '-' }}</span>
+                      </a-tooltip>
+                    </template>
+                    <template v-else>
+                      <span class="info-label">上次操作类型</span>
+                      <span class="info-value" :class="s.operationType === '开启' ? 'val-on' : s.operationType === '关闭' ? 'val-off' : ''">{{ s.operationType || '-' }}</span>
+                    </template>
                   </div>
                   <div class="scene-info-item">
                     <span class="info-icon">
@@ -783,13 +803,43 @@ async function fetchSceneList() {
 }
 
 
+/**
+ * 解析 programDetail 字段为节目名称数组：
+ * - 兼容 JSON 数组字符串（如 '["点火仪式3","点火仪式1"]'）
+ * - 兼容已是数组、单个字符串
+ */
+function getProgramNames(raw: any): string[] {
+  if (raw == null || raw === '') return [];
+  if (Array.isArray(raw)) return raw.map((i: any) => String(i));
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map((i: any) => String(i));
+    } catch {
+      // 非 JSON 格式，按单个节目名称处理
+    }
+    return [raw];
+  }
+  return [];
+}
+
 // 打开--场景
 function onExecute(s) {
-  sceneConfirmModalRef.value?.showModal('execute', s);
+  // 场景有关联节目（programSceneIds 非空）时，走新的执行弹框（勾选数据与节目后二次确认）；否则走原直接二次确认逻辑
+  if (s.programSceneIds) {
+    createNewSceneModalRef.value?.showModal('execute', s, '开启');
+  } else {
+    sceneConfirmModalRef.value?.showModal('execute', s);
+  }
 }
 // 关闭
 function onDeleteScene(s) {
-  sceneConfirmModalRef.value?.showModal('delete', s);
+  // 同开启：有关联节目走执行弹框，否则走原逻辑
+  if (s.programSceneIds) {
+    createNewSceneModalRef.value?.showModal('execute', s, '关闭');
+  } else {
+    sceneConfirmModalRef.value?.showModal('delete', s);
+  }
 }
 // 单个删除场景
 const onDeleteSceneBtn = async (s) =>{
@@ -2102,9 +2152,6 @@ onMounted(() => {
 
 /* 右上角场景/节目类型标签 */
 .scene-info-tag {
-  position: absolute;
-  top: 6px;
-  right: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2116,7 +2163,18 @@ onMounted(() => {
   letter-spacing: 0.5px;
   font-weight: 500;
   pointer-events: none;
+}
+
+/* 场景/节目标签容器（右上角，支持并列展示） */
+.scene-info-tags {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   z-index: 1;
+  pointer-events: none;
 }
 
 .scene-info-tag--scene {
@@ -2178,6 +2236,12 @@ onMounted(() => {
 
 .scene-info-item .info-value.val-off {
   color: #ef4444;
+  font-weight: 500;
+}
+
+/* 当前运行节目（programSceneIds 非空时） */
+.scene-info-item .info-value.program-names {
+  color: #00d4ff;
   font-weight: 500;
 }
 
@@ -2705,5 +2769,29 @@ onMounted(() => {
     align-items: flex-start;
     gap: 10px;
   }
+}
+</style>
+
+<style>
+/* ==================== 当前运行节目 tip（a-tooltip 挂载 body，需全局非 scoped 样式） ==================== */
+.scene-program-tooltip .ant-tooltip-inner {
+  /* 与页面主体（深蓝灰卡片）同色系，100% 不透明 */
+  background: linear-gradient(180deg, #1e2a3d 0%, #152238 100%);
+  border: 1px solid rgba(0, 212, 255, 0.5);
+  box-shadow:
+    0 0 12px rgba(0, 212, 255, 0.25),
+    0 4px 16px rgba(0, 0, 0, 0.6);
+  color: #e8f4ff;
+  font-size: 12px;
+  line-height: 1.6;
+  border-radius: 4px;
+  padding: 6px 10px;
+  max-width: 320px;
+}
+
+.scene-program-tooltip .ant-tooltip-arrow-content,
+.scene-program-tooltip .ant-tooltip-arrow::before {
+  --antd-arrow-background-color: #152238;
+  background: #152238;
 }
 </style>

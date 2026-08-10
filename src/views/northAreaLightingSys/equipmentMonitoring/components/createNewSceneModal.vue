@@ -18,7 +18,7 @@
         :rules="formRules"
         class="dark-form"
         :label-col="{ style: { width: '72px' } }"
-        :disabled="isDetail"
+        :disabled="isDetail || isExecute"
         autocomplete="off"
       >
         <!-- ==================== Tab：场景 / 节目 ==================== -->
@@ -205,18 +205,23 @@
     <!-- ==================== Modal 底部操作按钮 ==================== -->
     <div class="modal-footer" v-if="!isDetail">
       <button class="btn btn-cancel" @click="onCancel">取消</button>
-      <button class="btn btn-submit" :loading="submitLoading" @click="onSubmit">确认创建</button>
+      <button v-if="isExecute" class="btn btn-submit" :class="executeAction === '关闭' ? 'danger' : ''" :loading="submitLoading" @click="onSubmit">{{ executeAction }}</button>
+      <button v-else class="btn btn-submit" :loading="submitLoading" @click="onSubmit">确认创建</button>
     </div>
   </a-modal>
+
+  <!-- 统一二次确认弹框（执行模式：展示所选数据后确认） -->
+  <ConfirmModal ref="confirmModalRef" />
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, watch } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { getAreaListAll, getCircuitListAll, editLightingPlanAPiNew, addLightingPlanAPiNew, planDetailApiNew, getLightingPlanAPiNew } from '@/api/equipmentMonitoring'
+import { getAreaListAll, getCircuitListAll, editLightingPlanAPiNew, addLightingPlanAPiNew, planDetailApiNew, getLightingPlanAPiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring'
 import { getAllSpace } from '@/api/baseSettingBqZm';
 import { useTagOptionsStore } from '/@/store/modules/tagOptions';
+import ConfirmModal from './ConfirmModal.vue';
 
 // 对应src\views\bems\lightingControl\components\TimingControlModal.vue
 // ==================== Emits ====================
@@ -227,13 +232,22 @@ const emit = defineEmits<{
 // ==================== 状态 ====================
 const visible = ref(false);
 const submitLoading = ref(false);
-const mode = ref<'add' | 'edit' | 'detail'>('add');
+const mode = ref<'add' | 'edit' | 'detail' | 'execute'>('add');
+// 执行模式动作（开启/关闭）
+const executeAction = ref<'开启' | '关闭'>('开启');
 const editRecord = ref<any>(null);
 const formRef = ref<FormInstance>();
 const activeTab = ref<'scene' | 'program'>('scene');
+const confirmModalRef = ref<InstanceType<typeof ConfirmModal> | null>(null);
 
-const title = computed(() => (mode.value === 'add' ? '创建新场景' : mode.value === 'edit' ? '编辑场景': '场景详情'));
+const title = computed(() =>
+  mode.value === 'add' ? '创建新场景'
+  : mode.value === 'edit' ? '编辑场景'
+  : mode.value === 'execute' ? `${executeAction.value}场景`
+  : '场景详情'
+);
 const isDetail = computed(() => mode.value === 'detail');
+const isExecute = computed(() => mode.value === 'execute');
 // 表单数据
 const formData = reactive({
   relType: '',
@@ -300,14 +314,16 @@ const detailProgramSceneIds = ref<string[]>([]);
 
 /**
  * 节目 tab 展示列表：
- * - 详情模式：仅展示 detail 接口 programSceneIds 关联的节目（未关联则空表）
+ * - 详情/执行模式：仅展示 detail 接口 programSceneIds 关联的节目（未关联则空表）
  * - 新建/编辑模式：展示全部节目类型场景
  */
 const displayProgramSceneList = computed(() => {
-  if (mode.value !== 'detail') return programSceneList.value;
-  if (!detailProgramSceneIds.value.length) return [];
-  const idSet = new Set(detailProgramSceneIds.value.map(String));
-  return programSceneList.value.filter((item) => idSet.has(String(item.id)));
+  if (mode.value === 'detail' || mode.value === 'execute') {
+    if (!detailProgramSceneIds.value.length) return [];
+    const idSet = new Set(detailProgramSceneIds.value.map(String));
+    return programSceneList.value.filter((item) => idSet.has(String(item.id)));
+  }
+  return programSceneList.value;
 });
 
 /** vxe-table 复选框变化（节目 tab，含表头全选/反选） */
@@ -413,11 +429,11 @@ function clearFilters() {
 
 /** vxe-table 复选框变化（含表头全选/反选） */
 function onCheckboxChange({ records }: { records: any[] }) {
-  selectedRowKeys.value = records.map((item: any) => item.id);
+  selectedRowKeys.value = records.map((item: any) => String(item.id));
 }
 
 function onCheckboxAll({ records }: { records: any[] }) {
-  selectedRowKeys.value = records.map((item: any) => item.id);
+  selectedRowKeys.value = records.map((item: any) => String(item.id));
 }
 
 /** 清空所有勾选 */
@@ -433,6 +449,10 @@ function onCancel() {
 
 /** 提交（含表单校验） */
 async function onSubmit() {
+  // 执行模式：不走表单校验，直接二次确认所选内容后调开启/关闭接口
+  if (mode.value === 'execute') {
+    return submitExecute();
+  }
   try {
     await formRef.value!.validate();
     console.log('提交触发---')
@@ -477,6 +497,53 @@ async function onSubmit() {
   } finally {
     submitLoading.value = false;
   }
+}
+
+/** 执行模式提交：二次确认展示所选数据，确认后调用开启/关闭 API */
+async function submitExecute() {
+  if (!selectedRowKeys.value.length) {
+    message.warning('请至少勾选一条数据');
+    return;
+  }
+  const action = executeAction.value;
+  // 拼接所选内容用于二次确认展示
+  const sceneNames = tableData.value
+    .filter((item: any) => selectedRowKeys.value.includes(String(item.id)))
+    .map((item: any) => item.areaName || item.circuitName || item.name || String(item.id));
+  const programNames = programSceneList.value
+    .filter((item: any) => programSelectedKeys.value.includes(String(item.id)))
+    .map((item: any) => item.planName || item.name || String(item.id));
+  let content = `确定要<strong class="tip-action">${action}</strong>以下内容吗？`;
+  // 场景信息：当前操作的场景名称
+  const sceneName = editRecord.value?.name || editRecord.value?.sceneName || '';
+  if (sceneName) content +=`<br/>${formData.relType}：${sceneNames.join('、')}`;
+  if (programNames.length) content += `<br/>节目：${programNames.join('、')}`;
+  confirmModalRef.value?.showModal({
+    content,
+    okText: action,
+    // 固定 px 宽度：避免受页面 rem 基准影响导致弹框过小，内容较多时可展示更多信息
+    width: '640px',
+    onOk: async () => {
+      try {
+        const params: any = {
+          operationType: action,
+          relIds: selectedRowKeys.value.join(','),
+          relType: formData.relType,
+          sceneId: editRecord.value?.id,
+        };
+        // 勾选了节目才携带 programSceneIds，避免多余参数
+        if (programSelectedKeys.value.length) {
+          params.programSceneIds = programSelectedKeys.value.join(',');
+        }
+        await postSceneSwitchApi(params);
+        message.success(`${action}成功!`);
+        closeModal();
+        emit('success');
+      } catch (err: any) {
+        message.error(err?.message || `${action}失败`);
+      }
+    },
+  });
 }
 
 /** 加载地块下拉选项 — 调用 getAllSpace 接口 */
@@ -524,8 +591,9 @@ function checkRowsByRelIds(ids: string[]) {
 }
 
 /** 打开弹框 */
-async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
+async function showModal(type: 'add' | 'edit' | 'detail' | 'execute', record?: any, action?: '开启' | '关闭') {
   mode.value = type;
+  if (type === 'execute') executeAction.value = action || '开启';
   detailProgramSceneIds.value = [];
   formRef.value?.resetFields();
   clearFilters();
@@ -580,7 +648,7 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     // ===== 节目：编辑时默认不勾选 =====
     programSelectedKeys.value = [];
     programSceneList.value.forEach((item) => (item._checked = false));
-  } else if (type === 'detail' && record) {
+  } else if ((type === 'detail' || type === 'execute') && record) {
     console.log('record', record);
     editRecord.value = record;
     formData.relType = record.relType || '';
@@ -592,6 +660,12 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     tableLoading.value = true;
     try {
       await getDetailInit();
+      // 执行模式：默认不勾选（清空 record.relIds 预填的选中项，用户自行选择）
+      if (type === 'execute') {
+        selectedRowKeys.value = [];
+        programSelectedKeys.value = [];
+        programSceneList.value.forEach((item) => (item._checked = false));
+      }
     } finally {
       await nextTick();
       setTimeout(() => {
@@ -1248,6 +1322,16 @@ defineExpose({ showModal, closeModal });
   &:hover {
     opacity: 0.9;
     box-shadow: 0 0 12px rgba(0, 212, 255, 0.3);
+  }
+}
+
+/* 执行模式关闭按钮（红色警示） */
+.btn-submit.danger {
+  background: linear-gradient(135deg, #ff4d4f, #d9363e);
+  color: #ffffff;
+
+  &:hover {
+    box-shadow: 0 0 12px rgba(255, 77, 79, 0.3);
   }
 }
 
