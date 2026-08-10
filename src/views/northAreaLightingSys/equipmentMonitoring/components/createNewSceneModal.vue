@@ -176,7 +176,7 @@
                   <div class="table-wrapper">
                     <vxe-table
                       ref="programTableRef"
-                      :data="programSceneList"
+                      :data="displayProgramSceneList"
                       :loading="programLoading"
                       :row-config="{ keyField: 'id', height: 32 }"
                       :checkbox-config="{ checkField: '_checked' }"
@@ -295,6 +295,20 @@ const programSceneList = ref<any[]>([]);
 const programLoading = ref(false);
 const programTableRef = ref();
 const programSelectedKeys = ref<string[]>([]);
+// 详情模式：detail 接口返回的 programSceneIds（逗号分隔字符串，解析为数组）
+const detailProgramSceneIds = ref<string[]>([]);
+
+/**
+ * 节目 tab 展示列表：
+ * - 详情模式：仅展示 detail 接口 programSceneIds 关联的节目（未关联则空表）
+ * - 新建/编辑模式：展示全部节目类型场景
+ */
+const displayProgramSceneList = computed(() => {
+  if (mode.value !== 'detail') return programSceneList.value;
+  if (!detailProgramSceneIds.value.length) return [];
+  const idSet = new Set(detailProgramSceneIds.value.map(String));
+  return programSceneList.value.filter((item) => idSet.has(String(item.id)));
+});
 
 /** vxe-table 复选框变化（节目 tab，含表头全选/反选） */
 function onProgramCheckboxChange({ records }: { records: any[] }) {
@@ -512,6 +526,7 @@ function checkRowsByRelIds(ids: string[]) {
 /** 打开弹框 */
 async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
   mode.value = type;
+  detailProgramSceneIds.value = [];
   formRef.value?.resetFields();
   clearFilters();
   visible.value = true;
@@ -660,6 +675,11 @@ const getDetailInit = async () => {
     const data = await planDetailApiNew(params);
     console.log('获取数据：', data);
     if (data) {
+      // 解析 detail 接口返回的 programSceneIds（兼容字符串逗号分隔 / 数组），驱动节目 tab 回显过滤
+      const rawIds = data.programSceneIds ?? '';
+      detailProgramSceneIds.value = Array.isArray(rawIds)
+        ? rawIds.map(String)
+        : String(rawIds).split(',').filter(Boolean);
       if(editRecord.value.relType === '区域') {
         tableData.value = Array.isArray(data.areaList) ? data.areaList : [];
       } else if(editRecord.value.relType === '回路') {
