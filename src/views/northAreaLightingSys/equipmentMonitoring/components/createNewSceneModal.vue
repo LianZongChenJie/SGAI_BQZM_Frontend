@@ -25,6 +25,7 @@
         <a-tabs
           v-model:activeKey="activeTab"
           class="create-scene-tabs"
+          :class="{ 'scene-only': !showProgramTab }"
           :destroy-inactive-tab-pane="false"
         >
           <!-- ==================== Tab 1：场景 ==================== -->
@@ -168,7 +169,8 @@
           </a-tab-pane>
 
           <!-- ==================== Tab 2：节目（类型为节目的场景数据表格） ==================== -->
-          <a-tab-pane key="program" tab="节目">
+          <!-- 详情/执行模式下仅当 programSceneIds 非空时展示该 tab -->
+          <a-tab-pane key="program" tab="节目" v-if="showProgramTab">
             <div class="form-section">
               <div class="section-title">节目场景</div>
               <a-row :gutter="10">
@@ -324,6 +326,32 @@ const displayProgramSceneList = computed(() => {
     return programSceneList.value.filter((item) => idSet.has(String(item.id)));
   }
   return programSceneList.value;
+});
+
+/**
+ * 节目 tab 是否展示：
+ * - 详情/执行模式：仅当 detail 接口返回的 programSceneIds 非空时才展示
+ * - 新建/编辑模式：始终展示
+ */
+const showProgramTab = computed(() => {
+  if (mode.value === 'detail' || mode.value === 'execute') {
+    return detailProgramSceneIds.value.length > 0;
+  }
+  return true;
+});
+
+// 节目 tab 被隐藏时回退到「场景」tab，避免空白页
+watch(showProgramTab, (show) => {
+  if (!show) activeTab.value = 'scene';
+});
+
+// 切到「节目」tab 时同步勾选状态（编辑模式：表格首次挂载后确保 vxe-table 内部 checkbox 状态与 programSelectedKeys 一致）
+watch(activeTab, (tab) => {
+  if (tab === 'program' && mode.value === 'edit') {
+    nextTick(() => {
+      checkProgramRowsByIds(programSelectedKeys.value);
+    });
+  }
 });
 
 /** vxe-table 复选框变化（节目 tab，含表头全选/反选） */
@@ -645,9 +673,17 @@ async function showModal(type: 'add' | 'edit' | 'detail' | 'execute', record?: a
         tableLoading.value = false;
       }, 200);
     }
-    // ===== 节目：编辑时默认不勾选 =====
-    programSelectedKeys.value = [];
+    // ===== 节目：编辑时默认勾选属于该场景的节目（依据 record.programSceneIds） =====
+    const rawProgramIds = record.programSceneIds ?? '';
+    const programIdArr = Array.isArray(rawProgramIds)
+      ? rawProgramIds.map(String)
+      : String(rawProgramIds).split(',').filter(Boolean);
+    programSelectedKeys.value = [...programIdArr];
+    // 重置所有行勾选状态后，再勾选属于该场景的节目
     programSceneList.value.forEach((item) => (item._checked = false));
+    if (programIdArr.length) {
+      checkProgramRowsByIds(programIdArr);
+    }
   } else if ((type === 'detail' || type === 'execute') && record) {
     console.log('record', record);
     editRecord.value = record;
@@ -772,6 +808,17 @@ defineExpose({ showModal, closeModal });
 /* ==================== Tab（场景 / 节目）深色科技风 ==================== */
 .create-scene-tabs {
   margin-bottom: 4px;
+
+  /* 仅剩「场景」tab 时隐藏 tab 导航栏，直接展示内容 */
+  &.scene-only {
+    :deep(.ant-tabs-nav) {
+      display: none;
+    }
+
+    :deep(.ant-tabs-content-holder) {
+      border: none;
+    }
+  }
 
   :deep(.ant-tabs-nav) {
     margin-bottom: 12px;
