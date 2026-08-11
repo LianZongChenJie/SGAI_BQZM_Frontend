@@ -453,7 +453,8 @@ import { useScreenScale } from '../useScreenScale'
 useScreenScale()
 import { getAllCircuitApi, getAllSpaceApi, getRunTimeCompareApi, getSceneSpaceApi, getVideoListBySpaceApi, allOnApi, allOffApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { getCircuitListApi } from '@/api/baseSettingBqZm'
-import { postSceneControlApi, getAreaListAllTagApi, getLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring'
+import { postSceneControlApi, getLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring';
+import spaceBoundariesData from './space-boundaries.json'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import { setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';
 import { message } from 'ant-design-vue'
@@ -515,11 +516,11 @@ const runtimeTableData = ref<any[]>([])
 // 所有地块 ID 列表（用于运行时长查询）
 const allSpaceIdList = ref<string[]>([])
 const spaceList = ref<any[]>([])
-// 最终 spaceId 列表：由有 tagId 的场景详情（/scene/detail）areaList.space 去重得到，替代 district/all 的 spaceIds 字段关联
+// 最终 spaceId 列表：由有 tagId 的场景详情（/scene/detail）areaList.space 去重得到，作为 /scene/space 请求来源
 const finalSpaceIdList = ref<number[]>([])
 
-// 场景列表标签筛选：下拉框选项来自 district/all 返回的地块数据（取 id / districtName 字段），
-// 地块 id 即场景数据中的 tagId（与设备监控页标签体系一致）；第一条固定为「全部」（value='all'，选中即展示所有且不显示清除按钮）
+// 场景列表标签筛选：下拉框选项来自 district/listPage 返回的标签数据（取 id / districtName 字段），
+// 标签 id 即场景数据中的 tagId（与设备监控页标签体系一致）；第一条固定为「全部」（value='all'，选中即展示所有且不显示清除按钮）
 const selectedAreaFilter = ref<string | undefined>(undefined)
 const areaFilterOptions = computed(() => {
   const options: { label: string; value: string }[] = [{ label: '全部', value: 'all' }]
@@ -535,12 +536,12 @@ function getSceneTagId(item: any): any {
   return t == null || t === '' ? undefined : t
 }
 
-// 筛选后的场景列表：数据直接来自 scene/listPage（allTagScenes），按场景 tagId 与板块 id（district/all 的地块 id，同源）对应归属；
-// 只展示有 tagId 的场景（无标签场景不展示），并给场景打上归属地块 id（_spaceId）；
-// 未选或选「全部」展示所有地块的场景，选中后按场景 tagId 匹配筛选（与场景模式弹框的匹配逻辑一致）
+// 筛选后的场景列表：数据直接来自 scene/listPage（allTagScenes），按场景 tagId 与标签 id（district/listPage 的标签 id，同源）对应归属；
+// 只展示有 tagId 的场景（无标签场景不展示），并给场景打上归属标签 id（_spaceId）；
+// 未选或选「全部」展示所有标签的场景，选中后按场景 tagId 匹配筛选（与场景模式弹框的匹配逻辑一致）
 const filteredSceneList = computed(() => {
   const allScenes: any[] = []
-  // tagId → 板块映射：spaceList.id（district/all）与场景 tagId 同源
+  // tagId → 标签映射：spaceList.id（district/listPage）与场景 tagId 同源
   const boardMap = new Map(spaceList.value.map((s: any) => [String(s.id), s]))
   allTagScenes.value.forEach((item: any) => {
     // 只展示有 tagId 的场景
@@ -747,7 +748,7 @@ function closeSpaceMenu() {
 }
 
 
-// 地块显示名（space-boundaries.json 标点名）与 district/all 的 districtName 不一致时的映射，
+// 地块显示名（space-boundaries.json 标点名）与 district/listPage 的 districtName 不一致时的映射，
 // 用于点击标点（JSON 名）也能匹配到 spaceList 中的 spaceIds；
 // 目前 JSON 标点名已与接口 districtName 保持一致，该映射仅作兼容兜底
 const SPACE_NAME_ALIAS: Record<string, string> = {
@@ -792,14 +793,25 @@ function parseSpaceIds(spaceIds: any): number[] {
   return arr.map((v: any) => Number(v)).filter((n: number) => !isNaN(n) && n > 0)
 }
 
+// 回路/场景去重键：优先取 id，缺失时用 circuitId（scene/space 返回的回路主键字段为 circuitId）；键统一转字符串避免数字/字符串类型不一致
+function getMergeKey(item: any): string {
+  const v = item?.id ?? item?.circuitId
+  return v != null && v !== '' ? String(v) : ''
+}
+
 // 按 id 合并数组（保留顺序，id 相同只保留第一个；无 id 的项直接追加）
 function mergeById(list: any[], incoming: any): any[] {
   if (!Array.isArray(incoming)) return list
-  const exists = new Set(list.map((i: any) => i?.id).filter((v: any) => v != null))
+  const exists = new Set<string>()
+  for (const i of list) {
+    const k = getMergeKey(i)
+    if (k) exists.add(k)
+  }
   for (const item of incoming) {
-    if (item?.id == null || !exists.has(item.id)) {
+    const k = getMergeKey(item)
+    if (!k || !exists.has(k)) {
       list.push(item)
-      if (item?.id != null) exists.add(item.id)
+      if (k) exists.add(k)
     }
   }
   return list
@@ -833,6 +845,8 @@ async function fetchSpaceDataById(sid: number | string): Promise<any> {
         const data = {
           scenes: mergeById([], getSceneListFromRes(res)),
           circuits: mergeById([], getCircuitListFromRes(res)),
+          // 【临时验证】记录 spaceName，排查制氧区 spaceId=903 归属问题（验证完可删除）
+          spaceName: res?.spaceName,
         }
         spaceDataById.value[key] = data
         return data
@@ -858,6 +872,8 @@ async function fetchSpaceSceneData(spaceName: string) {
   const space = spaceList.value.find((s: any) => s.name === key)
   // spaceId 来源：spaceList 中该地块归属的 spaceId 数组（由场景详情 areaList.space 按 districtId 归属组装）
   const spaceIds: number[] = parseSpaceIds(space?.spaceIds)
+  // 【临时验证】打印该地块 spaceIds，排查制氧区回路个数问题（验证完删除）
+  console.log(`[verify] fetchSpaceSceneData key=${key} spaceIds=`, spaceIds)
   if (spaceIds.length === 0) {
     console.warn(`[index] 地块 [${key}] 无 spaceIds，跳过状态更新`)
     return
@@ -879,6 +895,23 @@ async function fetchSpaceSceneData(spaceName: string) {
       merged.scenes = mergeById(merged.scenes, res.scenes || [])
       merged.circuits = mergeById(merged.circuits, res.circuits || [])
     })
+    console.log(merged.circuits, 'merged.circuits');
+    // 【临时验证】回路重复检查：打印每条回路的 id/circuitId/名称，验证同名回路是否同 id（验证完删除）
+    console.log(`[verify] ${key} circuits 明细:`, merged.circuits.map((c: any, i: number) => ({
+      idx: i, id: c?.id, circuitId: c?.circuitId, name: c?.circuitName ?? c?.name, status: c?.status
+    })))
+    const nameCount: Record<string, number> = {}
+    merged.circuits.forEach((c: any) => {
+      const n = String(c?.circuitName ?? c?.name ?? '')
+      nameCount[n] = (nameCount[n] || 0) + 1
+    })
+    console.log(`[verify] ${key} 回路名称重复统计:`, nameCount)
+    const idCount: Record<string, number> = {}
+    merged.circuits.forEach((c: any) => {
+      const k = String(c?.id ?? c?.circuitId ?? '无id')
+      idCount[k] = (idCount[k] || 0) + 1
+    })
+    console.log(`[verify] ${key} 回路 id 重复统计:`, idCount)
     if (merged.scenes.length || merged.circuits.length) {
       // 更新地块标点状态：circuits 中任一回路 status === '开启' → 亮灯，否则熄灭（空数组/无 circuits 均熄灭）
       // 短路遍历：发现第一个开启回路立即终止，避免全量扫描（最好 O(1)，最坏 O(n)，空间 O(1)）
@@ -891,6 +924,21 @@ async function fetchSpaceSceneData(spaceName: string) {
       }
       // 状态缓存进数据缓存（_isOn），供标点创建后重放：数据请求完成时标点可能尚未绘制，直接更新会因 DOM 不存在而丢失
       spaceSceneDataMap.value[key] = { ...merged, _isOn: isOn }
+      // 【临时验证】打印合并后回路数，制氧区额外打印每个 spaceId 的回路与关联场景（验证完删除）
+      console.log(`[verify] ${key} merged circuits=${merged.circuits.length} scenes=${merged.scenes.length}`)
+      if (key.includes('制氧')) {
+        spaceIds.forEach((sid) => {
+          const d = spaceDataById.value[String(sid)]
+          console.log(
+            `[verify] ${key} spaceId=${sid} spaceName=${d?.spaceName} circuits=${d?.circuits?.length} scenes=${d?.scenes?.length} 场景tagId=`,
+            [...new Set((d?.scenes || []).map((s: any) => s.tagId ?? s.tagIds).filter(Boolean))],
+          )
+        })
+        console.log(
+          '[verify] 制氧区关联场景(tagId=7):',
+          allTagScenes.value.filter((s: any) => String(s.tagId ?? s.tagIds) === '7').map((s: any) => s.planName),
+        )
+      }
       // 用所有可能的标点名更新（districtName 与 JSON 标点名写法可能不一致）
       getSpaceMarkerNames(spaceName).forEach((n) => {
         mapViewRef.value?.updateSpaceMarkerState?.(n, isOn)
@@ -1277,23 +1325,23 @@ async function fetchTagSceneList(): Promise<any[]> {
   }
 }
 
-// 获取所有片区数据并组装最终 spaceId 列表：
-// 不再使用 district/all 的 spaceIds 字段关联，改为：scene/listPage 过滤出有 tagId 的场景 →
-// 逐场景查详情（/scene/detail），取 areaList 下的 space 字段去重得到最终 spaceId 数组，
-// 并按 areaList 的 districtId 归属回各地块，作为 /scene/space 请求的 spaceId 来源
+// 获取所有片区（标签）数据并组装最终 spaceId 列表：
+// 标签列表来自 district/listPage（id/name 以接口为准，不兜底），坐标由 space-boundaries.json 按 id 精确匹配组装；
+// 标签 id 即场景（scene/listPage）的 tagId；
+// 标签下包含的地块 = 该 tagId 所有场景详情（/scene/detail）areaList.space 的并集，作为 /scene/space 请求来源
 async function fetchAllDistrictTags() {
   try {
     // 1. 查询所有场景（scene/listPage），只保留有 tagId 的场景（无 tagId 的场景过滤掉）
     const tagScenes = await fetchTagSceneList()
 
     // 2. 并行查询所有场景详情（一次发起，便于核对调用个数），取 areaList 下的 space 字段：
-    // 全局去重为最终 spaceId 数组，并按 districtId 归属各地块（键统一转字符串，兼容数字/字符串）
+    // 全局去重为最终 spaceId 数组；按引用它的场景 tagId 归属到对应标签（标签与地块的包含关系，不再看 area 自身字段）
     const spaceIdSet = new Set<number>()
-    const districtSpaceMap = new Map<string, Set<number>>()
-    // 每个 spaceId 关联的场景 tagId（districtId 匹配不上时按场景所属片区兑底归属，避免 detail 里有 space 却不发起请求）
-    const spaceIdToTagIds = new Map<number, Set<string>>()
+    const tagSpaceMap = new Map<string, Set<number>>()
     await Promise.all(
       tagScenes.map(async (scene: any) => {
+        const sceneTagId = getSceneTagId(scene)
+        if (sceneTagId == null) return
         try {
           const detail: any = await planDetailApiNew({ id: scene.id })
           const areaList = Array.isArray(detail?.areaList) ? detail.areaList : []
@@ -1301,18 +1349,8 @@ async function fetchAllDistrictTags() {
             const sid = Number(area?.space)
             if (isNaN(sid) || sid <= 0) return
             spaceIdSet.add(sid)
-            const did = area?.districtId ?? area?.tagId
-            if (did != null && did !== '') {
-              const didKey = String(did)
-              if (!districtSpaceMap.has(didKey)) districtSpaceMap.set(didKey, new Set())
-              districtSpaceMap.get(didKey)!.add(sid)
-            }
-            // 记录场景自身 tagId（区域归属 districtId 匹配不上时，按场景所属片区兑底归属）
-            const sceneTagId = scene?.tagId ?? area?.tagId
-            if (sceneTagId != null && sceneTagId !== '') {
-              if (!spaceIdToTagIds.has(sid)) spaceIdToTagIds.set(sid, new Set())
-              spaceIdToTagIds.get(sid)!.add(String(sceneTagId))
-            }
+            if (!tagSpaceMap.has(String(sceneTagId))) tagSpaceMap.set(String(sceneTagId), new Set())
+            tagSpaceMap.get(String(sceneTagId))!.add(sid)
           })
         } catch (error) {
           console.error(`[index] 场景详情获取失败(场景 ${scene.id}):`, error)
@@ -1321,36 +1359,40 @@ async function fetchAllDistrictTags() {
     )
     finalSpaceIdList.value = Array.from(spaceIdSet)
 
-    // 3. allSpaceIdList 直接用最终 spaceId 数组组装（不再用 spaceIds 字段关联）
+    // 3. allSpaceIdList 直接用最终 spaceId 数组组装（用于运行时长查询）
     allSpaceIdList.value = finalSpaceIdList.value.map(String)
 
-    // 4. 填充地块列表 spaceList（district/all）：
-    // 各地块 spaceIds = districtId 归属 + 场景 tagId 归属（兑底）合并去重，保证 detail 里引用过的 spaceId 全部被请求
-    const res: any = await getAreaListAllTagApi()
+    // 4. 填充标签列表 spaceList（district/listPage）：
+    // id/name 以接口为准（不兜底）；坐标按 id 精确匹配 space-boundaries.json（spaceid 与接口 id 对应）
+    const res: any = await getAllSpaceApi() // district/listPage，页面已有封装
     const list = Array.isArray(res) ? res : (res?.records || res?.list || res?.result || res?.data || [])
     if (list.length > 0) {
       spaceList.value = list.map((space: any, index: number) => {
-        const base = districtSpaceMap.has(String(space.id)) ? Array.from(districtSpaceMap.get(String(space.id))!) : []
-        // 兑底：detail 里引用的 spaceId 若未按 districtId 归属，再按场景 tagId 补挂到对应地块
-        const tagMatched = finalSpaceIdList.value.filter((sid) => spaceIdToTagIds.get(sid)?.has(String(space.id)))
+        const boundary = spaceBoundariesData.find((b: any) => String(b.spaceid) === String(space.id))
         return {
           id: space.id,
           name: space.districtName,
-          spaceIds: Array.from(new Set([...base, ...tagMatched])),
+          spaceIds: Array.from(tagSpaceMap.get(String(space.id)) ?? []),
           color: DEFAULT_SPACE_COLORS[index % DEFAULT_SPACE_COLORS.length],
-          enabled: false
+          enabled: false,
+          // 坐标组装：json 按 id 精确匹配（无匹配不带坐标，不按名称兜底）
+          ...(boundary ? { path: boundary.path, center: boundary.center, lon: boundary.lon, lat: boundary.lat } : {}),
         }
       })
-      // 校验：仍有 spaceId 无法归属到任何地块（districtId/tagId 均匹配不上）
+      // 【临时验证】打印各地块 spaceIds 归属，排查制氧区回路个数问题（验证完删除）
+      spaceList.value.forEach((s: any) => {
+        console.log(`[verify] 地块 id=${s.id} name=${s.name} spaceIds=`, s.spaceIds)
+      })
+      // 校验：仍有 spaceId 无任何标签场景引用（不会被请求）
       const lostSpaceIds = finalSpaceIdList.value.filter((sid) => !spaceList.value.some((s: any) => s.spaceIds.includes(sid)))
       if (lostSpaceIds.length) {
-        console.warn('[index] 以下 spaceId 无法归属到任何地块（districtId/tagId 均匹配不上，不会发起请求）:', lostSpaceIds)
+        console.warn('[index] 以下 spaceId 无任何标签场景引用，不会发起请求:', lostSpaceIds)
       }
       // 初始化后批量请求各地块场景数据（填充左侧场景列表与标点亮灭状态）
       fetchAllSpaceSceneData()
     }
   } catch (error) {
-    console.error('获取片区数据(district/all)失败:', error)
+    console.error('获取片区数据(district/listPage)失败:', error)
   }
 }
 

@@ -385,14 +385,25 @@
     return arr.map((v: any) => Number(v)).filter((n: number) => !isNaN(n) && n > 0);
   }
 
+  /** 回路/场景去重键：优先取 id，缺失时用 circuitId（scene/space 返回的回路主键字段为 circuitId）；键统一转字符串避免数字/字符串类型不一致 */
+  function getMergeKey(item: any): string {
+    const v = item?.id ?? item?.circuitId;
+    return v != null && v !== '' ? String(v) : '';
+  }
+
   /** 按 id 合并数组（保留顺序，id 相同只保留第一个；无 id 的项直接追加） */
   function mergeById(list: any[], incoming: any): any[] {
     if (!Array.isArray(incoming)) return list;
-    const exists = new Set(list.map((i: any) => i?.id).filter((v: any) => v != null));
+    const exists = new Set<string>();
+    for (const i of list) {
+      const k = getMergeKey(i);
+      if (k) exists.add(k);
+    }
     for (const item of incoming) {
-      if (item?.id == null || !exists.has(item.id)) {
+      const k = getMergeKey(item);
+      if (!k || !exists.has(k)) {
         list.push(item);
-        if (item?.id != null) exists.add(item.id);
+        if (k) exists.add(k);
       }
     }
     return list;
@@ -435,8 +446,8 @@
   /** 加载各地块回路数据：与 bigGis 地块模式数据逻辑一致——
    *  不再用 district 接口返回的 spaceIds 字段关联，改为：
    *  scene/listPage 过滤出有 tagId 的场景 → 并行查详情（/scene/detail）取 areaList.space，
-   *  按 areaList 的 districtId 归属回各地块（districtId 匹配不上时按场景 tagId 兑底归属），
-   *  再按归属的 spaceIds 循环调用 /scene/space 获取回路（spaceId 级去重，同一 spaceId 只请求一次）并按 id 合并 */
+   *  标签与地块的包含关系只按场景 tagId 归属（不再看 area 自身的 districtId 字段），
+   *  各地块按归属的 spaceIds 循环调用 /scene/space 获取回路（spaceId 级去重，同一 spaceId 只请求一次）并按 id 合并 */
   async function loadSpaceCircuitData() {
     // 1. 查询所有场景（scene/listPage），只保留有 tagId 的场景（无 tagId 的场景过滤掉）
     let tagScenes: any[] = []
@@ -454,31 +465,21 @@
       console.error('[preview] 查询场景列表失败:', error)
     }
 
-    // 2. 并行查询所有场景详情（一次发起），取 areaList 下的 space 字段：按 districtId 归属各地块（键统一转字符串，兼容数字/字符串）
-    const districtSpaceMap = new Map<string, Set<number>>()
-    // 每个 spaceId 关联的场景 tagId（districtId 匹配不上时按场景所属片区兑底归属，避免漏请求）
-    const spaceIdToTagIds = new Map<number, Set<string>>()
-    console.log(`[preview] 并行查询 ${tagScenes.length} 个场景详情:`, tagScenes.map((s: any) => s.id))
+    // 2. 并行查询所有场景详情（一次发起），取 areaList 下的 space 字段：
+    // 按引用它的场景 tagId 归属到对应标签（标签与地块的包含关系，不再看 area 自身字段）
+    const tagSpaceMap = new Map<string, Set<number>>()
     await Promise.all(
       tagScenes.map(async (scene: any) => {
+        const sceneTagId = scene?.tagId ?? scene?.tagIds
+        if (sceneTagId == null || sceneTagId === '') return
         try {
           const detail: any = await planDetailApiNew({ id: scene.id })
           const areaList = Array.isArray(detail?.areaList) ? detail.areaList : []
           areaList.forEach((area: any) => {
             const sid = Number(area?.space)
             if (isNaN(sid) || sid <= 0) return
-            const did = area?.districtId ?? area?.tagId
-            if (did != null && did !== '') {
-              const didKey = String(did)
-              if (!districtSpaceMap.has(didKey)) districtSpaceMap.set(didKey, new Set())
-              districtSpaceMap.get(didKey)!.add(sid)
-            }
-            // 记录场景自身 tagId（区域归属 districtId 匹配不上时，按场景所属片区兑底归属）
-            const sceneTagId = scene?.tagId ?? area?.tagId
-            if (sceneTagId != null && sceneTagId !== '') {
-              if (!spaceIdToTagIds.has(sid)) spaceIdToTagIds.set(sid, new Set())
-              spaceIdToTagIds.get(sid)!.add(String(sceneTagId))
-            }
+            if (!tagSpaceMap.has(String(sceneTagId))) tagSpaceMap.set(String(sceneTagId), new Set())
+            tagSpaceMap.get(String(sceneTagId))!.add(sid)
           })
         } catch (error) {
           console.error(`[preview] 场景详情获取失败(场景 ${scene.id}):`, error)
@@ -488,12 +489,7 @@
 
     // 3. 各地块按归属的 spaceIds 请求 /scene/space 获取回路（spaceId 级去重），按 id 合并
     for (const space of allSpaceList.value) {
-      const base = Array.from(districtSpaceMap.get(String(space.id)) || [])
-      // 兑底：detail 里引用的 spaceId 若未按 districtId 归属，再按场景 tagId 补挂到对应地块
-      const tagMatched = Array.from(spaceIdToTagIds.entries())
-        .filter(([, tags]) => tags.has(String(space.id)))
-        .map(([sid]) => sid)
-      const spaceIds = Array.from(new Set([...base, ...tagMatched]))
+      const spaceIds = Array.from(tagSpaceMap.get(String(space.id)) ?? [])
       if (spaceIds.length === 0) {
         console.warn(`[preview] 地块 [${space.districtName}] 无归属 spaceIds，跳过`)
         continue
