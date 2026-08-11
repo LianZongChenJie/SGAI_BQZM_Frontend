@@ -26,6 +26,9 @@ enum Api {
   deleteSceneItemAPi = '/sgai-bqzm/bems/lighting/scene/delete',
   postSceneControlApi = '/sgai-bqzm/bems/lighting/scene/control',
   getLightingProgramListApi = '/sgai-bqzm/bems/lighting/program/list',
+  getLightingProgramControlApi = '/sgai-bqzm/bems/lighting/program/control',
+  postProgramAllControlApi = '/sgai-bqzm/bems/lighting/program/allControl',
+  getAreaListBySpaceNameApi = '/sgai-bqzm/bems/lighting/area/listBySpaceName',
 }
 
 /**
@@ -124,3 +127,12 @@ export const getAllVidoeListApi = (params) => defHttp.get({ url: Api.getAllVidoe
 
 // 获取节目列表（新增/编辑场景时节目 tab 数据源）
 export const getLightingProgramList = (params) => defHttp.get({ url: Api.getLightingProgramListApi, params }, { joinParamsToUrl: true });
+
+// 节目控制（operationType + programId，GET query 传参）
+export const getLightingProgramControl = (params) => defHttp.post({ url: Api.getLightingProgramControlApi, params }, { joinParamsToUrl: true });
+
+// 节目全开全关（operationType，POST query 传参）
+export const postProgramAllControl = (params) => defHttp.post({ url: Api.postProgramAllControlApi, params }, { joinParamsToUrl: true });
+
+// 按空间名查询区域列表（id 传参，标点 id=478 专用）
+export const getAreaListBySpaceName = (params) => defHttp.get({ url: Api.getAreaListBySpaceNameApi, params }, { joinParamsToUrl: true });

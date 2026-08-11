@@ -155,7 +155,6 @@
                       <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
                       <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
                       <vxe-column field="programName" title="节目名称" min-width="180" show-overflow></vxe-column>
-                      <vxe-column field="status" title="状态" width="100" align="center"></vxe-column>
                       <vxe-column field="sysOrgCode" title="所属区域" width="90" align="center"></vxe-column>
                       <vxe-column field="updateTime" title="上次操作时间" width="180" align="center" v-if="mode !== 'add'"></vxe-column>
                     </vxe-table>

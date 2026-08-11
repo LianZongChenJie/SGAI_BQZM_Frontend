@@ -391,7 +391,8 @@
               </button>
             </div>
             <!-- 回路列表（最下边，左上侧展示已开启回路数/总回路数） -->
-            <div class="pane-table">
+            <!-- 标点 id=477/478 特殊处理：不查回路，分别展示节目列表 / 区域列表 -->
+            <div v-if="!lightIsSpecial477 && !lightIsSpecial478" class="pane-table">
               <div class="circuit-count-tag">
                 <span class="stat-label">回路已开/回路总数</span>
               <span class="stat-value">
@@ -425,6 +426,68 @@
                 <div v-else class="space-submenu-empty">暂无回路</div>
               </a-spin>
             </div>
+            <!-- 节目列表（标点 id=477）：节目名称 / 状态 / 操作（播放 停止） -->
+            <div v-else-if="lightIsSpecial477" class="pane-table">
+              <a-spin :spinning="detailModalLoading" class="pane-spin">
+                <template v-if="lightPlanList.length">
+                  <div class="circuit-vxe-table-wrap">
+                    <vxe-table
+                      :data="lightPlanList"
+                      height="320"
+                      :row-config="{ keyField: 'id', height: 38 }"
+                      :scroll-y="{ enabled: true }"
+                    >
+                      <vxe-column field="name" title="节目名称" min-width="150" show-overflow></vxe-column>
+                      <vxe-column title="状态" width="70" align="center">
+                        <template #default="{ row }">
+                          <span class="program-status">{{ row.programState || '' }}</span>
+                        </template>
+                      </vxe-column>
+                      <vxe-column title="操作" width="118" align="center">
+                        <template #default="{ row }">
+                          <div class="plan-action-group">
+                            <button class="mini-action-btn is-on" @click="handleProgramAction(row, '开启')">播放</button>
+                            <button class="mini-action-btn is-off" @click="handleProgramAction(row, '关闭')">停止</button>
+                          </div>
+                        </template>
+                      </vxe-column>
+                    </vxe-table>
+                  </div>
+                </template>
+                <div v-else class="space-submenu-empty">暂无节目</div>
+              </a-spin>
+            </div>
+            <!-- 区域列表（标点 id=478）：名称 / 状态 / 操作（开 关） -->
+            <div v-else class="pane-table">
+              <a-spin :spinning="detailModalLoading" class="pane-spin">
+                <template v-if="lightArea478List.length">
+                  <div class="circuit-vxe-table-wrap">
+                    <vxe-table
+                      :data="lightArea478List"
+                      height="320"
+                      :row-config="{ keyField: 'id', height: 38 }"
+                      :scroll-y="{ enabled: true }"
+                    >
+                      <vxe-column field="name" title="名称" min-width="150" show-overflow></vxe-column>
+                      <vxe-column title="状态" width="70" align="center">
+                        <template #default="{ row }">
+                          <span class="program-status">{{ row.status || '' }}</span>
+                        </template>
+                      </vxe-column>
+                      <vxe-column title="操作" width="118" align="center">
+                        <template #default="{ row }">
+                          <div class="plan-action-group">
+                            <button class="mini-action-btn is-on" @click="handleArea478Action(row, '开启')">开</button>
+                            <button class="mini-action-btn is-off" @click="handleArea478Action(row, '关闭')">关</button>
+                          </div>
+                        </template>
+                      </vxe-column>
+                    </vxe-table>
+                  </div>
+                </template>
+                <div v-else class="space-submenu-empty">暂无区域</div>
+              </a-spin>
+            </div>
           </div>
         </a-tab-pane>
         <!-- 2. 监控视频（单独页签，与综合预览页一致：写死地址前缀拼接 monitorAdr，不调接口） -->
@@ -453,7 +516,7 @@ import { useScreenScale } from '../useScreenScale'
 useScreenScale()
 import { getAllCircuitApi, getAllSpaceApi, getRunTimeCompareApi, getSceneSpaceApi, getVideoListBySpaceApi, allOnApi, allOffApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { getCircuitListApi } from '@/api/baseSettingBqZm'
-import { postSceneControlApi, getLightingPlanAPiNew, planDetailApiNew } from '@/api/equipmentMonitoring';
+import { postSceneControlApi, getLightingPlanAPiNew, planDetailApiNew, getLightingProgramList, getLightingProgramControl, postProgramAllControl, getAreaListBySpaceName } from '@/api/equipmentMonitoring';
 import spaceBoundariesData from './space-boundaries.json'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import { setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';
@@ -497,6 +560,14 @@ const MONITOR_BASE_URL = 'http://10.168.47.23:4000/index.html?id='
 const lightVideoUrl = ref('')
 // 四页签弹框回路列表（circuit/listPage 按 areaId 查询）
 const lightCircuitList = ref<any[]>([])
+// 标点 id=477 特殊弹框标记：下边不查回路，改为展示节目列表
+const lightIsSpecial477 = ref(false)
+// 标点 id=477 弹框的节目列表（getLightingProgramList 全量）
+const lightPlanList = ref<any[]>([])
+// 标点 id=478 特殊弹框标记：下边不查回路，改为展示 area/listBySpaceName 区域列表
+const lightIsSpecial478 = ref(false)
+// 标点 id=478 弹框的区域列表（getAreaListBySpaceName，id 固定传 1）
+const lightArea478List = ref<any[]>([])
 // 四页签弹框当前标点的 areaId（全开/全关接口参数）
 const lightAreaId = ref('')
 // 四页签弹框标题展示的区域名（取标点数据 areaName）
@@ -727,6 +798,11 @@ function closeAllModals() {
   sceneModalVisible.value = false
   detailModalVisible.value = false
   lightTabsModalVisible.value = false
+  // 标点 id=477/478 特殊弹框状态重置
+  lightIsSpecial477.value = false
+  lightPlanList.value = []
+  lightIsSpecial478.value = false
+  lightArea478List.value = []
   activeMenuItem.value = ''  // 取消对应一级列表的激活状态
   // 详情模式成员列表：弹框关闭后列表保持展开展示，仅清除列表项激活高亮
   mapViewRef.value?.clearMarkerListActive?.()
@@ -1074,20 +1150,29 @@ function showLightConfirm(opts: {
   confirmModalRef.value?.showModal(opts)
 }
 
-// 四页签弹框全开（调用 setAreaOpenApi，按 areaId）
+// 四页签弹框全开（默认按 areaId 调 setAreaOpenApi；标点 id=477 特殊：调节目全控接口 /bems/lighting/program/allControl）
 function handleLightAreaOn() {
   if (!lightAreaId.value) {
     message.warning('该标点无地块 ID，无法执行全开')
     return
   }
   showLightConfirm({
-    content: `确定要 <strong class="tip-action">全开</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
+    content: lightIsSpecial477.value
+      ? `确定要 <strong class="tip-action">全开</strong> 所有节目吗？`
+      : `确定要 <strong class="tip-action">全开</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
     onOk: async () => {
       try {
-        await setAreaOpenApi({ id: lightAreaId.value })
+        if (lightIsSpecial477.value) {
+          // 标点 id=477：节目全控（POST，query 传 operationType）
+          await postProgramAllControl({ operationType: '开启' })
+          // 刷新节目列表，更新状态列（programState）
+          await loadLightPlanList()
+        } else {
+          await setAreaOpenApi({ id: lightAreaId.value })
+          // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
+          await loadLightCircuit(lightAreaId.value)
+        }
         message.success('全开成功')
-        // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
-        await loadLightCircuit(lightAreaId.value)
       } catch (error) {
         console.error('全开失败:', error)
         message.error('全开失败，请重试')
@@ -1096,20 +1181,28 @@ function handleLightAreaOn() {
   })
 }
 
-// 四页签弹框全关（调用 setAreaCloseApi，按 areaId）
+// 四页签弹框全关（默认按 areaId 调 setAreaCloseApi；标点 id=477 特殊：调节目全控接口 /bems/lighting/program/allControl）
 function handleLightAreaOff() {
   if (!lightAreaId.value) {
     message.warning('该标点无地块 ID，无法执行全关')
     return
   }
   showLightConfirm({
-    content: `确定要 <strong class="tip-action">全关</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
+    content: lightIsSpecial477.value
+      ? `确定要 <strong class="tip-action">全关</strong> 所有节目吗？`
+      : `确定要 <strong class="tip-action">全关</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
     onOk: async () => {
       try {
-        await setAreaCloseApi({ id: lightAreaId.value })
-        message.success('全关成功')
-        // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
-        await loadLightCircuit(lightAreaId.value)
+        if (lightIsSpecial477.value) {
+          // 标点 id=477：节目全控（POST，query 传 operationType）
+          await postProgramAllControl({ operationType: '关闭' })
+          // 刷新节目列表，更新状态列（programState）
+          await loadLightPlanList()
+        } else {
+          await setAreaCloseApi({ id: lightAreaId.value })
+          // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
+          await loadLightCircuit(lightAreaId.value)
+        }
       } catch (error) {
         console.error('全关失败:', error)
         message.error('全关失败，请重试')
@@ -1590,13 +1683,112 @@ async function openLightTabsModal(data: any) {
   lightAreaId.value = String(areaId)
   lightAreaName.value = data?.areaName || ''
   lightVideoUrl.value = data?.monitorAdr ? MONITOR_BASE_URL + data.monitorAdr : ''
+  // 标点 id=477/478 特殊处理：不按区域 id 查回路，477 展示节目列表、478 展示区域列表
+  const isSpecial477 = String(areaId) === '477'
+  const isSpecial478 = String(areaId) === '478'
+  lightIsSpecial477.value = isSpecial477
+  lightIsSpecial478.value = isSpecial478
+  lightPlanList.value = []
+  lightArea478List.value = []
   detailModalLoading.value = true
   try {
-    // 回路概览/详情数据：按 areaId 查询 circuit/listPage
-    await loadLightCircuit(String(areaId))
+    if (isSpecial477) {
+      await loadLightPlanList()
+    } else if (isSpecial478) {
+      // 标点 id=478：调 area/listBySpaceName（id 固定传 1）展示区域列表
+      await loadLightArea478List()
+    } else {
+      // 回路概览/详情数据：按 areaId 查询 circuit/listPage
+      await loadLightCircuit(String(areaId))
+    }
   } finally {
     detailModalLoading.value = false
   }
+}
+
+// 加载节目列表（独立节目接口 /bems/lighting/program/list），供标点 id=477 弹框展示（节目名称/状态/开/关）
+async function loadLightPlanList() {
+  const data: any = await getLightingProgramList({ pageNo: 1, pageSize: 999 })
+  // 兼容分页结构（records/list/result/data）与纯数组返回
+  const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.result || data?.data || [])
+  lightPlanList.value = (records as any[]).map((item: any, idx: number) => ({
+    ...item,
+    id: item.id || idx,
+    name: item.programName,
+    enabled: item.programStatus === '开启' || item.enabled === true,
+  }))
+}
+
+// 节目开/关（标点 id=477 弹框）：GET /bems/lighting/program/control，传 operationType + programId
+function handleProgramAction(row: any, action: '开启' | '关闭') {
+  return new Promise<void>((resolve, reject) => {
+    if (!confirmModalRef.value) {
+      resolve()
+      return
+    }
+    confirmModalRef.value.showModal({
+      content: `确定要 <strong class="tip-action">${action}</strong> 节目"${row.name || row.programName || '-'}"吗？`,
+      onOk: async () => {
+        try {
+          await getLightingProgramControl({
+            operationType: action,
+            programId: row.id
+          })
+          message.success(`${action}成功`)
+          // 刷新节目列表，更新状态列（programState）
+          await loadLightPlanList()
+          resolve()
+        } catch (error) {
+          console.error(`节目${action}失败:`, error)
+          message.error('操作失败，请重试')
+          reject(error)
+        }
+      },
+      onCancel: () => {
+        resolve()
+      }
+    })
+  })
+}
+
+// 加载标点 id=478 的区域列表（GET /bems/lighting/area/listBySpaceName，id 固定传 1）
+async function loadLightArea478List() {
+  const data: any = await getAreaListBySpaceName({ id: 1 })
+  // 兼容分页结构（records/list/result/data）与纯数组返回
+  const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.result || data?.data || [])
+  lightArea478List.value = (records as any[]).map((item: any, idx: number) => ({
+    ...item,
+    id: item.id || item.areaId || idx,
+    name: item.name || item.areaName || '区域' + (idx + 1),
+    status: item.status || item.state || item.areaState || '关闭',
+  }))
+}
+
+// 标点 id=478 弹框行级开/关（复用区域开/关接口 area/open、area/close，query 传行 id）
+function handleArea478Action(row: any, action: '开启' | '关闭') {
+  if (!row.id) {
+    message.warning('该区域无 ID，无法执行操作')
+    return
+  }
+  const actionText = action === '开启' ? '开' : '关'
+  showLightConfirm({
+    content: `确定要 <strong class="tip-action">${actionText}</strong> 区域“${row.name || '-'}”吗？`,
+    onOk: async () => {
+      try {
+        if (action === '开启') {
+          await setAreaOpenApi({ id: row.id })
+        } else {
+          await setAreaCloseApi({ id: row.id })
+        }
+        message.success(`${actionText}成功`)
+        // 刷新区域列表，更新状态列
+        await loadLightArea478List()
+      } catch (error) {
+        console.error(`区域${actionText}失败:`, error)
+        message.error('操作失败，请重试')
+      }
+    },
+  })
 }
 
 // 按 areaId 查询地块回路列表（circuit/listPage），供四页签弹框的回路概览与详情展示
@@ -1648,7 +1840,8 @@ onMounted(() => {
 .big-gis-page {
   position: relative;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  min-height: 100vh;
   /* 大屏底：深蓝黑底 + 顶部青色光晕 + 细网格纹理（地图加载间隙同样保持科技感） */
   background-color: #050d1a;
   background-image:
@@ -2740,6 +2933,57 @@ onMounted(() => {
 
 .circuit-status.is-off {
   color: #ff5252;
+}
+
+/* 节目列表操作按钮（标点 id=477 弹框）：播放/停止 */
+.plan-action-group {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0.06rem;
+}
+
+.mini-action-btn {
+  /* 按钮文字永不换行、按钮不被压缩（防止“播放/停止”竖排换行） */
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0.03rem 0.14rem;
+  border-radius: 0.04rem;
+  font-size: 0.12rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.25s ease;
+  line-height: 1.4;
+}
+
+/* 节目状态文字（白色） */
+.program-status {
+  color: #ffffff;
+  font-size: 0.12rem;
+  font-weight: 600;
+}
+
+.mini-action-btn.is-on {
+  color: #00e676;
+  border-color: rgba(0, 230, 118, 0.45);
+  background: rgba(0, 230, 118, 0.12);
+}
+
+.mini-action-btn.is-on:hover {
+  background: rgba(0, 230, 118, 0.28);
+  box-shadow: 0 0 0.1rem rgba(0, 230, 118, 0.35);
+}
+
+.mini-action-btn.is-off {
+  color: #ff5252;
+  border-color: rgba(255, 82, 82, 0.45);
+  background: rgba(255, 82, 82, 0.12);
+}
+
+.mini-action-btn.is-off:hover {
+  background: rgba(255, 82, 82, 0.28);
+  box-shadow: 0 0 0.1rem rgba(255, 82, 82, 0.35);
 }
 
 .space-submenu-empty {

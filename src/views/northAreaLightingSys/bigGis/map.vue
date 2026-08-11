@@ -1556,7 +1556,19 @@ onMounted(async () => {
   await initMap()  // 使用 await 确保初始化完成
   // 点击地图空白时自动关闭展开的成员列表（捕获阶段）
   document.addEventListener('click', handleDocumentClick, true);
+  // 容器高度随视口变化后，通知 SDK 重新计算 canvas 尺寸，避免底部残留空白
+  window.addEventListener('resize', handleWindowResize);
 })
+
+/**
+ * 窗口尺寸变化时：地图容器高度已随 100vh 自适应，此处通知 SDK 重算 canvas 尺寸
+ *（SDK 不会自动感知容器变化，不调用 resize 会导致 canvas 与容器尺寸不一致）
+ */
+function handleWindowResize() {
+  if (map.value && typeof map.value.resize === 'function') {
+    map.value.resize();
+  }
+}
 
 onUnmounted(() => {
   // 清除所有标记
@@ -1570,13 +1582,15 @@ onUnmounted(() => {
   }
   // 移除全局点击监听
   document.removeEventListener('click', handleDocumentClick, true);
+  // 移除窗口尺寸监听
+  window.removeEventListener('resize', handleWindowResize);
 })
 </script>
 
 <style scoped>
 .map-container {
   width: 100%;
-  height: 820px;  /* 地图容器固定高度（SDK 依赖稳定尺寸），不随缩放 */
+  height: 100vh;  /* 地图铺满整个视口，底部控制按钮为 absolute 悬浮层，无需预留空间 */
   border-radius: 0.06rem;
   overflow: hidden;
   position: relative;

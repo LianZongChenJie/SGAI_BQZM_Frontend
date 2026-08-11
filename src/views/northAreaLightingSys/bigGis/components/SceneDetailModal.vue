@@ -2,63 +2,88 @@
   <a-modal
     v-model:open="visible"
     :title="'场景详情 - ' + currentScene?.name"
-    width="850px"
+    width="1100px"
     wrapClassName="scene-detail-modal"
     :zIndex="91000"
     :footer="null"
     :maskClosable="true"
+    top="20px"
     @cancel="onCancel"
   >
-    <div class="modal-content">
-      <!-- 详情表格 -->
-      <div class="table-section">
-        <div class="table-scroll">
-          <table class="device-table">
-            <thead>
-              <tr>
-                <th>地块名称</th>
-                <th>区域名称</th>
-                <th>回路名称</th>
-                <th>电流</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(row, idx) in tableData" :key="idx">
-                <td :title="row.spaceName || '-'">{{ row.spaceName || '-' }}</td>
-                <td :title="row.areaName || '-'">{{ row.areaName || '-' }}</td>
-                <td :title="row.circuitName || row.name || '-'">{{ row.circuitName || row.name || '-' }}</td>
-                <td :title="row.electricCurrent || ''">{{ row.electricCurrent || '' }}</td>
-                <td>
-                  <span class="status-text" :class="row.status === '开启' ? 'status-on' : 'status-off'">
-                    {{ row.status || '关闭' }}
-                  </span>
-                </td>
-                <td>
-                  <div class="row-btn-group">
-                    <button class="row-btn on-btn" @click="handleRowAction(row, '开启')">开启</button>
-                    <button class="row-btn off-btn" @click="handleRowAction(row, '关闭')">关闭</button>
-                  </div>
-                </td>
-              </tr>
-              <tr v-if="!tableData || tableData.length === 0">
-                <td colspan="5" class="empty-row">暂无数据</td>
-              </tr>
-            </tbody>
-          </table>
+    <!-- ==================== Tab：场景 / 节目（参考 createNewSceneModal 展示场景详情） ==================== -->
+    <a-tabs v-model:activeKey="activeTab" class="scene-detail-tabs">
+      <!-- ==================== Tab 1：场景（详情表格，样式风格保持原样） ==================== -->
+      <a-tab-pane key="scene" tab="场景">
+        <div class="modal-content">
+          <!-- 详情表格 -->
+          <div class="table-section">
+            <div class="table-scroll">
+              <table class="device-table">
+                <thead>
+                  <tr>
+                    <th>地块名称</th>
+                    <th>区域名称</th>
+                    <th>回路名称</th>
+                    <th>电流</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, idx) in tableData" :key="idx">
+                    <td :title="row.spaceName || '-'">{{ row.spaceName || '-' }}</td>
+                    <td :title="row.areaName || '-'">{{ row.areaName || '-' }}</td>
+                    <td :title="row.circuitName || row.name || '-'">{{ row.circuitName || row.name || '-' }}</td>
+                    <td :title="row.electricCurrent || ''">{{ row.electricCurrent || '' }}</td>
+                    <td>
+                      <span class="status-text" :class="row.status === '开启' ? 'status-on' : 'status-off'">
+                        {{ row.status || '关闭' }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="row-btn-group">
+                        <button class="row-btn on-btn" @click="handleRowAction(row, '开启')">开启</button>
+                        <button class="row-btn off-btn" @click="handleRowAction(row, '关闭')">关闭</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="!tableData || tableData.length === 0">
+                    <td colspan="6" class="empty-row">暂无数据</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </a-modal>
+      </a-tab-pane>
 
-  <!-- 统一二次确认弹框（提示样式：标题栏 + 信息图标 + 动作词高亮） -->
-  <ConfirmModal ref="confirmModalRef" />
+      <!-- ==================== Tab 2：节目（参考 createNewSceneModal：节目名称/所属区域/上次操作时间） ==================== -->
+      <a-tab-pane key="program" tab="节目" v-if="showProgramTab">
+        <div class="table-wrapper">
+          <vxe-table
+            :data="displayProgramSceneList"
+            :loading="programLoading"
+            :row-config="{ keyField: 'id', height: 38 }"
+            max-height="420"
+            border="none"
+          >
+            <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
+            <vxe-column field="programName" title="节目名称" min-width="240" show-overflow></vxe-column>
+            <vxe-column field="sysOrgCode" title="所属区域" width="140" align="center"></vxe-column>
+            <vxe-column field="updateTime" title="上次操作时间" width="200" align="center"></vxe-column>
+          </vxe-table>
+        </div>
+      </a-tab-pane>
+    </a-tabs>
+
+    <!-- 统一二次确认弹框（提示样式：标题栏 + 信息图标 + 动作词高亮） -->
+    <ConfirmModal ref="confirmModalRef" />
+  </a-modal>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { planDetailApiNew, postSceneSwitchApi } from '@/api/equipmentMonitoring'
+import { ref, computed } from 'vue'
+import { planDetailApiNew, postSceneSwitchApi, getLightingProgramList } from '@/api/equipmentMonitoring'
 import { message } from 'ant-design-vue'
 import ConfirmModal from '../../equipmentMonitoring/components/ConfirmModal.vue'
 
@@ -67,38 +92,83 @@ const confirmModalRef = ref<InstanceType<typeof ConfirmModal> | null>(null)
 const visible = ref(false)
 const currentScene = ref<any>(null)
 const tableData = ref<any[]>([])
+const activeTab = ref<'scene' | 'program'>('scene')
+
+// ==================== 节目 tab（独立节目接口数据，参考 createNewSceneModal） ====================
+const programSceneList = ref<any[]>([])
+const programLoading = ref(false)
+// detail 接口返回的 programSceneIds（兼容字符串逗号分隔 / 数组），驱动节目 tab 显隐
+const detailProgramSceneIds = ref<string[]>([])
+
+/** 节目 tab 是否展示：仅当 detail 接口返回的 programSceneIds 非空时才展示 */
+const showProgramTab = computed(() => detailProgramSceneIds.value.length > 0)
+
+/** 节目 tab 展示列表：仅展示 detail 接口 programSceneIds 关联的节目 */
+const displayProgramSceneList = computed(() => {
+  if (!detailProgramSceneIds.value.length) return []
+  const idSet = new Set(detailProgramSceneIds.value.map(String))
+  return programSceneList.value.filter((item) => idSet.has(String(item.id)))
+})
+
+/** 加载节目列表（独立节目接口 /bems/lighting/program/list） */
+async function loadProgramSceneList() {
+  programLoading.value = true
+  try {
+    const data: any = await getLightingProgramList({ pageNo: 1, pageSize: 999 })
+    // 兼容分页结构（records/list/result/data）与纯数组返回
+    const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.result || data?.data || [])
+    programSceneList.value = (records as any[]).map((item) => ({
+      ...item,
+      // 时间字段兼容：接口可能返回 updateDate / createTime
+      updateTime: item.updateTime || item.updateDate || item.createTime || '',
+    }))
+  } catch (err) {
+    console.error('加载节目列表失败:', err)
+    programSceneList.value = []
+  } finally {
+    programLoading.value = false
+  }
+}
 
 /** 打开详情弹窗 */
 async function showDetail(scene: any) {
   console.log('打开场景详情:', scene)
-  
+
   // 验证 id 是否存在
   if (!scene?.id) {
     console.error('场景 ID 不存在:', scene)
     message.error('场景数据不完整，无法查看详情')
     return
   }
-  
+
   currentScene.value = scene
   visible.value = true
-  
+  activeTab.value = 'scene'
+  detailProgramSceneIds.value = []
+  programSceneList.value = []
+
   // 获取详情数据
   try {
     const params = { id: scene.id }
     console.log('请求参数:', params)
     const data = await planDetailApiNew(params)
     console.log('场景详情数据:', data)
-    
+
     if (data) {
-      tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
       // 根据控制类型显示不同数据
       if (scene.relType === '区域') {
         tableData.value = Array.isArray(data.areaList) ? data.areaList : []
-      } else if (scene.relType === '回路') {
+      } else {
         tableData.value = Array.isArray(data.circuitList) ? data.circuitList : []
       }
-      tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
+      // 解析 detail 接口返回的 programSceneIds，驱动节目 tab 显隐与过滤
+      const rawIds = data.programSceneIds ?? ''
+      detailProgramSceneIds.value = Array.isArray(rawIds)
+        ? rawIds.map(String)
+        : String(rawIds).split(',').filter(Boolean)
     }
+    // 节目 tab 数据源：全量节目（按 programSceneIds 过滤展示）
+    await loadProgramSceneList()
   } catch (err: any) {
     console.error('获取场景详情失败:', err)
     message.error(err?.message || '获取场景详情失败')
@@ -132,6 +202,8 @@ function onCancel() {
   visible.value = false
   currentScene.value = null
   tableData.value = []
+  detailProgramSceneIds.value = []
+  programSceneList.value = []
 }
 
 defineExpose({ showDetail })
@@ -142,7 +214,189 @@ defineExpose({ showDetail })
   padding: 8px 0;
 }
 
-/* 详情表格 */
+/* ==================== Tab（场景 / 节目）深色科技风（参考 createNewSceneModal） ==================== */
+.scene-detail-tabs {
+  margin-bottom: 4px;
+
+  :deep(.ant-tabs-nav) {
+    margin-bottom: 12px;
+    width: 100%;
+
+    &::before {
+      border-bottom: 1px solid rgba(0, 212, 255, 0.15);
+    }
+  }
+
+  /* tab 导航占满整行，两个 tab 平分 */
+  :deep(.ant-tabs-nav-list) {
+    width: 100%;
+    display: flex;
+  }
+
+  :deep(.ant-tabs-tab) {
+    flex: 1;
+    margin: 0;
+    padding: 8px 0;
+    justify-content: center;
+    color: #7fa6d4;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #00d4ff;
+    }
+  }
+
+  /* 文字水平居中 */
+  :deep(.ant-tabs-tab-btn) {
+    display: block;
+    width: 100%;
+    text-align: center;
+  }
+
+  :deep(.ant-tabs-tab.ant-tabs-tab-active) {
+    background: linear-gradient(180deg, rgba(0, 212, 255, 0.25), rgba(0, 212, 255, 0.06));
+    box-shadow:
+      inset 0 1.5px 0 rgba(0, 212, 255, 0.9),
+      inset 1px 0 0 rgba(0, 212, 255, 0.3),
+      inset -1px 0 0 rgba(0, 212, 255, 0.3);
+    border-radius: 6px 6px 0 0;
+  }
+
+  :deep(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: #00eaff !important;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(0, 234, 255, 0.6);
+  }
+
+  :deep(.ant-tabs-ink-bar) {
+    background: linear-gradient(90deg, #00d4ff, #00ffd1) !important;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+    border-radius: 2px;
+  }
+}
+
+/* ==================== 节目表格区域 —— vxe-table 深色主题（参考 createNewSceneModal） ==================== */
+.table-wrapper {
+  overflow: hidden;
+  margin-bottom: 4px;
+  background: rgba(8, 23, 40, 0.65);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 4px;
+  box-shadow: inset 0 0 16px rgba(0, 212, 255, 0.04);
+}
+
+.table-wrapper :deep(.vxe-table) {
+  background: transparent;
+  color: #ffffff;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+
+  --vxe-ui-table-border-color: #1f2b3d;
+  --vxe-ui-table-border-width: 0;
+  --vxe-ui-table-checkbox-range-border-color: #00d4ff;
+  --vxe-ui-table-cell-area-border-color: #00d4ff;
+  --vxe-ui-table-cell-main-area-extension-border-color: #00d4ff;
+  --vxe-ui-table-cell-extend-area-border-color: #00d4ff;
+  --vxe-ui-table-cell-copy-area-border-color: #00d4ff;
+  --vxe-ui-table-fixed-right-scrolling-box-shadow: none;
+  --vxe-ui-table-fixed-left-scrolling-box-shadow: none;
+  --vxe-ui-layout-background-color: transparent;
+  --vxe-ui-table-header-background-color: #1b2533;
+  --vxe-ui-table-footer-background-color: #141d2b;
+  --vxe-ui-table-row-hover-background-color: rgba(0, 212, 255, 0.06);
+  --vxe-ui-table-row-striped-background-color: transparent;
+  --vxe-ui-table-row-current-background-color: rgba(0, 162, 232, 0.18);
+  --vxe-ui-table-row-hover-current-background-color: rgba(0, 162, 232, 0.22);
+
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+/* 表头：加底部青光描边 + 列首左侧装饰 */
+.table-wrapper :deep(.vxe-table .vxe-header--wrapper),
+.table-wrapper :deep(.vxe-header--row) {
+  background: linear-gradient(180deg, #1f2b3d 0%, #1b2533 100%) !important;
+}
+
+.table-wrapper :deep(.vxe-table .vxe-header--wrapper) {
+  position: relative;
+  border-bottom: 1px solid #2a3a52;
+  box-shadow: 0 1px 0 0 rgba(0, 212, 255, 0.1);
+}
+
+.table-wrapper :deep(.vxe-table .vxe-header--column) {
+  font-weight: 500 !important;
+  font-size: 12px !important;
+  color: #8fa3bf !important;
+  letter-spacing: 0.3px;
+}
+
+/* 表体行：hover 青色高亮 + 左侧条 */
+.table-wrapper :deep(.vxe-table .vxe-body--row) {
+  transition: background 0.2s;
+  position: relative;
+}
+
+.table-wrapper :deep(.vxe-table .vxe-body--row:hover) {
+  background: rgba(0, 212, 255, 0.06) !important;
+  box-shadow: inset 2px 0 0 0 rgba(0, 212, 255, 0.6);
+}
+
+/* 行内单元格字号、行高紧凑 */
+.table-wrapper :deep(.vxe-table .vxe-body--column) {
+  font-size: 12px !important;
+  color: #d6e0ee !important;
+}
+
+/* 自定义滚动条 */
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-track,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+.table-wrapper :deep(.vxe-table)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--body-wrapper)::-webkit-scrollbar-thumb:hover,
+.table-wrapper :deep(.vxe-table--header-wrapper)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* 表头行：去掉右边线 */
+.table-wrapper :deep(.vxe-header--row),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column),
+.table-wrapper :deep(.vxe-header--row .vxe-header--column:last-child),
+.table-wrapper :deep(.vxe-header--row .col--fixed-right) {
+  border-right: 0 !important;
+  background-image: none !important;
+}
+
+/* Gutter 列：去掉所有边界线、背景色 */
+.table-wrapper :deep(.vxe-table--header-wrapper .vxe-header--row .vxe-header--gutter),
+.table-wrapper :deep(.vxe-table--body-wrapper .vxe-body--row .vxe-body--gutter),
+.table-wrapper :deep(.vxe-header--gutter),
+.table-wrapper :deep(.vxe-body--gutter),
+.table-wrapper :deep(.col--gutter) {
+  border: 0 !important;
+  background-image: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* ==================== 详情表格（样式风格保持原样） ==================== */
 .table-section {
   background: rgba(10, 22, 40, 0.6);
   border: 1px solid rgba(56, 189, 248, 0.25);
@@ -274,6 +528,10 @@ defineExpose({ showDetail })
 <style lang="less">
 /* 全局 Modal 样式 - 高透深色科技风（30%不透明度） */
 .scene-detail-modal {
+  .ant-modal {
+    top: 20px !important;
+  }
+
   .ant-modal-content {
     background: rgba(10, 22, 40, 0.85) !important;
     backdrop-filter: blur(10px);
