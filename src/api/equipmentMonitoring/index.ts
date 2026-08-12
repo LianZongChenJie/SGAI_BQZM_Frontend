@@ -29,6 +29,7 @@ enum Api {
   getLightingProgramControlApi = '/sgai-bqzm/bems/lighting/program/control',
   postProgramAllControlApi = '/sgai-bqzm/bems/lighting/program/allControl',
   getAreaListBySpaceNameApi = '/sgai-bqzm/bems/lighting/area/listBySpaceName',
+  postControlBySpaceNameApi = '/sgai-bqzm/bems/lighting/area/controlBySpaceName',
 }
 
 /**
@@ -136,3 +137,6 @@ export const postProgramAllControl = (params) => defHttp.post({ url: Api.postPro
 
 // 按空间名查询区域列表（id 传参，标点 id=478 专用）
 export const getAreaListBySpaceName = (params) => defHttp.get({ url: Api.getAreaListBySpaceNameApi, params }, { joinParamsToUrl: true });
+
+// 按空间名控制地块全开全关（spaceName + operationType，POST query 传参，标点 id=478 专用）
+export const postControlBySpaceName = (params) => defHttp.post({ url: Api.postControlBySpaceNameApi, params }, { joinParamsToUrl: true });

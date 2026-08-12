@@ -550,7 +550,7 @@ import { useScreenScale } from '../useScreenScale'
 useScreenScale()
 import { getAllCircuitApi, getAllSpaceApi, getRunTimeCompareApi, getSceneSpaceApi, getVideoListBySpaceApi, allOnApi, allOffApi } from '../comprehensivePreview/comprehensivePreview.api'
 import { getCircuitListApi } from '@/api/baseSettingBqZm'
-import { postSceneControlApi, getLightingPlanAPiNew, planDetailApiNew, getLightingProgramList, getLightingProgramControl, postProgramAllControl, getAreaListBySpaceName } from '@/api/equipmentMonitoring';
+import { postSceneControlApi, getLightingPlanAPiNew, planDetailApiNew, getLightingProgramList, getLightingProgramControl, postProgramAllControl, getAreaListBySpaceName, postControlBySpaceName } from '@/api/equipmentMonitoring';
 import spaceBoundariesData from './space-boundaries.json'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import { setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';
@@ -1193,7 +1193,7 @@ function throwIfControlFailed(res: any) {
   return res
 }
 
-// 四页签弹框全开（默认按 areaId 调 setAreaOpenApi；标点 id=477 特殊：调节目全控接口 /bems/lighting/program/allControl）
+// 四页签弹框全开（默认按 areaId 调 setAreaOpenApi；标点 id=477 特殊：调节目全控接口 /bems/lighting/program/allControl；标点 id=478 特殊：调按空间名控制接口 /bems/lighting/area/controlBySpaceName）
 function handleLightAreaOn() {
   if (!lightAreaId.value) {
     message.warning('该标点无地块 ID，无法执行全开')
@@ -1202,7 +1202,9 @@ function handleLightAreaOn() {
   showLightConfirm({
     content: lightIsSpecial477.value
       ? `确定要 <strong class="tip-action">全开</strong> 所有节目吗？`
-      : `确定要 <strong class="tip-action">全开</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
+      : lightIsSpecial478.value
+        ? `确定要 <strong class="tip-action">全开</strong> 地块“1号馆”的所有区域吗？`
+        : `确定要 <strong class="tip-action">全开</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
     onOk: async () => {
       try {
         if (lightIsSpecial477.value) {
@@ -1210,6 +1212,11 @@ function handleLightAreaOn() {
           await throwIfControlFailed(await postProgramAllControl({ operationType: '开启' }))
           // 刷新节目列表，更新状态列（programState），失败不影响成功提示（全局拦截器已弹错）
           await loadLightPlanList().catch(() => {})
+        } else if (lightIsSpecial478.value) {
+          // 标点 id=478：按空间名控制地块全开（POST，query 传 spaceName + operationType，spaceName 固定“1号馆”）
+          await throwIfControlFailed(await postControlBySpaceName({ spaceName: '1号馆', operationType: '开启' }))
+          // 刷新区域列表，更新状态列，失败不影响成功提示（全局拦截器已弹错）
+          await loadLightArea478List().catch(() => {})
         } else {
           await throwIfControlFailed(await setAreaOpenApi({ id: lightAreaId.value }))
           message.success('开启成功')
@@ -1224,7 +1231,7 @@ function handleLightAreaOn() {
   })
 }
 
-// 四页签弹框全关（默认按 areaId 调 setAreaCloseApi；标点 id=477 特殊：调节目全控接口 /bems/lighting/program/allControl）
+// 四页签弹框全关（默认按 areaId 调 setAreaCloseApi；标点 id=477 特殊：调节目全控接口 /bems/lighting/program/allControl；标点 id=478 特殊：调按空间名控制接口 /bems/lighting/area/controlBySpaceName）
 function handleLightAreaOff() {
   if (!lightAreaId.value) {
     message.warning('该标点无地块 ID，无法执行全关')
@@ -1233,7 +1240,9 @@ function handleLightAreaOff() {
   showLightConfirm({
     content: lightIsSpecial477.value
       ? `确定要 <strong class="tip-action">全关</strong> 所有节目吗？`
-      : `确定要 <strong class="tip-action">全关</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
+      : lightIsSpecial478.value
+        ? `确定要 <strong class="tip-action">全关</strong> 地块“1号馆”的所有区域吗？`
+        : `确定要 <strong class="tip-action">全关</strong> 地块“${lightAreaName.value || '该标点'}”的所有回路吗？`,
     onOk: async () => {
       try {
         if (lightIsSpecial477.value) {
@@ -1241,6 +1250,11 @@ function handleLightAreaOff() {
           await throwIfControlFailed(await postProgramAllControl({ operationType: '关闭' }))
           // 刷新节目列表，更新状态列（programState），失败不影响成功提示（全局拦截器已弹错）
           await loadLightPlanList().catch(() => {})
+        } else if (lightIsSpecial478.value) {
+          // 标点 id=478：按空间名控制地块全关（POST，query 传 spaceName + operationType，spaceName 固定“1号馆”）
+          await throwIfControlFailed(await postControlBySpaceName({ spaceName: '1号馆', operationType: '关闭' }))
+          // 刷新区域列表，更新状态列，失败不影响成功提示（全局拦截器已弹错）
+          await loadLightArea478List().catch(() => {})
         } else {
           await throwIfControlFailed(await setAreaCloseApi({ id: lightAreaId.value }))
           message.success('关闭成功')

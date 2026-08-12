@@ -281,6 +281,7 @@
     getLightingProgramControl,
     postProgramAllControl,
     getAreaListBySpaceName,
+    postControlBySpaceName,
   } from '@/api/equipmentMonitoring';
   import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue';
 
@@ -562,7 +563,7 @@
     });
   }
 
-  /** 详情弹框全开（标点 id=477 特殊：节目全控 /bems/lighting/program/allControl；其余按场景控制 /plan/control） */
+  /** 详情弹框全开（标点 id=477 特殊：节目全控 /bems/lighting/program/allControl；标点 id=478 特殊：按空间名控制 /bems/lighting/area/controlBySpaceName；其余按场景控制 /plan/control） */
   function handleLightAreaOn() {
     if (lightIsSpecial477.value) {
       showLightConfirm({
@@ -580,10 +581,26 @@
       });
       return;
     }
+    if (lightIsSpecial478.value) {
+      showLightConfirm({
+        content: '确定要 <strong class="tip-action">全开</strong> 地块“1号馆”的所有区域吗？',
+        onOk: async () => {
+          try {
+            // 标点 id=478：按空间名控制地块全开（POST，query 传 spaceName + operationType，spaceName 固定“1号馆”）
+            await throwIfControlFailed(await postControlBySpaceName({ spaceName: '1号馆', operationType: '开启' }));
+            await loadLightArea478List().catch(() => {});
+          } catch (error) {
+            // 全局拦截器已统一弹出错误提示，这里只记录日志
+            console.error('全开失败:', error);
+          }
+        },
+      });
+      return;
+    }
     handleSceneSwitch('开启');
   }
 
-  /** 详情弹框全关（标点 id=477 特殊：节目全控；其余按场景控制 /plan/control） */
+  /** 详情弹框全关（标点 id=477 特殊：节目全控；标点 id=478 特殊：按空间名控制；其余按场景控制 /plan/control） */
   function handleLightAreaOff() {
     if (lightIsSpecial477.value) {
       showLightConfirm({
@@ -593,6 +610,23 @@
             await throwIfControlFailed(await postProgramAllControl({ operationType: '关闭' }));
             // 刷新节目列表，更新状态列（programState），失败不影响成功提示（全局拦截器已弹错）
             await loadLightPlanList().catch(() => {});
+          } catch (error) {
+            // 全局拦截器已统一弹出错误提示，这里只记录日志
+            console.error('全关失败:', error);
+          }
+        },
+      });
+      return;
+    }
+    if (lightIsSpecial478.value) {
+      showLightConfirm({
+        content: '确定要 <strong class="tip-action">全关</strong> 地块“1号馆”的所有区域吗？',
+        onOk: async () => {
+          try {
+            // 标点 id=478：按空间名控制地块全关（POST，query 传 spaceName + operationType，spaceName 固定“1号馆”）
+            await throwIfControlFailed(await postControlBySpaceName({ spaceName: '1号馆', operationType: '关闭' }));
+            // 刷新区域列表，更新状态列，失败不影响成功提示（全局拦截器已弹错）
+            await loadLightArea478List().catch(() => {});
           } catch (error) {
             // 全局拦截器已统一弹出错误提示，这里只记录日志
             console.error('全关失败:', error);
