@@ -850,11 +850,11 @@
   /** 加载所有地块 */
   async function loadAllSpace() {
     try {
-      const res = await getAllSpaceApi();
+      const res = await getAllSpaceApi('1');
       // 兼容分页结构（records/list/result/data）与纯数组返回
       allSpaceList.value = Array.isArray(res)
         ? res
-        : (res?.records || res?.list || res?.result || res?.data || []);
+        : (res?.records || []);
     } catch {
       allSpaceList.value = [];
     }

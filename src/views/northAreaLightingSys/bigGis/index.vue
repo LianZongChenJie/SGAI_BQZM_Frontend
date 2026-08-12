@@ -1507,7 +1507,7 @@ async function fetchAllDistrictTags() {
 
     // 4. 填充标签列表 spaceList（district/listPage）：
     // id/name 以接口为准（不兜底）；坐标按 id 精确匹配 space-boundaries.json（spaceid 与接口 id 对应）
-    const res: any = await getAllSpaceApi() // district/listPage，页面已有封装
+    const res: any = await getAllSpaceApi('1') // district/listPage，页面已有封装（type 传 "1"：只取地块数据）
     const list = Array.isArray(res) ? res : (res?.records || res?.list || res?.result || res?.data || [])
     if (list.length > 0) {
       spaceList.value = list.map((space: any, index: number) => {
@@ -1542,7 +1542,7 @@ async function fetchAllDistrictTags() {
 // 获取所有地块 ID（用于运行时长查询）
 async function fetchAllSpaceIds() {
   try {
-    const res: any = await getAllSpaceApi()
+    const res: any = await getAllSpaceApi('1')
     // 兼容分页结构（records/list/result/data）与纯数组返回
     const list = Array.isArray(res) ? res : (res?.records || res?.list || res?.result || res?.data || [])
     // 新接口字段：id / districtName

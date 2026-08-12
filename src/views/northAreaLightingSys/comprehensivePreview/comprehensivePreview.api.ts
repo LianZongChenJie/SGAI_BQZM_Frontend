@@ -28,8 +28,8 @@ export const allOnApi  = (params) => defHttp.post({ url: Api.allOn, params });
 /** 全区关灯 */
 export const allOffApi = (params) => defHttp.post({ url: Api.allOff, params });
 
-/** 获取所有地块 */
-export const getAllSpaceApi = () => defHttp.get({ url: Api.getAllSpace });
+/** 获取所有地块（type 传 "1"：只取地块数据*/
+export const getAllSpaceApi = (type: string) => defHttp.get({ url: Api.getAllSpace, params: { type } });
 
 /** 查询所有回路 */
 export const getAllCircuitApi = () => defHttp.get({ url: Api.getAllCircuit });
