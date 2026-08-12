@@ -352,13 +352,17 @@ watch(activeTab, (tab) => {
   }
 });
 
-/** vxe-table 复选框变化（节目 tab，含表头全选/反选） */
-function onProgramCheckboxChange({ records }: { records: any[] }) {
-  programSelectedKeys.value = records.map((item: any) => String(item.id));
+/** vxe-table 复选框变化（节目 tab，含表头全选/反选）：从节目全量列表汇总 _checked 状态 */
+function onProgramCheckboxChange() {
+  programSelectedKeys.value = programSceneList.value
+    .filter((item: any) => item._checked)
+    .map((item: any) => String(item.id));
 }
 
-function onProgramCheckboxAll({ records }: { records: any[] }) {
-  programSelectedKeys.value = records.map((item: any) => String(item.id));
+function onProgramCheckboxAll() {
+  programSelectedKeys.value = programSceneList.value
+    .filter((item: any) => item._checked)
+    .map((item: any) => String(item.id));
 }
 
 /** 加载节目列表（独立节目接口 /bems/lighting/program/list，所有模式统一加载） */
@@ -454,13 +458,17 @@ function clearFilters() {
 
 // ==================== 方法 ====================
 
-/** vxe-table 复选框变化（含表头全选/反选） */
-function onCheckboxChange({ records }: { records: any[] }) {
-  selectedRowKeys.value = records.map((item: any) => String(item.id));
+/** vxe-table 复选框变化（含表头全选/反选）：从全量数据汇总 _checked 行，保证切换筛选条件后跨地块勾选不丢失 */
+function onCheckboxChange() {
+  selectedRowKeys.value = tableData.value
+    .filter((item: any) => item._checked)
+    .map((item: any) => String(item.id));
 }
 
-function onCheckboxAll({ records }: { records: any[] }) {
-  selectedRowKeys.value = records.map((item: any) => String(item.id));
+function onCheckboxAll() {
+  selectedRowKeys.value = tableData.value
+    .filter((item: any) => item._checked)
+    .map((item: any) => String(item.id));
 }
 
 /** 清空所有勾选 */
