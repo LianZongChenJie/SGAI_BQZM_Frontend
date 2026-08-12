@@ -26,10 +26,16 @@ export function checkStatus(status: number, msg: string, errorMessageMode: Error
     case 401:
       userStore.setToken(undefined);
       errMessage = msg || t('sys.api.errMsg401');
-      if (stp === SessionTimeoutProcessingEnum.PAGE_COVERAGE) {
-        userStore.setSessionTimeout(true);
-      } else {
-        userStore.logout(true);
+      // IOC 平台 iframe 嵌入（URL 携带 from=ioc）：401 时不清除会话、不跳转登录页，保持页面停留，
+      // 避免嵌入场景下被弹出到登录页（当前阶段接口使用柜员登录 token，后续可替换为平台专用 token）
+      const iocFromParam = new URLSearchParams(window.location.search).get('from') ?? '';
+      const isIocEmbed = iocFromParam.replace(/['"]/g, '').toLowerCase() === 'ioc';
+      if (!isIocEmbed) {
+        if (stp === SessionTimeoutProcessingEnum.PAGE_COVERAGE) {
+          userStore.setSessionTimeout(true);
+        } else {
+          userStore.logout(true);
+        }
       }
       break;
     case 403:

@@ -1,5 +1,5 @@
 <template>
-  <Header :class="getHeaderClass" style="background: #1e293b !important;">
+  <Header v-if="showHeader" :class="getHeaderClass" style="background: #1e293b !important;">
     <!-- left start -->
     <div :class="`${prefixCls}-left`">
       <!-- logo -->
@@ -115,6 +115,9 @@
     },
     setup(props) {
       const { prefixCls } = useDesign('layout-header');
+      // IOC 平台 iframe 嵌入（URL 携带 from=ioc）：不展示框架顶部导航栏，只展示页面主体
+      const fromParam = new URLSearchParams(window.location.search).get('from') ?? '';
+      const showHeader = fromParam.replace(/['"]/g, '').toLowerCase() !== 'ioc';
       const userStore = useUserStore();
       const { getShowTopMenu, getShowHeaderTrigger, getSplit, getIsMixMode, getMenuWidth, getIsMixSidebar } = useMenuSetting();
       const { getUseErrorHandle, getShowSettingButton, getSettingButtonPosition } = useRootSetting();
@@ -243,7 +246,8 @@
         t,
         menuTitle,
         isBigGis,
-        toggleMode
+        toggleMode,
+        showHeader
       };
     },
   });

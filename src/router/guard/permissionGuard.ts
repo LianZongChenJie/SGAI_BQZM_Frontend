@@ -53,7 +53,29 @@ export function createPermissionGuard(router: Router) {
       return;
     }
 
+    // IOC 平台 iframe 嵌入免登录：URL 携带 from=ioc 时，使用 .env 中 VITE_IOC_TOKEN 配置的 token 调用接口，
+    // （当前阶段暂用柜员登录 token，后续可替换为平台专用 token；否则嵌入方无登录态，接口会报 token 失效）
+    const iocToken = import.meta.env.VITE_IOC_TOKEN as string | undefined;
+    if (iocToken) {
+      const iocFromParam = to.query?.from;
+      const iocFromValue = Array.isArray(iocFromParam) ? iocFromParam[0] : iocFromParam;
+      // 兼容 from=ioc 与 from='ioc'（去掉引号后比较）
+      if (String(iocFromValue ?? '').replace(/['"]/g, '') === 'ioc') {
+        userStore.setToken(iocToken);
+      }
+    }
+
     const token = userStore.getToken;
+
+    // IOC 平台 iframe 嵌入免登录：URL 携带 from=ioc 时直接放行（无登录态也不跳转登录页），
+    // 接口请求使用浏览器已有的登录态 token（当前阶段暂用柜员登录 token，后续可替换为平台专用 token）
+    const fromParam = to.query?.from;
+    const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
+    const isIocEmbed = String(fromValue ?? '').replace(/['"]/g, '') === 'ioc';
+    if (isIocEmbed && !token) {
+      next();
+      return;
+    }
 
     // Whitelist can be directly entered
     if (whitePathList.includes(to.path as PageEnum)) {
