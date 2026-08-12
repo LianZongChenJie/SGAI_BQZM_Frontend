@@ -1,8 +1,8 @@
 export enum PageEnum {
   // basic login path
   BASE_LOGIN = '/login',
-  // basic home path
-  BASE_HOME = '/dashboard/analysis',
+  // basic home path（默认首页：综合预览，静态路由 /largeScreenDisplay → /largeScreenDisplay/index）
+  BASE_HOME = '/largeScreenDisplay',
   // error page path
   ERROR_PAGE = '/exception',
   // error log page path

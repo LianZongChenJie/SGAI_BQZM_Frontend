@@ -5,6 +5,7 @@ import { PAGE_NOT_FOUND_ROUTE, REDIRECT_ROUTE } from '/@/router/routes/basic';
 import { mainOutRoutes } from './mainOut';
 import { PageEnum } from '/@/enums/pageEnum';
 import { t } from '/@/hooks/web/useI18n';
+import { LAYOUT } from '/@/router/constant';
 
 const modules = import.meta.glob('./modules/**/*.ts', { eager: true });
 
@@ -85,5 +86,30 @@ export const bigGisRoute: AppRouteRecordRaw = {
     },
   ],
 };
+
+/**
+ * 综合预览（北区照明综合概览）：静态注册 /largeScreenDisplay 路径（与后端菜单配置一致），
+ * 确保登录后默认首页/菜单点击都能正确渲染综合概览页面（否则菜单点进去 404）
+ */
+export const comprehensivePreviewRoute: AppRouteRecordRaw = {
+  path: '/largeScreenDisplay',
+  name: 'ComprehensivePreview',
+  component: LAYOUT,
+  redirect: '/largeScreenDisplay/index',
+  meta: {
+    title: '综合预览',
+    hideMenu: true,
+  },
+  children: [
+    {
+      path: 'index',
+      name: 'ComprehensivePreviewIndex',
+      component: () => import('/@/views/northAreaLightingSys/comprehensivePreview/index.vue'),
+      meta: {
+        title: '综合预览',
+      },
+    },
+  ],
+};
 // Basic routing without permission
-export const basicRoutes = [LoginRoute, bigGisRoute, RootRoute, ...mainOutRoutes, REDIRECT_ROUTE, PAGE_NOT_FOUND_ROUTE, TokenLoginRoute, Oauth2LoginRoute];
+export const basicRoutes = [LoginRoute, bigGisRoute, comprehensivePreviewRoute, RootRoute, ...mainOutRoutes, REDIRECT_ROUTE, PAGE_NOT_FOUND_ROUTE, TokenLoginRoute, Oauth2LoginRoute];
