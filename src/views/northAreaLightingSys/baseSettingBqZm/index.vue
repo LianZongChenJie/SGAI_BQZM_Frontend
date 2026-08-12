@@ -88,8 +88,8 @@
           <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
           <!-- areaCode -->
           <vxe-column field="areaCode" title="区域编码" min-width="110"></vxe-column>
-          <vxe-column field="areaName" title="名称" min-width="380"></vxe-column>
-          <vxe-column field="pendingMsgCount" title="待下发消息数量" min-width="280"></vxe-column>
+          <vxe-column field="areaName" title="名称" min-width="110"></vxe-column>
+          <vxe-column field="pendingMsgCount" title="待下发消息数量" width="125" header-align="center" align="center"></vxe-column>
           <vxe-column field="status" title="状态" width="130">
             <template #default="{ row }">
               <span
@@ -287,23 +287,35 @@ function onCheckboxAll({ records }: { records: any[] }) {
 // 多选--全开
 const openAll = async () => {
   if (!selectedRowKeys.value.length) return message.error('请勾选区域！');
-  selectedRowKeys.value.forEach(async (item) => {
-    await setAreaOpenApi({
-      id: item,
-    });
-  });
-  onSearch()
+  try {
+    await Promise.all(
+      selectedRowKeys.value.map(async (item) => {
+        await setAreaOpenApi({ id: item });
+      }),
+    );
+    message.success('全开指令已下发');
+  } catch (error) {
+    console.error('全开失败:', error);
+    message.error('全开失败，请重试');
+  }
+  onSearch();
 };
 
 // 多选--全关
 const closeAll = async () => {
   if (!selectedRowKeys.value.length) return message.error('请勾选区域！');
-  selectedRowKeys.value.forEach(async (item) => {
-    await setAreaCloseApi({
-      id: item,
-    });
-  });
-  onSearch()
+  try {
+    await Promise.all(
+      selectedRowKeys.value.map(async (item) => {
+        await setAreaCloseApi({ id: item });
+      }),
+    );
+    message.success('全关指令已下发');
+  } catch (error) {
+    console.error('全关失败:', error);
+    message.error('全关失败，请重试');
+  }
+  onSearch();
 };
 // 单行--row操作
 const configOpenMessageRefTwo = ref<InstanceType<typeof configOpenMessageTwo>>();
@@ -334,23 +346,25 @@ function onModalConfigOpenMessageSuccessTwo(event) {
 }
 // 单行--全开
 const handleOpen = async (record) => {
-  await setAreaOpenApi({
-    id: record.id,
-  }).then((res) => {
-    console.log('禁用定时任务成功', res);
+  try {
+    await setAreaOpenApi({ id: record.id });
     message.success('全开成功！');
-  });;
-  onSearch()
+  } catch (error) {
+    console.error('全开失败:', error);
+    message.error('全开失败，请重试');
+  }
+  onSearch();
 };
 // 单行--全关
 const handleClose = async (record) => {
-  await setAreaCloseApi({
-    id: record.id,
-  }).then((res) => {
-    console.log('禁用定时任务成功', res);
+  try {
+    await setAreaCloseApi({ id: record.id });
     message.success('全关成功！');
-  });
-  onSearch()
+  } catch (error) {
+    console.error('全关失败:', error);
+    message.error('全关失败，请重试');
+  }
+  onSearch();
 };
 
 // 单行--撤回（待下发数量 > 0 时可用）
@@ -761,6 +775,8 @@ onUnmounted(() => {
   font-weight: 500;
   border-bottom: 1px solid var(--color-border);
   height: 40px;
+  /* 表头文字单行完整显示，永不换行/省略 */
+  white-space: nowrap;
 }
 
 /* 表体行 */

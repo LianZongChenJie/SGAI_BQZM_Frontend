@@ -1261,32 +1261,24 @@ function handleSpaceAllOn(spaceName: string) {
   showLightConfirm({
     content: `确定要 <strong class="tip-action">全开</strong> 地块“${spaceName}”的 ${scenes.length} 个场景吗？`,
     onOk: async () => {
-      let successCount = 0
-      let failCount = 0
-      await Promise.all(
-        scenes.map(async (scene: any) => {
-          try {
+      try {
+        await Promise.all(
+          scenes.map(async (scene: any) => {
             await allOnApi({
               operationType: '开启',
               relIds: scene.relIds,
               relType: scene.relType,
               sceneId: scene.id,
             })
-            successCount++
-          } catch (error) {
-            failCount++
-            console.error(`[bigGis] 地块 [${spaceName}] 场景 ${scene.id} 全开失败:`, error)
-          }
-        }),
-      )
-      if (failCount === 0) {
-        message.success(`【${spaceName}】全开指令已下发（${successCount} 个场景）`)
-      } else if (successCount > 0) {
-        message.warning(`【${spaceName}】全开：${successCount} 个成功，${failCount} 个失败`)
-      } else {
+          }),
+        )
+        message.success(`【${spaceName}】全开指令已下发`)
+      } catch (error) {
+        console.error(`[bigGis] 地块 [${spaceName}] 全开失败:`, error)
         message.error('全开失败，请重试')
+      } finally {
+        allModalVisible.value = false
       }
-      allModalVisible.value = false
     },
   })
 }
@@ -1307,32 +1299,24 @@ function handleSpaceAllOff(spaceName: string) {
   showLightConfirm({
     content: `确定要 <strong class="tip-action">全关</strong> 地块“${spaceName}”的 ${scenes.length} 个场景吗？`,
     onOk: async () => {
-      let successCount = 0
-      let failCount = 0
-      await Promise.all(
-        scenes.map(async (scene: any) => {
-          try {
+      try {
+        await Promise.all(
+          scenes.map(async (scene: any) => {
             await allOffApi({
               operationType: '关闭',
               relIds: scene.relIds,
               relType: scene.relType,
               sceneId: scene.id,
             })
-            successCount++
-          } catch (error) {
-            failCount++
-            console.error(`[bigGis] 地块 [${spaceName}] 场景 ${scene.id} 全关失败:`, error)
-          }
-        }),
-      )
-      if (failCount === 0) {
-        message.success(`【${spaceName}】全关指令已下发（${successCount} 个场景）`)
-      } else if (successCount > 0) {
-        message.warning(`【${spaceName}】全关：${successCount} 个成功，${failCount} 个失败`)
-      } else {
+          }),
+        )
+        message.success(`【${spaceName}】全关指令已下发`)
+      } catch (error) {
+        console.error(`[bigGis] 地块 [${spaceName}] 全关失败:`, error)
         message.error('全关失败，请重试')
+      } finally {
+        allModalVisible.value = false
       }
-      allModalVisible.value = false
     },
   })
 }
@@ -1824,7 +1808,7 @@ function handleArea478Action(row: any, action: '开启' | '关闭') {
     message.warning('该区域无 ID，无法执行操作')
     return
   }
-  const actionText = action === '开启' ? '开' : '关'
+  const actionText = action === '开启' ? '开启' : '关闭'
   showLightConfirm({
     content: `确定要 <strong class="tip-action">${actionText}</strong> 区域“${row.name || '-'}”吗？`,
     onOk: async () => {
