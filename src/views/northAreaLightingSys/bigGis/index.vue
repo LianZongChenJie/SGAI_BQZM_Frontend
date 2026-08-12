@@ -360,7 +360,6 @@
     <!-- 详情模式标点弹框（点击详情模式标点且仅单条数据时打开：一键开关/监控视频） -->
     <a-modal
       v-model:open="lightTabsModalVisible"
-      :title="(currentSpaceName) +'-'+ (lightAreaName)"
       :footer="null"
       width="400px"
       centered
@@ -370,6 +369,11 @@
       :bodyStyle="{ padding: '16px', background: '#0b1a2f' }"
       @cancel="onSpaceModalCancel"
     >
+      <template #title>
+        <div class="light-tabs-title">
+          <span>{{ currentSpaceName }}-{{ lightAreaName }}</span>
+        </div>
+      </template>
       <a-tabs type="card" class="video-tabs space-tabs">
         <!-- 1. 灯光控制页签：一键开关（上）→ 回路列表（下，左上侧展示已开启/总回路数） -->
         <a-tab-pane key="control" tab="一键开关">
@@ -394,20 +398,28 @@
             <!-- 标点 id=477/478 特殊处理：不查回路，分别展示节目列表 / 区域列表 -->
             <div v-if="!lightIsSpecial477 && !lightIsSpecial478" class="pane-table">
               <div class="circuit-count-tag">
-                <span class="stat-label">回路已开/回路总数</span>
-              <span class="stat-value">
-                <span class="number highlight-text">{{ lightCircuitSummary.on }}</span> 
-                / 
-                <span class="number">{{ lightCircuitSummary.total }}</span>
-              </span>
+                <span class="circuit-count-left">
+                  <span class="stat-label">回路已开/回路总数：</span>
+                  <span class="stat-value">
+                    <span class="number highlight-text">{{ lightCircuitSummary.on }}</span> 
+                    / 
+                    <span class="number">{{ lightCircuitSummary.total }}</span>
+                  </span>
+                </span>
+                <button class="table-refresh-btn" :disabled="detailModalLoading" @click="refreshLightTabsModal" title="刷新">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                  </svg>
+                </button>
               </div>
               <a-spin :spinning="detailModalLoading" class="pane-spin">
                 <template v-if="lightCircuitList.length">
                   <div class="circuit-vxe-table-wrap">
                     <vxe-table
                       :data="lightCircuitList"
-                      height="320"
-                      :row-config="{ keyField: '_key', height: 38 }"
+                      max-height="320"
+                      :row-config="{ keyField: '_key', height: 32 }"
                       :scroll-y="{ enabled: true }"
                     >
                       <vxe-column type="seq" title="序号" width="60" align="center"></vxe-column>
@@ -433,8 +445,8 @@
                   <div class="circuit-vxe-table-wrap">
                     <vxe-table
                       :data="lightPlanList"
-                      height="320"
-                      :row-config="{ keyField: 'id', height: 38 }"
+                      max-height="320"
+                      :row-config="{ keyField: 'id', height: 32 }"
                       :scroll-y="{ enabled: true }"
                     >
                       <vxe-column field="name" title="节目名称" min-width="150" show-overflow></vxe-column>
@@ -444,6 +456,17 @@
                         </template>
                       </vxe-column>
                       <vxe-column title="操作" width="118" align="center">
+                        <template #header>
+                          <span class="plan-header-wrap">
+                            操作
+                            <button class="table-refresh-btn" :disabled="detailModalLoading" @click="refreshLightTabsModal" title="刷新">
+                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                              </svg>
+                            </button>
+                          </span>
+                        </template>
                         <template #default="{ row }">
                           <div class="plan-action-group">
                             <button class="mini-action-btn is-on" @click="handleProgramAction(row, '开启')">播放</button>
@@ -464,8 +487,8 @@
                   <div class="circuit-vxe-table-wrap">
                     <vxe-table
                       :data="lightArea478List"
-                      height="320"
-                      :row-config="{ keyField: 'id', height: 38 }"
+                      max-height="320"
+                      :row-config="{ keyField: 'id', height: 32 }"
                       :scroll-y="{ enabled: true }"
                     >
                       <vxe-column field="name" title="名称" min-width="150" show-overflow></vxe-column>
@@ -475,6 +498,17 @@
                         </template>
                       </vxe-column>
                       <vxe-column title="操作" width="118" align="center">
+                        <template #header>
+                          <span class="plan-header-wrap">
+                            操作
+                            <button class="table-refresh-btn" :disabled="detailModalLoading" @click="refreshLightTabsModal" title="刷新">
+                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                              </svg>
+                            </button>
+                          </span>
+                        </template>
                         <template #default="{ row }">
                           <div class="plan-action-group">
                             <button class="mini-action-btn is-on" @click="handleArea478Action(row, '开启')">开</button>
@@ -1701,6 +1735,26 @@ async function openLightTabsModal(data: any) {
       // 回路概览/详情数据：按 areaId 查询 circuit/listPage
       await loadLightCircuit(String(areaId))
     }
+  } finally {
+    detailModalLoading.value = false
+  }
+}
+
+// 刷新四页签弹框列表（一键开关页签：回路/节目/区域列表）
+async function refreshLightTabsModal() {
+  if (detailModalLoading.value) return
+  detailModalLoading.value = true
+  try {
+    if (lightIsSpecial477.value) {
+      await loadLightPlanList()
+    } else if (lightIsSpecial478.value) {
+      await loadLightArea478List()
+    } else {
+      await loadLightCircuit(String(lightAreaId.value))
+    }
+    message.success('刷新成功')
+  } catch (error) {
+    console.error('刷新失败:', error)
   } finally {
     detailModalLoading.value = false
   }
@@ -3029,9 +3083,11 @@ onMounted(() => {
 }
 
 /* ===== 详情模式标点四页签弹框 ===== */
-/* 内容区固定高度：页签切换时弹框尺寸稳定（4.4rem，视频页签播放器与之契合） */
+/* 内容区高度自适应：数据少时弹框贴合内容（下边距紧凑，与图二一致）；
+   数据多或视频页签时以 4.4rem 为上限（视频播放器高度契合） */
 .space-tabs :deep(.ant-tabs-content-holder) {
-  height: 4.4rem;
+  height: auto;
+  max-height: 4.4rem;
 }
 
 /* 页签内容撑满高度，保证上下居中生效 */
@@ -3126,6 +3182,47 @@ onMounted(() => {
   letter-spacing: 2px;
 }
 
+/* 四页签弹框标题栏：标题左（右上角避开关闭按钮） */
+.light-tabs-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 0.34rem;
+}
+
+/* 表格表头“操作”列内刷新按钮：纯图标、大号、青色科技风（四高炉/1号馆弹框） */
+.plan-header-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+}
+
+.table-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.26rem;
+  height: 0.26rem;
+  border-radius: 0.04rem;
+  color: #00d9ff;
+  background: rgba(0, 200, 255, 0.12);
+  border: 1px solid rgba(0, 200, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s;
+  vertical-align: middle;
+}
+
+.table-refresh-btn:hover {
+  background: rgba(0, 200, 255, 0.28);
+  box-shadow: 0 0 0.1rem rgba(0, 200, 255, 0.4);
+}
+
+.table-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* 回路列表区（最下边）：标签 + 表格纵向排列，撑满剩余高度 */
 .pane-table {
   flex: 1;
@@ -3167,6 +3264,13 @@ onMounted(() => {
 .circuit-count-tag .stat-value .highlight-text {
   color: #00e676;
   text-shadow: 0 0 0.1rem rgba(0, 230, 118, 0.8);
+}
+
+/* 计数条左侧组合：标签 + 数字一体（刷新按钮单独贴最右） */
+.circuit-count-tag .circuit-count-left {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.08rem;
 }
 
 /* 表格加载区：撑满剩余高度 */

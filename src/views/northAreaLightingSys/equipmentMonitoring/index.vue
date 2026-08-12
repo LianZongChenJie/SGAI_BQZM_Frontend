@@ -169,7 +169,7 @@
                     <template v-if="s.programSceneIds">
                       <span class="info-label">当前运行节目</span>
                       <a-tooltip overlay-class-name="scene-program-tooltip" placement="top" :title="getProgramNames(s.programDetail).join('、') || '-'" :mouseLeaveDelay="0.1">
-                        <span style="padding-left: 3px;" class="info-value program-names">{{ getProgramNames(s.programDetail).join('、') || '-' }}</span>
+                        <span style="padding-left: 3px;" class="info-value program-names">{{ getProgramNamesSummary(s.programDetail) }}</span>
                       </a-tooltip>
                     </template>
                     <template v-else>
@@ -301,7 +301,7 @@
                     <template v-if="s.programSceneIds">
                       <span class="info-label">当前运行节目</span>
                       <a-tooltip overlay-class-name="scene-program-tooltip" placement="top" :title="getProgramNames(s.programDetail).join('、') || '-'" :mouseLeaveDelay="0.1">
-                        <span class="info-value program-names">{{ getProgramNames(s.programDetail).join('、') || '-' }}</span>
+                        <span class="info-value program-names">{{ getProgramNamesSummary(s.programDetail) }}</span>
                       </a-tooltip>
                     </template>
                     <template v-else>
@@ -821,6 +821,17 @@ function getProgramNames(raw: any): string[] {
     return [raw];
   }
   return [];
+}
+
+/**
+ * 卡片上展示的节目名摘要：最多展示前 max 个，超出折叠为“等 N 个节目”，
+ * 完整列表由 tooltip 展示，避免文本撑满卡片宽度
+ */
+function getProgramNamesSummary(raw: any, max = 2): string {
+  const names = getProgramNames(raw);
+  if (!names.length) return '-';
+  if (names.length <= max) return names.join('、');
+  return `${names.slice(0, max).join('、')} 等 ${names.length} 个节目`;
 }
 
 // 打开--场景
@@ -2225,6 +2236,8 @@ onMounted(() => {
 .scene-info-item .info-value {
   color: var(--color-text);
   flex: 1;
+  /* 允许 flex 子项收缩到内容宽度以下，避免长文本溢出卡片 */
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

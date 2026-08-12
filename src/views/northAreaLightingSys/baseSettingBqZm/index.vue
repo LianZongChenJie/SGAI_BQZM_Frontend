@@ -87,8 +87,9 @@
           <vxe-column field="relName" title="类别" min-width="120"></vxe-column>
           <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
           <!-- areaCode -->
-          <vxe-column field="areaCode" title="areaCode" min-width="110"></vxe-column>
-          <vxe-column field="areaName" title="名称" min-width="280"></vxe-column>
+          <vxe-column field="areaCode" title="区域编码" min-width="110"></vxe-column>
+          <vxe-column field="areaName" title="名称" min-width="380"></vxe-column>
+          <vxe-column field="pendingMsgCount" title="待下发消息数量" min-width="280"></vxe-column>
           <vxe-column field="status" title="状态" width="130">
             <template #default="{ row }">
               <span
@@ -114,13 +115,14 @@
               </span>
             </template>
           </vxe-column>
-          <vxe-column title="操作" width="310" fixed="right" header-align="left" align="left">
+          <vxe-column title="操作" width="360" fixed="right" header-align="left" align="left">
             <template #default="{ row }">
               <div class="actions">
                 <button class="action-btn" @click="videoMonitorModalOpen(row)">监控视频</button>
                 <button class="action-btn" @click="circuitListModalOpenChange(row)">回路列表</button>
                 <button class="action-btn btn-primary" style="color: #1a1a1a;" @click="onOpenRow(row)">全开</button>
                 <button class="action-btn btn-danger" @click="onCloseRow(row)">全关</button>
+                <button class="action-btn btn-recall" :disabled="Number(row.pendingMsgCount) <= 0" @click="onRecall(row)">撤回</button>
               </div>
             </template>
           </vxe-column>
@@ -141,7 +143,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
-import { getRelName, getAllSpace, getAreaListPageApi, setAreaOpenApi, setAreaCloseApi } from '@/api/baseSettingBqZm';   // ← replace with the real module
+import { getRelName, getAllSpace, getAreaListPageApi, setAreaOpenApi, setAreaCloseApi, recallMqApi } from '@/api/baseSettingBqZm';   // ← replace with the real module
 import configOpenMessage from './compoments/configOpenMessage.vue';
 import configOpenMessageTwo from './compoments/configOpenMessageTwo.vue';
 import circuitListModal from './compoments/circuitListModal.vue';
@@ -347,6 +349,16 @@ const handleClose = async (record) => {
   }).then((res) => {
     console.log('禁用定时任务成功', res);
     message.success('全关成功！');
+  });
+  onSearch()
+};
+
+// 单行--撤回（待下发数量 > 0 时可用）
+const onRecall = async (row) => {
+  await recallMqApi({
+    id: row.id,
+  }).then((res) => {
+    console.log('撤回成功', res);
   });
   onSearch()
 };
@@ -894,6 +906,24 @@ onUnmounted(() => {
 
 .actions .action-btn.btn-danger:hover {
   background: #dc2626;
+}
+
+.actions .action-btn.btn-recall {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.actions .action-btn.btn-recall:hover {
+  background: #d97706;
+}
+
+/* 置灰状态：待下发数量为 0 时不可点击 */
+.actions .action-btn:disabled,
+.actions .action-btn:disabled:hover {
+  background: #6b7280;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 /* ------------------- 响应式 ------------------- */

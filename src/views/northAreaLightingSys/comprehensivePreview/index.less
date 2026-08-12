@@ -351,9 +351,11 @@
 }
 
 /* ===== 灯光详情弹框 ===== */
-/* 内容区固定高度：页签切换时弹框尺寸稳定（4.4rem，视频页签播放器与之契合） */
+/* 内容区高度自适应：数据少时弹框贴合内容（下边距紧凑，与 bigGis 回路弹框一致）；
+   数据多或视频页签时以 4.4rem 为上限（视频播放器高度契合） */
 .space-tabs .ant-tabs-content-holder {
-  height: 4.4rem;
+  height: auto;
+  max-height: 4.4rem;
 }
 
 /* 页签内容撑满高度，保证上下居中生效 */
@@ -496,6 +498,47 @@
 .circuit-count-tag .stat-value .highlight-text {
   color: #00e676;
   text-shadow: 0 0 0.1rem rgba(0, 230, 118, 0.8);
+}
+
+/* 计数条左侧组合：标签 + 数字一体（刷新按钮单独贴最右） */
+.circuit-count-tag .circuit-count-left {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.08rem;
+}
+
+/* 表头操作列：操作文字 + 刷新图标按钮（间距 0.34rem，按钮贴右侧） */
+.plan-header-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.34rem;
+}
+
+/* 刷新按钮（计数条 / 表头操作列）：纯图标 16px，青色科技风 */
+.table-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.26rem;
+  height: 0.26rem;
+  border-radius: 0.04rem;
+  color: #00d9ff;
+  background: rgba(0, 200, 255, 0.12);
+  border: 1px solid rgba(0, 200, 255, 0.45);
+  cursor: pointer;
+  transition: all 0.2s;
+  vertical-align: middle;
+}
+
+.table-refresh-btn:hover {
+  background: rgba(0, 200, 255, 0.28);
+  box-shadow: 0 0 0.1rem rgba(0, 200, 255, 0.4);
+}
+
+.table-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* 表格加载区：撑满剩余高度 */
@@ -812,4 +855,55 @@
 .circuit-vxe-table-wrap .circuit-status.is-off {
   color: #ff5252;
   text-shadow: 0 0 0.08rem rgba(255, 82, 82, 0.45);
+}
+
+/* 节目/区域列表操作按钮（标点 id=477/478 弹框）：播放/停止、开/关 */
+.plan-action-group {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0.06rem;
+}
+
+.mini-action-btn {
+  /* 按钮文字永不换行、按钮不被压缩（防止“播放/停止”竖排换行） */
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0.03rem 0.14rem;
+  border-radius: 0.04rem;
+  font-size: 0.12rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.25s ease;
+  line-height: 1.4;
+}
+
+/* 节目/区域状态文字（白色） */
+.program-status {
+  color: #ffffff;
+  font-size: 0.12rem;
+  font-weight: 600;
+}
+
+.mini-action-btn.is-on {
+  color: #00e676;
+  border-color: rgba(0, 230, 118, 0.45);
+  background: rgba(0, 230, 118, 0.12);
+}
+
+.mini-action-btn.is-on:hover {
+  background: rgba(0, 230, 118, 0.28);
+  box-shadow: 0 0 0.1rem rgba(0, 230, 118, 0.35);
+}
+
+.mini-action-btn.is-off {
+  color: #ff5252;
+  border-color: rgba(255, 82, 82, 0.45);
+  background: rgba(255, 82, 82, 0.12);
+}
+
+.mini-action-btn.is-off:hover {
+  background: rgba(255, 82, 82, 0.28);
+  box-shadow: 0 0 0.1rem rgba(255, 82, 82, 0.35);
 }

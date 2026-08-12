@@ -2,7 +2,6 @@ import type { AppRouteRecordRaw, Menu } from '/@/router/types';
 
 import { defineStore } from 'pinia';
 import { store } from '/@/store';
-import { useI18n } from '/@/hooks/web/useI18n';
 import { useUserStore } from './user';
 import { useAppStoreWithOut } from './app';
 import { toRaw } from 'vue';
@@ -21,7 +20,6 @@ import { filter } from '/@/utils/helper/treeHelper';
 
 import { getBackMenuAndPerms } from '/@/api/sys/menu';
 
-import { useMessage } from '/@/hooks/web/useMessage';
 import { PageEnum } from '/@/enums/pageEnum';
 
 // 系统权限
@@ -134,7 +132,6 @@ export const usePermissionStore = defineStore({
       return routeList;
     },
     async buildRoutesAction(): Promise<AppRouteRecordRaw[]> {
-      const { t } = useI18n();
       const userStore = useUserStore();
       const appStore = useAppStoreWithOut();
 
@@ -210,7 +207,6 @@ export const usePermissionStore = defineStore({
 
         // 后台菜单构建
         case PermissionModeEnum.BACK:
-          const { createMessage, createWarningModal } = useMessage();
           console.log(" --- 构建后台路由菜单 --- ")
           // 菜单加载提示
           // createMessage.loading({
@@ -264,6 +260,26 @@ export const usePermissionStore = defineStore({
           } catch (error) {
             console.error(error);
           }
+          // 隐藏指定一级菜单（概览、首钢园城市亮化平台），并将其二级菜单提升为一级菜单展示
+          const HIDDEN_MENU_TITLES = ['概览', '首钢园城市亮化平台'];
+          const filteredRouteList: AppRouteRecordRaw[] = [];
+          routeList.forEach((route) => {
+            const title = route.meta?.title as string;
+            if (HIDDEN_MENU_TITLES.includes(title)) {
+              // 二级菜单提升为一级菜单，补齐父级路径前缀，保证路由路径完整
+              route.children?.forEach((child) => {
+                const childPath = child.path;
+                if (childPath && !childPath.startsWith('/') && !/^https?:\/\//i.test(childPath)) {
+                  const parentPath = route.path.startsWith('/') ? route.path : `/${route.path}`;
+                  child.path = `${parentPath}/${childPath}`;
+                }
+                filteredRouteList.push(child);
+              });
+            } else {
+              filteredRouteList.push(route);
+            }
+          });
+          routeList = filteredRouteList;
           // 组件地址前加斜杠处理  author: lsq date:2021-09-08
           routeList = addSlashToRouteComponent(routeList);
           // 动态引入组件

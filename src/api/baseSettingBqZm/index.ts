@@ -6,6 +6,7 @@ enum Api {
   allSpaceApi = '/sgai-bqzm/bems/lighting/area/getAllSpace',
   setAreaOpenApi = '/sgai-bqzm/bems/lighting/area/open',
   setAreaCloseApi = '/sgai-bqzm/bems/lighting/area/close',
+  recallMqApi = '/sgai-bqzm/bems/lighting/area/recallMq',
   getCircuitListApi = '/sgai-bqzm/bems/lighting/circuit/listPage',
   setCircuitOpenApi = '/sgai-bqzm/bems/lighting/circuit/open',
   setCircuitCloseApi = '/sgai-bqzm/bems/lighting/circuit/close',
@@ -33,6 +34,10 @@ export const setAreaOpenApi = (params) => defHttp.post({ url: Api.setAreaOpenApi
  * 关闭区域
  */
 export const setAreaCloseApi = (params) => defHttp.post({ url: Api.setAreaCloseApi, params }, { joinParamsToUrl: true });
+/**
+ * 撤回（待下发消息）
+ */
+export const recallMqApi = (params) => defHttp.post({ url: Api.recallMqApi, params }, { joinParamsToUrl: true });
 /**
  * 获取回路配置列表数据
  */
