@@ -17,7 +17,7 @@
         <div class="modal-content">
           <!-- 详情表格 -->
           <div class="table-section">
-            <div class="table-scroll">
+            <div class="table-scroll" :style="tableScrollStyle">
               <table class="device-table">
                 <thead>
                   <tr>
@@ -93,6 +93,13 @@ const visible = ref(false)
 const currentScene = ref<any>(null)
 const tableData = ref<any[]>([])
 const activeTab = ref<'scene' | 'program'>('scene')
+
+/** 表格滚动条动态控制：数据条数 > 6 时限制为表头 + 6 行高度并展示右侧滚动条，否则完整展示全部内容 */
+const tableScrollStyle = computed(() => {
+  const len = tableData.value?.length || 0
+  // 行高：th/td 上下 padding 24px + line-height 20px + border 1px = 45px；表头 + 6 行 = 7 * 45 = 315px，留出余量提示可滚动
+  return len > 6 ? { maxHeight: '320px' } : { maxHeight: 'none' }
+})
 
 // ==================== 节目 tab（独立节目接口数据，参考 createNewSceneModal） ====================
 const programSceneList = ref<any[]>([])
@@ -281,7 +288,7 @@ defineExpose({ showDetail })
 .table-wrapper {
   overflow: hidden;
   margin-bottom: 4px;
-  background: rgba(8, 23, 40, 0.65);
+  background: #0d243c;
   border: 1px solid rgba(0, 212, 255, 0.12);
   border-radius: 4px;
   box-shadow: inset 0 0 16px rgba(0, 212, 255, 0.04);
@@ -398,15 +405,37 @@ defineExpose({ showDetail })
 
 /* ==================== 详情表格（样式风格保持原样） ==================== */
 .table-section {
-  background: rgba(10, 22, 40, 0.6);
+  background: #0d243c;
   border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .table-scroll {
-  max-height: 400px;
   overflow-y: auto;
+  /* Firefox：深色滚动条（全局滚动条为浅灰半透明，在深色背景下不可见） */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 150, 255, 0.5) rgba(0, 30, 60, 0.2);
+}
+
+/* Chrome/Edge：深色青色滚动条，覆盖全局暗淡滚动条样式 */
+.table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 30, 60, 0.2);
+  border-radius: 4px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 150, 255, 0.5);
+  border-radius: 4px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 200, 255, 0.7);
 }
 
 .device-table {
@@ -446,13 +475,14 @@ defineExpose({ showDetail })
   padding: 12px;
   text-align: left;
   font-size: 13px;
+  line-height: 20px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .device-table thead th {
-  background: rgba(27, 37, 51, 0.85);
+  background: #1b2533;
   color: #a0aabf;
   font-weight: 500;
   border-bottom: 1px solid rgba(48, 61, 80, 0.8);
@@ -526,22 +556,21 @@ defineExpose({ showDetail })
 </style>
 
 <style lang="less">
-/* 全局 Modal 样式 - 高透深色科技风（30%不透明度） */
+/* 全局 Modal 样式 - 深色科技风（100% 不透明度） */
 .scene-detail-modal {
   .ant-modal {
     top: 20px !important;
   }
 
   .ant-modal-content {
-    background: rgba(10, 22, 40, 0.85) !important;
-    backdrop-filter: blur(10px);
+    background: linear-gradient(180deg, #143358 0%, #0f2845 100%) !important;
     border: 1px solid rgba(56, 189, 248, 0.35) !important;
     border-radius: 8px !important;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(56, 189, 248, 0.1) !important;
   }
 
   .ant-modal-header {
-    background: rgba(27, 37, 51, 0.9) !important;
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.08) 0%, transparent 100%), #1b2533 !important;
     border-bottom: 1px solid rgba(56, 189, 248, 0.25) !important;
     border-radius: 8px 8px 0 0 !important;
   }
@@ -553,7 +582,7 @@ defineExpose({ showDetail })
 
   .ant-modal-body {
     padding: 20px 24px !important;
-    color: rgba(255, 255, 255, 0.85);
+    color: #e6f4ff;
   }
 
   /* 关闭按钮：亮色 X 图标 + 淡青圆形底，hover 旋转发光（深色背景上默认灰色 X 不明显） */
