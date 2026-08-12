@@ -336,6 +336,15 @@
     confirmModalRef.value?.showModal(opts);
   }
 
+  // 接口业务失败（success=false）时全局拦截器仍会正常 resolve（return data），这里统一抛错，
+  // 避免出现“接口已报错（500/业务失败）却提示指令下发成功”的假成功问题
+  function throwIfControlFailed(res: any) {
+    if (res && res.success === false) {
+      throw new Error(res.message || '操作失败');
+    }
+    return res;
+  }
+
   /** 标点点击（单条数据时触发）：打开灯光详情弹框 */
   function onLightMarkerSingleClick(data: any) {
     openLightTabsModal(data);
@@ -445,8 +454,8 @@
             await loadLightPlanList();
             resolve();
           } catch (error) {
+            // 全局拦截器已统一弹出错误提示，这里只记录日志
             console.error(`${action}失败:`, error);
-            message.error(`${action}失败，请重试`);
             reject(error);
           }
         },
@@ -479,16 +488,16 @@
       onOk: async () => {
         try {
           if (action === '开启') {
-            await setAreaOpenApi({ id: row.id });
+            await throwIfControlFailed(await setAreaOpenApi({ id: row.id }));
           } else {
-            await setAreaCloseApi({ id: row.id });
+            await throwIfControlFailed(await setAreaCloseApi({ id: row.id }));
           }
           message.success(`${actionText}成功`);
           // 刷新区域列表，更新状态列
           await loadLightArea478List();
         } catch (error) {
+          // 全局拦截器已统一弹出错误提示，这里只记录日志
           console.error(`${actionText}失败:`, error);
-          message.error(`${actionText}失败，请重试`);
         }
       },
     });
@@ -532,20 +541,22 @@
       content: `确定要 <strong class="tip-action">${actionText}</strong> 场景“${sceneName}”吗？`,
       onOk: async () => {
         try {
-          await postSceneSwitchApi({
-            operationType,
-            relIds: sceneInfo.value.relIds,
-            relType: sceneInfo.value.relType,
-            sceneId: sceneInfo.value.id || SCENE_ID,
-          });
+          await throwIfControlFailed(
+            await postSceneSwitchApi({
+              operationType,
+              relIds: sceneInfo.value.relIds,
+              relType: sceneInfo.value.relType,
+              sceneId: sceneInfo.value.id || SCENE_ID,
+            })
+          );
           message.success(actionText + '成功');
           // 刷新回路列表：表格状态与左上侧“已开启回路数/总回路数”同步更新
           if (lightAreaId.value) {
             await loadLightCircuit(lightAreaId.value);
           }
         } catch (error) {
+          // 全局拦截器已统一弹出错误提示，这里只记录日志
           console.error(actionText + '失败:', error);
-          message.error(actionText + '失败，请重试');
         }
       },
     });
@@ -558,13 +569,12 @@
         content: '确定要 <strong class="tip-action">全开</strong> 所有节目吗？',
         onOk: async () => {
           try {
-            await postProgramAllControl({ operationType: '开启' });
-            message.success('全开成功');
-            // 刷新节目列表，更新状态列（programState）
-            await loadLightPlanList();
+            await throwIfControlFailed(await postProgramAllControl({ operationType: '开启' }));
+            // 刷新节目列表，更新状态列（programState），失败不影响成功提示（全局拦截器已弹错）
+            await loadLightPlanList().catch(() => {});
           } catch (error) {
+            // 全局拦截器已统一弹出错误提示，这里只记录日志
             console.error('全开失败:', error);
-            message.error('全开失败，请重试');
           }
         },
       });
@@ -580,13 +590,12 @@
         content: '确定要 <strong class="tip-action">全关</strong> 所有节目吗？',
         onOk: async () => {
           try {
-            await postProgramAllControl({ operationType: '关闭' });
-            message.success('全关成功');
-            // 刷新节目列表，更新状态列（programState）
-            await loadLightPlanList();
+            await throwIfControlFailed(await postProgramAllControl({ operationType: '关闭' }));
+            // 刷新节目列表，更新状态列（programState），失败不影响成功提示（全局拦截器已弹错）
+            await loadLightPlanList().catch(() => {});
           } catch (error) {
+            // 全局拦截器已统一弹出错误提示，这里只记录日志
             console.error('全关失败:', error);
-            message.error('全关失败，请重试');
           }
         },
       });
@@ -847,15 +856,18 @@
       content: '确定要 <strong class="tip-action">执行全区开灯操作</strong> 吗？',
       onOk: async () => {
         try {
-          await allOnApi({
-            operationType: '开启',
-            relIds: sceneInfo.value.relIds,
-            relType: sceneInfo.value.relType,
-            sceneId: sceneInfo.value.id || SCENE_ID,
-          });
+          await throwIfControlFailed(
+            await allOnApi({
+              operationType: '开启',
+              relIds: sceneInfo.value.relIds,
+              relType: sceneInfo.value.relType,
+              sceneId: sceneInfo.value.id || SCENE_ID,
+            })
+          );
           createMessage.success('全区开灯指令已下发');
         } catch {
-          createMessage.error('操作失败');
+          // 全局拦截器已统一弹出错误提示，这里只记录日志
+          console.error('操作失败');
         }
       },
     });
@@ -871,15 +883,18 @@
       content: '确定要 <strong class="tip-action">执行全区关灯操作</strong> 吗？',
       onOk: async () => {
         try {
-          await allOffApi({
-            operationType: '关闭',
-            relIds: sceneInfo.value.relIds,
-            relType: sceneInfo.value.relType,
-            sceneId: sceneInfo.value.id || SCENE_ID,
-          });
+          await throwIfControlFailed(
+            await allOffApi({
+              operationType: '关闭',
+              relIds: sceneInfo.value.relIds,
+              relType: sceneInfo.value.relType,
+              sceneId: sceneInfo.value.id || SCENE_ID,
+            })
+          );
           createMessage.success('全区关灯指令已下发');
         } catch {
-          createMessage.error('操作失败');
+          // 全局拦截器已统一弹出错误提示，这里只记录日志
+          console.error('操作失败');
         }
       },
     });
@@ -897,15 +912,18 @@
       content: `确定要 <strong class="tip-action">开启</strong> 【${item.spaceName}】的灯光吗？`,
       onOk: async () => {
         try {
-          await postSceneSwitchApi({
-            operationType: '开启',
-            relIds: sceneInfo.value.relIds,
-            relType: sceneInfo.value.relType,
-            sceneId: sceneInfo.value.id || SCENE_ID,
-          });
+          await throwIfControlFailed(
+            await postSceneSwitchApi({
+              operationType: '开启',
+              relIds: sceneInfo.value.relIds,
+              relType: sceneInfo.value.relType,
+              sceneId: sceneInfo.value.id || SCENE_ID,
+            })
+          );
           createMessage.success(`${item.spaceName} 开灯指令已下发`);
         } catch {
-          createMessage.error('操作失败');
+          // 全局拦截器已统一弹出错误提示，这里只记录日志
+          console.error('操作失败');
         }
       },
     });
@@ -923,15 +941,18 @@
       content: `确定要 <strong class="tip-action">关闭</strong> 【${item.spaceName}】的灯光吗？`,
       onOk: async () => {
         try {
-          await postSceneSwitchApi({
-            operationType: '关闭',
-            relIds: sceneInfo.value.relIds,
-            relType: sceneInfo.value.relType,
-            sceneId: sceneInfo.value.id || SCENE_ID,
-          });
+          await throwIfControlFailed(
+            await postSceneSwitchApi({
+              operationType: '关闭',
+              relIds: sceneInfo.value.relIds,
+              relType: sceneInfo.value.relType,
+              sceneId: sceneInfo.value.id || SCENE_ID,
+            })
+          );
           createMessage.success(`${item.spaceName} 关灯指令已下发`);
         } catch {
-          createMessage.error('操作失败');
+          // 全局拦截器已统一弹出错误提示，这里只记录日志
+          console.error('操作失败');
         }
       },
     });

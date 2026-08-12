@@ -295,8 +295,8 @@ const openAll = async () => {
     );
     message.success('全开指令已下发');
   } catch (error) {
+    // 全局拦截器已统一弹出错误提示，这里只记录日志
     console.error('全开失败:', error);
-    message.error('全开失败，请重试');
   }
   onSearch();
 };
@@ -312,8 +312,8 @@ const closeAll = async () => {
     );
     message.success('全关指令已下发');
   } catch (error) {
+    // 全局拦截器已统一弹出错误提示，这里只记录日志
     console.error('全关失败:', error);
-    message.error('全关失败，请重试');
   }
   onSearch();
 };
@@ -350,8 +350,8 @@ const handleOpen = async (record) => {
     await setAreaOpenApi({ id: record.id });
     message.success('全开成功！');
   } catch (error) {
+    // 全局拦截器已统一弹出错误提示，这里只记录日志
     console.error('全开失败:', error);
-    message.error('全开失败，请重试');
   }
   onSearch();
 };
@@ -361,8 +361,8 @@ const handleClose = async (record) => {
     await setAreaCloseApi({ id: record.id });
     message.success('全关成功！');
   } catch (error) {
+    // 全局拦截器已统一弹出错误提示，这里只记录日志
     console.error('全关失败:', error);
-    message.error('全关失败，请重试');
   }
   onSearch();
 };

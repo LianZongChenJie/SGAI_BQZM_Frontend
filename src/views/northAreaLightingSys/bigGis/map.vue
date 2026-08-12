@@ -1405,8 +1405,10 @@ const toggleLight = async () => {
     const item = currentLight.value;
     if (item.status === '打开') {
       await closeAreaApi(item.id);
+      message.success('关闭成功');
     } else {
       await openAreaApi(item.id);
+      message.success('开启成功');
     }
 
     // 更新弹窗状态

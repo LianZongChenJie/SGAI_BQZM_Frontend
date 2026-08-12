@@ -110,6 +110,15 @@ const detailProgramSceneIds = ref<string[]>([])
 /** 节目 tab 是否展示：仅当 detail 接口返回的 programSceneIds 非空时才展示 */
 const showProgramTab = computed(() => detailProgramSceneIds.value.length > 0)
 
+// 接口业务失败（success=false）时全局拦截器仍会正常 resolve（return data），这里统一抛错，
+// 避免出现“接口已报错（500/业务失败）却提示指令下发成功”的假成功问题
+function throwIfControlFailed(res: any) {
+  if (res && res.success === false) {
+    throw new Error(res.message || '操作失败')
+  }
+  return res
+}
+
 /** 节目 tab 展示列表：仅展示 detail 接口 programSceneIds 关联的节目 */
 const displayProgramSceneList = computed(() => {
   if (!detailProgramSceneIds.value.length) return []
@@ -177,8 +186,8 @@ async function showDetail(scene: any) {
     // 节目 tab 数据源：全量节目（按 programSceneIds 过滤展示）
     await loadProgramSceneList()
   } catch (err: any) {
+    // 全局拦截器已统一弹出错误提示，这里只记录日志
     console.error('获取场景详情失败:', err)
-    message.error(err?.message || '获取场景详情失败')
   }
 }
 
@@ -189,16 +198,18 @@ function handleRowAction(row: any, action: '开启' | '关闭') {
     content: `确定要 <strong class="tip-action">${actionText}</strong> 该回路吗？`,
     onOk: async () => {
       try {
-        await postSceneSwitchApi({
-          operationType: action,
-          relIds: row.circuitId || row.id,
-          relType: '回路'
-        })
+        await throwIfControlFailed(
+          await postSceneSwitchApi({
+            operationType: action,
+            relIds: row.circuitId || row.id,
+            relType: '回路'
+          })
+        )
         message.success(`${actionText}成功`)
         row.status = action
       } catch (error) {
+        // 全局拦截器已统一弹出错误提示，这里只记录日志
         console.error(`回路${actionText}失败:`, error)
-        message.error('操作失败，请重试')
       }
     }
   })
