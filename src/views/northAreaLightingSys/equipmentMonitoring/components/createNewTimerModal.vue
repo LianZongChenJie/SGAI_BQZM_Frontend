@@ -110,7 +110,9 @@
                   <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
                   <vxe-column field="spaceName" title="区域" v-if="formData.relType !== '场景'"></vxe-column>
                   <vxe-column field="areaName" title="名称" v-if="formData.relType !== '场景'"></vxe-column>
-                  <vxe-column field="sceneName" title="名称" v-if="formData.relType === '场景'"></vxe-column>
+                  <vxe-column title="名称" v-if="formData.relType === '场景'">
+                    <template #default="{ row }">{{ row.sceneName || row.planName || '-' }}</template>
+                  </vxe-column>
                   <vxe-column title="控制类型" width="100" v-if="formData.relType === '场景'">
                     <template #default>场景</template>
                   </vxe-column>

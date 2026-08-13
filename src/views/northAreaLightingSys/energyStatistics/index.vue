@@ -89,6 +89,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import { message } from 'ant-design-vue';
 import { UploadOutlined, CaretRightFilled, CaretDownFilled } from '@ant-design/icons-vue';
+import { getEnergyRanking, getEnergyProportion, getEnergyHourlyTrend, getEnergySummary } from '@/api/equipmentMonitoring';
 
 /* ============================ 顶部工具栏 ============================ */
 const statType = ref('area'); // area: 按区域 / box: 按箱子
@@ -124,6 +125,9 @@ const rankAreaData: RankItem[] = [
   { name: '脱硫车间项目 / 群明湖北侧', value: 206.9 },
 ];
 
+/** 当前展示的排名数据（接口数据加载成功后覆盖 mock） */
+const rankArea = ref<RankItem[]>(rankAreaData);
+
 /** 按箱子维度：今日 kWh 降序 Top15 */
 const rankBoxData: RankItem[] = [
   { name: '服贸会项目 / 待确认映射 / 箱A', value: 320.5 },
@@ -143,6 +147,9 @@ const rankBoxData: RankItem[] = [
   { name: '金安桥项目 / 桥面 / 箱A', value: 132.8 },
 ];
 
+/** 当前展示的箱子排名数据（接口数据加载成功后覆盖 mock） */
+const rankBox = ref<RankItem[]>(rankBoxData);
+
 const rankChartRef = ref<HTMLDivElement | null>(null);
 let rankChart: echarts.ECharts | null = null;
 
@@ -160,7 +167,7 @@ const axisLineColor = '#334155';
 
 const updateRankChart = (type: string) => {
   if (!rankChart) return;
-  const data = type === 'area' ? rankAreaData : rankBoxData;
+  const data = type === 'area' ? rankArea.value : rankBox.value;
   rankChart.setOption({
     tooltip: {
       trigger: 'axis',
@@ -224,20 +231,22 @@ const updateRankChart = (type: string) => {
 const pieColors = ['#38bdf8', '#f59e0b', '#10b981', '#facc15', '#f472b6', '#475569'];
 
 const getPieData = () => {
-  const top5 = rankAreaData.slice(0, 5);
-  const others = rankAreaData.slice(5).reduce((sum, item) => sum + item.value, 0);
+  const top5 = rankArea.value.slice(0, 5);
+  const others = rankArea.value.slice(5).reduce((sum, item) => sum + item.value, 0);
   return [
     ...top5.map((item) => ({ name: item.name, value: item.value })),
     { name: '其他', value: Number(others.toFixed(1)) },
   ];
 };
 
+/** 占比图数据（proportion 接口加载成功后覆盖 mock） */
+const pieData = ref(getPieData());
+
 const pieChartRef = ref<HTMLDivElement | null>(null);
 let pieChart: echarts.ECharts | null = null;
 
-const initPieChart = () => {
-  if (!pieChartRef.value) return;
-  pieChart = echarts.init(pieChartRef.value);
+const renderPie = () => {
+  if (!pieChart) return;
   pieChart.setOption({
     tooltip: {
       trigger: 'item',
@@ -267,7 +276,7 @@ const initPieChart = () => {
           label: { show: true, fontSize: 13, fontWeight: 'bold', formatter: '{b}\n{d}%' },
         },
         itemStyle: { borderRadius: 4, borderColor: '#1e293b', borderWidth: 2 },
-        data: getPieData().map((item, index) => ({
+        data: pieData.value.map((item, index) => ({
           ...item,
           itemStyle: { color: pieColors[index % pieColors.length] },
         })),
@@ -276,17 +285,25 @@ const initPieChart = () => {
   });
 };
 
+const initPieChart = () => {
+  if (!pieChartRef.value) return;
+  pieChart = echarts.init(pieChartRef.value);
+  renderPie();
+};
+
 /* ============================ Top5 逐时趋势（折线图） ============================ */
-const trendHours = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
-/** 全园：18:00 后开启，飙升至峰值并保持至 22:00 后回落 */
+const trendHours = ref(Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`));
+/** 全园：18:00 后开启，飙升至峰值并保持至 22:00 后回落（接口数据加载成功后覆盖） */
 const parkTrend = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2800, 2960, 2920, 2880, 2850, 600];
+/** 当前展示的逐时趋势系列（hourlyTrend 接口加载成功后覆盖） */
+const trendSeriesData = ref<{ name: string; data: number[] }[]>([{ name: '全园', data: parkTrend }]);
+const trendColors = ['#38bdf8', '#f59e0b', '#10b981', '#facc15', '#f472b6'];
 
 const trendChartRef = ref<HTMLDivElement | null>(null);
 let trendChart: echarts.ECharts | null = null;
 
-const initTrendChart = () => {
-  if (!trendChartRef.value) return;
-  trendChart = echarts.init(trendChartRef.value);
+const renderTrend = () => {
+  if (!trendChart) return;
   trendChart.setOption({
     tooltip: {
       trigger: 'axis',
@@ -299,7 +316,7 @@ const initTrendChart = () => {
       },
     },
     legend: {
-      data: ['全园'],
+      data: trendSeriesData.value.map((s) => s.name),
       top: 0,
       right: 0,
       icon: 'circle',
@@ -311,7 +328,7 @@ const initTrendChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: trendHours,
+      data: trendHours.value,
       axisLine: { lineStyle: { color: axisLineColor } },
       axisTick: { show: false },
       axisLabel: { color: axisLabelColor, fontSize: 12, interval: 2 },
@@ -326,25 +343,29 @@ const initTrendChart = () => {
       splitLine: { lineStyle: { color: splitLineColor } },
       axisLabel: { color: axisLabelColor, fontSize: 12 },
     },
-    series: [
-      {
-        name: '全园',
-        type: 'line',
-        data: parkTrend,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        itemStyle: { color: '#38bdf8' },
-        lineStyle: { width: 2.5, color: '#38bdf8' },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(56, 189, 248, 0.28)' },
-            { offset: 1, color: 'rgba(56, 189, 248, 0.02)' },
-          ]),
-        },
+    series: trendSeriesData.value.map((s, idx) => ({
+      name: s.name,
+      type: 'line',
+      data: s.data,
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      itemStyle: { color: trendColors[idx % trendColors.length] },
+      lineStyle: { width: 2.5, color: trendColors[idx % trendColors.length] },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0, color: 'rgba(56, 189, 248, 0.28)' },
+          { offset: 1, color: 'rgba(56, 189, 248, 0.02)' },
+        ]),
       },
-    ],
+    })),
   });
+};
+
+const initTrendChart = () => {
+  if (!trendChartRef.value) return;
+  trendChart = echarts.init(trendChartRef.value);
+  renderTrend();
 };
 
 /* ============================ 汇总表（地块 → 区域 → 箱子 三级展开） ============================ */
@@ -439,22 +460,155 @@ function buildSummaryTree(): SummaryNode[] {
   });
 }
 
-const summaryData = buildSummaryTree();
+const summaryData = ref(buildSummaryTree());
 
 const summaryColumns = [
   { title: '名称', key: 'name', dataIndex: 'name', align: 'left' as const },
   { title: '电表', key: 'meterCount', dataIndex: 'meterCount', align: 'center' as const },
   { title: '装机(kW)', key: 'installed', dataIndex: 'installed', align: 'center' as const },
   { title: '今日(kWh)', key: 'today', dataIndex: 'today', align: 'center' as const },
+  { title: '今日占比', key: 'ratio', dataIndex: 'ratio', align: 'center' as const },
   { title: '本月(kWh)', key: 'month', dataIndex: 'month', align: 'center' as const },
-  { title: '占比', key: 'ratio', dataIndex: 'ratio', align: 'center' as const },
+  { title: '本月占比', key: 'ratio', dataIndex: 'ratio', align: 'center' as const },
 ];
+
+/* ============================ 接口数据加载 ============================ */
+/** 生成当天日期字符串，sep='-' → 2026-08-13；sep='' → 20260813 */
+function formatDate(sep: string): string {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}${sep}${m}${sep}${day}`;
+}
+
+/** 兼容多种返回结构：数组 / { records } / { list } / { data } / { result } */
+function normalizeList(res: any): any[] {
+  if (Array.isArray(res)) return res;
+  if (!res || typeof res !== 'object') return [];
+  const v = res.records ?? res.list ?? res.result ?? res.data ?? res.rows;
+  return Array.isArray(v) ? v : [];
+}
+
+/** 排名项字段兼容映射（name/value 多字段回退） */
+function mapRankItem(it: any): RankItem {
+  return {
+    name: it.name || it.regionName || it.areaName || it.spaceName || it.circuitName || it.deviceName || it.boxName || '-',
+    value: Number(it.value ?? it.energy ?? it.kwh ?? it.consumption ?? it.today ?? 0),
+  };
+}
+
+/** 维度映射：按区域 → zone，按箱子 → box */
+const levelByStatType = () => (statType.value === 'area' ? 'zone' : 'box');
+
+/** 能耗排名（随维度切换，今天，Top 15） */
+const loadRanking = async () => {
+  try {
+    const res = await getEnergyRanking({ level: levelByStatType(), top: 15 });
+    const list = normalizeList(res)
+      .map(mapRankItem)
+      .filter((i) => i.value > 0);
+    if (!list.length) return;
+    if (statType.value === 'area') {
+      rankArea.value = list;
+    } else {
+      rankBox.value = list;
+    }
+    updateRankChart(statType.value);
+  } catch (err) {
+    console.error('能耗排名加载失败：', err);
+  }
+};
+
+/** 能耗占比（随维度切换，当天） */
+const loadProportion = async () => {
+  try {
+    const res = await getEnergyProportion({ level: levelByStatType(), date: formatDate('-') });
+    const list = normalizeList(res)
+      .map((it: any) => ({
+        name: it.name || it.regionName || it.areaName || it.deviceName || '其他',
+        value: Number(it.value ?? it.energy ?? it.kwh ?? it.proportion ?? 0),
+      }))
+      .filter((i) => i.value > 0);
+    if (!list.length) return;
+    pieData.value = list;
+    renderPie();
+  } catch (err) {
+    console.error('能耗占比加载失败：', err);
+  }
+};
+
+/** Top5 逐时趋势对比（按地块，当天） */
+const loadTrend = async () => {
+  try {
+    const res = await getEnergyHourlyTrend({ level: 'parcel', date: formatDate('') });
+    let hours: string[] = [];
+    let series: { name: string; data: number[] }[] = [];
+    if (Array.isArray(res)) {
+      // 平铺数组：[{ name, data }]
+      series = res.map((s: any) => ({
+        name: s.name || s.seriesName || s.deviceName || '-',
+        data: (s.data || s.values || s.points || []).map(Number),
+      }));
+    } else if (res && typeof res === 'object') {
+      // 对象：{ hours: [], series: [{ name, data }] }
+      hours = res.hours || res.timeList || res.times || res.xAxis || [];
+      const arr = res.series || res.dataList || res.seriesList || [];
+      series = arr.map((s: any) => ({
+        name: s.name || s.seriesName || s.deviceName || '-',
+        data: (s.data || s.values || s.points || []).map(Number),
+      }));
+    }
+    if (!series.length) return;
+    if (hours.length) trendHours.value = hours;
+    trendSeriesData.value = series;
+    renderTrend();
+  } catch (err) {
+    console.error('逐时趋势加载失败：', err);
+  }
+};
+
+/** 汇总表节点字段兼容映射（递归） */
+function mapSummaryNode(it: any, idx: number): SummaryNode {
+  const children = Array.isArray(it.children) ? it.children : undefined;
+  const ratioRaw = it.ratio ?? it.proportion ?? it.percent;
+  const ratioStr =
+    ratioRaw === null || ratioRaw === undefined || ratioRaw === ''
+      ? '0.0%'
+      : String(ratioRaw).includes('%')
+        ? String(ratioRaw)
+        : `${Number(ratioRaw).toFixed(1)}%`;
+  return {
+    key: String(it.key ?? `row-${idx}`),
+    name: String(it.name || '-'),
+    meterCount: Number(it.meterCount ?? it.meterNum ?? it.meter ?? it.equipmentCount ?? 0),
+    installed: Number(it.installed ?? it.installedPower ?? it.capacity ?? it.power ?? 0),
+    today: Number(it.today ?? it.todayEnergy ?? it.todayKwh ?? it.energy ?? 0),
+    month: Number(it.month ?? it.monthEnergy ?? it.monthKwh ?? 0),
+    ratio: ratioStr,
+    children: children ? children.map((c: any, ci: number) => mapSummaryNode(c, ci)) : undefined,
+  };
+}
+
+/** 能耗汇总表（当天） */
+const loadSummary = async () => {
+  try {
+    const res = await getEnergySummary({ date: formatDate('-') });
+    const list = normalizeList(res);
+    if (!list.length) return;
+    summaryData.value = list.map((it: any, idx: number) => mapSummaryNode(it, idx));
+  } catch (err) {
+    console.error('能耗汇总加载失败：', err);
+  }
+};
 
 /* ============================ 维度切换与生命周期 ============================ */
 watch(statType, (type) => {
   nextTick(() => {
     updateRankChart(type);
   });
+  // 维度切换时重新拉取排名与占比
+  loadRanking();
+  loadProportion();
 });
 
 const handleResize = () => {
@@ -468,6 +622,11 @@ onMounted(() => {
   initPieChart();
   initTrendChart();
   window.addEventListener('resize', handleResize);
+  // 加载真实接口数据（失败时保留 mock 兜底）
+  loadRanking();
+  loadProportion();
+  loadTrend();
+  loadSummary();
 });
 
 onUnmounted(() => {
@@ -490,9 +649,32 @@ onUnmounted(() => {
   --text2: #94a3b8;
   --primary: #0ea5e9;
 
+  /* 撑满视口并内部滚动：全局 html overflow:hidden，需自行开启滚动 */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow-y: auto;
   padding: 16px;
   background: #0f172a;
-  min-height: 100%;
+
+  /* 深色主题滚动条（全局滚动条透明度低不可见，此处覆盖为青色） */
+}
+
+.energy-statistics::-webkit-scrollbar {
+  width: 6px;
+}
+.energy-statistics::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+.energy-statistics::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.5);
+  border-radius: 6px;
+}
+.energy-statistics::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.8);
 }
 
 /* ---------- 顶部工具栏 ---------- */
@@ -627,6 +809,11 @@ onUnmounted(() => {
   color: #94a3b8 !important;
   font-weight: 600;
   border-bottom: 1px solid rgba(51, 65, 85, 0.6) !important;
+}
+
+/* 去掉表头单元格之间的垂直小白线（antd 用 th::before 绘制表头分隔竖线） */
+.summary-table :deep(.ant-table-thead > tr > th::before) {
+  display: none !important;
 }
 
 /* 压暗行分隔线：antd 非 bordered 表格实际用 border-top 画线（默认 #f0f0f0 亮色），需覆盖 border-top */

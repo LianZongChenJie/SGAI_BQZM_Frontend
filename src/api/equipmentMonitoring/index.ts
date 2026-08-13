@@ -30,6 +30,10 @@ enum Api {
   postProgramAllControlApi = '/sgai-bqzm/bems/lighting/program/allControl',
   getAreaListBySpaceNameApi = '/sgai-bqzm/bems/lighting/area/listBySpaceName',
   postControlBySpaceNameApi = '/sgai-bqzm/bems/lighting/area/controlBySpaceName',
+  getEnergyRankingApi = '/sgai-bqzm/bems/lighting/energy/ranking',
+  getEnergyProportionApi = '/sgai-bqzm/bems/lighting/energy/proportion',
+  getEnergyHourlyTrendApi = '/sgai-bqzm/bems/lighting/energy/hourlyTrend',
+  getEnergySummaryApi = '/sgai-bqzm/bems/lighting/energy/summary',
 }
 
 /**
@@ -140,3 +144,15 @@ export const getAreaListBySpaceName = (params) => defHttp.get({ url: Api.getArea
 
 // 按空间名控制地块全开全关（spaceName + operationType，POST query 传参，标点 id=478 专用）
 export const postControlBySpaceName = (params) => defHttp.post({ url: Api.postControlBySpaceNameApi, params }, { joinParamsToUrl: true });
+
+// 能耗统计 - 能耗排名（statType: area/box，GET）
+export const getEnergyRanking = (params) => defHttp.get({ url: Api.getEnergyRankingApi, params }, { joinParamsToUrl: true });
+
+// 能耗统计 - 能耗占比（Top5 + 其他，GET）
+export const getEnergyProportion = (params) => defHttp.get({ url: Api.getEnergyProportionApi, params }, { joinParamsToUrl: true });
+
+// 能耗统计 - Top5 逐时趋势对比（kW，GET）
+export const getEnergyHourlyTrend = (params) => defHttp.get({ url: Api.getEnergyHourlyTrendApi, params }, { joinParamsToUrl: true });
+
+// 能耗统计 - 能耗汇总表（GET）
+export const getEnergySummary = (params) => defHttp.get({ url: Api.getEnergySummaryApi, params }, { joinParamsToUrl: true });
