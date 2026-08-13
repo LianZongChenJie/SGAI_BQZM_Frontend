@@ -443,7 +443,7 @@
                   </td>
                   <td class="timer-actions">
                     <button v-if="row.status === '禁用'" class="btn btn-secondary" @click="onEditTimer(row, 'edit')">编辑</button>
-                    <button v-else class="btn btn-secondary" @click="onEditTimer(row, 'detail')">详情1</button>
+                    <button v-else class="btn btn-secondary" @click="onEditTimer(row, 'detail')">详情</button>
                    
                     <a-popconfirm
                       v-if="row.status !== '启用'"
