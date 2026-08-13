@@ -956,6 +956,7 @@ const filteredTimerList = computed(() => {
 const relTypeFilterOptions = [
   { label: '回路', value: '回路' },
   { label: '区域', value: '区域' },
+  { label: '场景', value: '场景' },
 ];
 
 const weekDayMap: Record<string, string> = {

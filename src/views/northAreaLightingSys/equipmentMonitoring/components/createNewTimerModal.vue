@@ -40,7 +40,7 @@
                 </div>
               </a-form-item>
             </a-col>
-            <a-col :span="8">
+            <a-col :span="8" v-if="formData.relType !== '场景'">
               <a-form-item label="区域">
                 <div style="width:100%">
                   <a-select
@@ -55,7 +55,7 @@
                 </div>
               </a-form-item>
             </a-col>
-            <a-col :span="8">
+            <a-col :span="8" v-if="formData.relType !== '场景'">
               <a-form-item label="名称">
                 <div style="width:100%">
                   <a-input
@@ -108,8 +108,12 @@
                 >
                   <vxe-column type="checkbox" width="45" fixed="left" v-if="!isDetail"></vxe-column>
                   <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
-                  <vxe-column field="spaceName" title="区域"></vxe-column>
-                  <vxe-column field="areaName" title="名称"></vxe-column>
+                  <vxe-column field="spaceName" title="区域" v-if="formData.relType !== '场景'"></vxe-column>
+                  <vxe-column field="areaName" title="名称" v-if="formData.relType !== '场景'"></vxe-column>
+                  <vxe-column field="sceneName" title="名称" v-if="formData.relType === '场景'"></vxe-column>
+                  <vxe-column title="控制类型" width="100" v-if="formData.relType === '场景'">
+                    <template #default>场景</template>
+                  </vxe-column>
                   <vxe-column field="circuitName" title="回路名称" v-if="formData.relType === '回路'"></vxe-column>
                   <vxe-column field="electricCurrent" title="电流" width="100" v-if="formData.relType === '回路'">
                     <template #default="{ row }">
@@ -189,7 +193,7 @@
 import { ref, reactive, computed, watch, nextTick } from 'vue';
 import type { FormInstance } from 'ant-design-vue';
 import { message } from 'ant-design-vue';
-import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPi, planDetailApi } from '@/api/equipmentMonitoring'
+import { getAreaListAll, getCircuitListAll, editLightingPlanAPi, addLightingPlanAPi, planDetailApi, getLightingPlanAPiNew } from '@/api/equipmentMonitoring'
 
 // ==================== Emits ====================
 const emit = defineEmits<{
@@ -257,6 +261,7 @@ const formRules = {
 const relTypeOptions = ref([
   { label: '回路', value: '回路' },
   { label: '区域', value: '区域' },
+  { label: '场景', value: '场景' },
 ]);
 
 // 操控类型下拉选项
@@ -326,7 +331,7 @@ const filteredTableData = computed(() => {
   }
   if (debouncedAreaName.value) {
     const kw = debouncedAreaName.value.toLowerCase();
-    data = data.filter((item) => (item.areaName || '').toLowerCase().includes(kw));
+    data = data.filter((item) => (item.areaName || item.planName || '').toLowerCase().includes(kw));
   }
   if (debouncedCircuitName.value) {
     const kw = debouncedCircuitName.value.toLowerCase();
@@ -389,12 +394,13 @@ async function onSubmit() {
     if (!selectedRowKeys.value.length) {
       // 如果没有选中行，提交时仅传空数组
     }
-    submitLoading.value = true;
-     const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(',')};
-    if(mode.value === 'edit') {
+     submitLoading.value = true;
+    // 回路 / 区域 / 场景统一走 plan/add、plan/edit 接口，参数统一 relIds
+    const submitData = { ...formData, relIds: Array.from(selectedRowKeys.value).join(',') };
+    if (mode.value === 'edit') {
       submitData['id'] = editRecord.value.id;
     }
-     // 根据类型调用对应 API
+    // 根据类型调用对应 API
     const api = mode.value === 'add' ? addLightingPlanAPi : editLightingPlanAPi;
  
     await api(submitData).then(res => {
@@ -467,6 +473,8 @@ async function showModal(type: 'add' | 'edit' | 'detail', record?: any) {
     try {
       if (record.relType === '回路') {
         await loadCircuitData();
+      } else if (record.relType === '场景') {
+        await loadSceneData();
       } else {
         await loadAreaData();
       }
@@ -503,6 +511,8 @@ const handleChangeRelType = async () => {
   try {
     if (formData.relType === '回路') {
       await loadCircuitData();
+    } else if (formData.relType === '场景') {
+      await loadSceneData();
     } else {
       await loadAreaData();
     }
@@ -545,6 +555,25 @@ async function loadAreaData() {
     console.error('Failed to load equipment list:', err);
   }
 }
+
+/** 获取场景列表数据（纯数据获取，不管理 loading） */
+async function loadSceneData() {
+  try {
+    const data = await getLightingPlanAPiNew({ pageNo: 1, pageSize: 999 });
+    console.log('获取场景数据：', data);
+    // 兼容分页结构（records/list/result/data）与纯数组返回
+    const records = Array.isArray(data) ? data : (data?.records || data?.list || data?.result || data?.data || []);
+    tableData.value = (records as any[]).map((item: any) => ({
+      id: item.id,
+      planName: item.planName || item.name || '',
+      relType: item.relType || '',
+      operationType: item.operationType || '',
+      spaceName: item.spaceName || '',
+    }));
+  } catch (err) {
+    console.error('Failed to load scene list:', err);
+  }
+}
 // 获取详情
 const getDetailInit = async () => {
   try {
@@ -558,6 +587,8 @@ const getDetailInit = async () => {
         tableData.value = Array.isArray(data.areaList) ? data.areaList : [];
       } else if(editRecord.value.relType === '回路') {
         tableData.value = Array.isArray(data.circuitList) ? data.circuitList : [];
+      } else if(editRecord.value.relType === '场景') {
+        tableData.value = Array.isArray(data.sceneList) ? data.sceneList : [];
       }
     }
   } catch (err) {
