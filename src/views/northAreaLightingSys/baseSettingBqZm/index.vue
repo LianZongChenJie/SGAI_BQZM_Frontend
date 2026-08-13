@@ -193,9 +193,10 @@ async function fetchPlaceOptions() {
     const res = await getAllSpace();
     console.log('区域选项：', res);
     if (Array.isArray(res)) {
+      // 查询接口按 spaceName 过滤，下拉 value 直接用 spaceName（与设备监控页下拉取值一致）
       placeOptions.value = res.map((item: { spaceId: string; spaceName: string }) => ({
         label: item.spaceName,
-        value: item.spaceId,
+        value: item.spaceName,
       }));
     }
   } catch (err) {
@@ -215,7 +216,7 @@ async function fetchList() {
       pageNo: 1,
       pageSize: 9999,
       relName: selectedRelName.value || undefined,
-      space: selectedPlace.value || undefined,
+      spaceName: selectedPlace.value || undefined,
       areaName: searchKeyword.value.trim() || undefined,
     };
     const data = await getAreaListPageApi(params);
