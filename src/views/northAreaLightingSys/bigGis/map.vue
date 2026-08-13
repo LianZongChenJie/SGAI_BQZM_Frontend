@@ -50,6 +50,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { loadMapScripts } from '/@/components/map/loadMapScripts'
 import { getAllAreaApi, getAllCircuitApi, openAreaApi, closeAreaApi } from '../comprehensivePreview/comprehensivePreview.api'
+import { getLightingProgramList, getAreaListBySpaceName } from '@/api/equipmentMonitoring';
 import { VideoCamera } from '@element-plus/icons-vue'
 import VideoPlayer from '../equipmentMonitoring/components/VideoPlayer.vue'
 import spaceBoundariesData from './space-boundaries.json'
@@ -1386,16 +1387,55 @@ function sortMarkerZByY() {
 }
 
 /**
- * 按 getAllCircuitApi 回路数据点亮详情模式标点（性能优化）：
- * 1. 每次点击详情模式重新请求 getAllCircuitApi，不做缓存（保证标点状态为最新）；
- * 2. 单次遍历回路数组（O(m)），用 Set 以 O(1) 收集 areaId -> 是否有开启回路；
- * 3. 遍历坐标标点（O(k)），任一组内 areaId 有开启回路即点亮（some 短路，发现即停）；
- * 4. DOM 用 getElementById O(1) 定位（标点 id 即 areaId），不做全量 DOM 扫描。
+ * 点亮详情模式标点（性能优化）：
+ * 1. 每次进入详情模式重新请求最新数据，不做缓存（保证标点状态为最新）；
+ * 2. 个性化标点单独判断：id=477 弹框展示节目列表，列表有一条 programState='运行中' → 亮灯；
+ *    id=478 弹框展示区域列表，列表有一条 status='开启' → 亮灯（不依赖回路数据）；
+ * 3. 其余标点按 getAllCircuitApi 回路数据点亮：单次遍历回路数组（O(m)），用 Set 以 O(1) 收集 areaId -> 是否有开启回路；
+ * 4. 遍历坐标标点（O(k)），任一组内 areaId 有开启回路即点亮（some 短路，发现即停）；
+ * 5. DOM 用 getElementById O(1) 定位（标点 id 即 areaId），不做全量 DOM 扫描。
  */
 async function lightMarkersByCircuitStatus(
   areaIdByMarker: Map<string, { domId: string; type: any; areaIds: string[] }>
 ) {
   if (!areaIdByMarker.size) return;
+
+  // 0. 个性化标点亮灯状态单独请求（不依赖回路数据）：
+  //    标点 id=477：弹框展示节目列表，有一条 programState='运行中' → 亮灯
+  //    标点 id=478：弹框展示区域列表，有一条 status='开启' → 亮灯
+  //    仅当数据中实际存在对应标点时请求列表接口，避免额外接口开销
+  const allAreaIds = Array.from(areaIdByMarker.values()).flatMap((v) => v.areaIds);
+  const need477 = allAreaIds.includes('477');
+  const need478 = allAreaIds.includes('478');
+  const specialLit = new Map<string, boolean>([
+    ['477', false],
+    ['478', false],
+  ]);
+  if (need477) {
+    try {
+      const planData: any = await getLightingProgramList({ pageNo: 1, pageSize: 999 });
+      const plans = Array.isArray(planData)
+        ? planData
+        : (planData?.records || planData?.list || planData?.result || planData?.data || []);
+      specialLit.set('477', (plans as any[]).some((p: any) => p.programState === '运行中'));
+    } catch (e) {
+      console.error('[map] 获取节目列表失败，477 标点保持熄灭:', e);
+    }
+  }
+  if (need478) {
+    try {
+      const areaData: any = await getAreaListBySpaceName({ id: 1 });
+      const areas = Array.isArray(areaData)
+        ? areaData
+        : (areaData?.records || areaData?.list || areaData?.result || areaData?.data || []);
+      specialLit.set(
+        '478',
+        (areas as any[]).some((a: any) => (a.status || a.state || a.areaState) === '开启')
+      );
+    } catch (e) {
+      console.error('[map] 获取区域列表失败，478 标点保持熄灭:', e);
+    }
+  }
 
   // 1. 每次进入详情模式重新请求最新回路状态（不做缓存，保证标点亮灭反映最新数据）
   let circuits: any[] = [];
@@ -1404,9 +1444,7 @@ async function lightMarkersByCircuitStatus(
     circuits = Array.isArray(res) ? res : [];
   } catch (e) {
     console.error('[map] 获取全部回路数据失败，标点保持熄灭:', e);
-    return;
   }
-  if (!circuits.length) return;
 
   // 2. 单次遍历回路数组，收集“有开启回路”的 areaId 集合（status === '开启'，Set 去重 O(1)）
   const onAreaIds = new Set<string>();
@@ -1415,11 +1453,12 @@ async function lightMarkersByCircuitStatus(
     const aid = String(c.areaId ?? '');
     if (aid) onAreaIds.add(aid);
   }
-  if (!onAreaIds.size) return;
 
-  // 3. 遍历坐标标点：组内任一 areaId 有开启回路即点亮（some 短路，发现即停）
+  // 3. 遍历坐标标点：组内任一 id 命中个性化标点（477/478）时按个性化规则点亮，其余按回路数据点亮
   areaIdByMarker.forEach(({ domId, type, areaIds }) => {
-    const lit = areaIds.some((aid) => onAreaIds.has(aid));
+    // 组内任一 id 命中个性化标点 → 按个性化规则（some 短路，发现即停）
+    const spKey = areaIds.find((aid) => specialLit.has(aid));
+    const lit = spKey ? specialLit.get(spKey)! : areaIds.some((aid) => onAreaIds.has(aid));
     if (!lit) return;
     const el = document.getElementById(domId);
     if (!el) return;

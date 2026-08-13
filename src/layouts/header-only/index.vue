@@ -1,6 +1,6 @@
 <template>
   <Layout class="header-only-layout">
-    <LayoutHeader v-if="showHeader" fixed />
+    <LayoutHeader fixed />
     <Layout class="header-only-main">
       <PageLayout />
     </Layout>
@@ -16,12 +16,6 @@
   export default defineComponent({
     name: 'HeaderOnlyLayout',
     components: { Layout, LayoutHeader, PageLayout },
-    setup() {
-      // IOC 平台 iframe 嵌入（URL 携带 from=ioc）：不展示顶部导航栏，只展示页面主体内容
-      const fromParam = new URLSearchParams(window.location.search).get('from') ?? '';
-      const showHeader = fromParam.replace(/['"]/g, '').toLowerCase() !== 'ioc';
-      return { showHeader };
-    },
   });
 </script>
 <style lang="less" scoped>

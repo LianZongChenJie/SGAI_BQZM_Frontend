@@ -9,8 +9,8 @@ import { PAGE_NOT_FOUND_ROUTE } from '/@/router/routes/basic';
 
 import { RootRoute } from '/@/router/routes';
 
-import {isOAuth2AppEnv, isOAuth2DingAppEnv} from '/@/views/sys/login/useLogin';
-import { OAUTH2_THIRD_LOGIN_TENANT_ID } from "/@/enums/cacheEnum";
+import { isOAuth2AppEnv, isOAuth2DingAppEnv } from '/@/views/sys/login/useLogin';
+import { OAUTH2_THIRD_LOGIN_TENANT_ID, IOC_EMBED_FLAG } from "/@/enums/cacheEnum";
 import { setAuthCache } from "/@/utils/auth";
 import { PAGE_NOT_FOUND_NAME_404 } from '/@/router/constant';
 
@@ -62,16 +62,19 @@ export function createPermissionGuard(router: Router) {
       // 兼容 from=ioc 与 from='ioc'（去掉引号后比较）
       if (String(iocFromValue ?? '').replace(/['"]/g, '') === 'ioc') {
         userStore.setToken(iocToken);
+        // 写入 sessionStorage 标记：嵌入会话内页面跳转/重定向后 URL 不再带 from，401 处理等仍按嵌入场景生效
+        sessionStorage.setItem(IOC_EMBED_FLAG, '1');
       }
     }
 
     const token = userStore.getToken;
 
-    // IOC 平台 iframe 嵌入免登录：URL 携带 from=ioc 时直接放行（无登录态也不跳转登录页），
+    // IOC 平台 iframe 嵌入免登录：URL 携带 from=ioc（或本会话已标记）时直接放行（无登录态也不跳转登录页），
     // 接口请求使用浏览器已有的登录态 token（当前阶段暂用柜员登录 token，后续可替换为平台专用 token）
     const fromParam = to.query?.from;
     const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
-    const isIocEmbed = String(fromValue ?? '').replace(/['"]/g, '') === 'ioc';
+    const isIocEmbed =
+      String(fromValue ?? '').replace(/['"]/g, '') === 'ioc' || sessionStorage.getItem(IOC_EMBED_FLAG) === '1';
     if (isIocEmbed && !token) {
       next();
       return;
