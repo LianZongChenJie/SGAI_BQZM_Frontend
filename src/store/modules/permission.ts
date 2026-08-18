@@ -261,7 +261,7 @@ export const usePermissionStore = defineStore({
             console.error(error);
           }
           // 隐藏指定一级菜单（概览、首钢园城市亮化平台），并将其二级菜单提升为一级菜单展示
-          const HIDDEN_MENU_TITLES = ['概览', '首钢园城市亮化平台'];
+          const HIDDEN_MENU_TITLES = ['概览', '城市亮化平台', '首钢园城市亮化平台',];
           const filteredRouteList: AppRouteRecordRaw[] = [];
           routeList.forEach((route) => {
             const title = route.meta?.title as string;
@@ -280,6 +280,19 @@ export const usePermissionStore = defineStore({
             }
           });
           routeList = filteredRouteList;
+          // 过滤掉指定的菜单（包括一级和二级）
+          const HIDDEN_MENU_NAMES = ['地图模式'];
+          // 过滤一级菜单
+          routeList = routeList.filter((route) => !HIDDEN_MENU_NAMES.includes(route.meta?.title as string));
+          // 过滤二级菜单
+          routeList.forEach((route) => {
+            if (route.children && route.children.length > 0) {
+              route.children = route.children.filter(
+                (child) => !HIDDEN_MENU_NAMES.includes(child.meta?.title as string)
+              );
+            }
+          });
+          console.log('过滤后路由菜单:', routeList.map(r => r.meta?.title));
           // 组件地址前加斜杠处理  author: lsq date:2021-09-08
           routeList = addSlashToRouteComponent(routeList);
           // 动态引入组件

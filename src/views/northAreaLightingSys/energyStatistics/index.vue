@@ -567,9 +567,11 @@ const loadTrend = async () => {
   }
 };
 
-/** 汇总表节点字段兼容映射（递归） */
-function mapSummaryNode(it: any, idx: number): SummaryNode {
-  const children = Array.isArray(it.children) ? it.children : undefined;
+/** 汇总表节点字段兼容映射（递归，path 用于生成唯一 key，避免多层 idx 重复导致树形展开错乱） */
+function mapSummaryNode(it: any, path: string): SummaryNode {
+  // 空数组视为无子级，避免 a-table 渲染出无意义的展开箭头
+  const rawChildren = Array.isArray(it.children) ? it.children : undefined;
+  const hasChildren = rawChildren && rawChildren.length > 0;
   const ratioRaw = it.ratio ?? it.proportion ?? it.percent;
   const ratioStr =
     ratioRaw === null || ratioRaw === undefined || ratioRaw === ''
@@ -578,14 +580,16 @@ function mapSummaryNode(it: any, idx: number): SummaryNode {
         ? String(ratioRaw)
         : `${Number(ratioRaw).toFixed(1)}%`;
   return {
-    key: String(it.key ?? `row-${idx}`),
+    key: path,
     name: String(it.name || '-'),
-    meterCount: Number(it.meterCount ?? it.meterNum ?? it.meter ?? it.equipmentCount ?? 0),
-    installed: Number(it.installed ?? it.installedPower ?? it.capacity ?? it.power ?? 0),
+    meterCount: Number(it.meterCount ?? it.meters ?? it.meterNum ?? it.meter ?? it.equipmentCount ?? 0),
+    installed: Number(it.installed ?? it.kw ?? it.installedPower ?? it.capacity ?? it.power ?? 0),
     today: Number(it.today ?? it.todayEnergy ?? it.todayKwh ?? it.energy ?? 0),
     month: Number(it.month ?? it.monthEnergy ?? it.monthKwh ?? 0),
     ratio: ratioStr,
-    children: children ? children.map((c: any, ci: number) => mapSummaryNode(c, ci)) : undefined,
+    children: hasChildren
+      ? rawChildren.map((c: any, ci: number) => mapSummaryNode(c, `${path}-${ci}`))
+      : undefined,
   };
 }
 
@@ -595,7 +599,7 @@ const loadSummary = async () => {
     const res = await getEnergySummary({ date: formatDate('-') });
     const list = normalizeList(res);
     if (!list.length) return;
-    summaryData.value = list.map((it: any, idx: number) => mapSummaryNode(it, idx));
+    summaryData.value = list.map((it: any, idx: number) => mapSummaryNode(it, `row-${idx}`));
   } catch (err) {
     console.error('能耗汇总加载失败：', err);
   }
