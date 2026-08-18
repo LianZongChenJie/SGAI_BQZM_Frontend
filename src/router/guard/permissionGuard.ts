@@ -75,6 +75,13 @@ export function createPermissionGuard(router: Router) {
     const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
     const isIocEmbed =
       String(fromValue ?? '').replace(/['"]/g, '') === 'ioc' || sessionStorage.getItem(IOC_EMBED_FLAG) === '1';
+    // IOC 场景（from=ioc）下：/bigGis 地图模式改为展示综合预览页面（/largeScreenDisplay），保留 query 参数（含 from）
+    // 需在下方无 token 直接放行逻辑之前判断，否则无登录态时无法重定向
+    if (isIocEmbed && to.path.startsWith('/bigGis')) {
+      next({ path: '/largeScreenDisplay/index', replace: true, query: to.query });
+      return;
+    }
+
     if (isIocEmbed && !token) {
       next();
       return;

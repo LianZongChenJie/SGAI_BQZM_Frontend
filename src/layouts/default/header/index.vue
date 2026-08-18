@@ -40,7 +40,9 @@
       <!-- <LockScreen v-if="getUseLockPage" /> -->
 
       <!-- <AppLocalePicker v-if="getShowLocalePicker" :reload="true" :showText="false" :class="`${prefixCls}-action__item`" /> -->
-      <a-button class="mode-toggle-btn" @click="toggleMode">
+      <!-- 地图/表单模式切换按钮：IOC 嵌入场景（from=ioc）下隐藏 -->
+      <!-- 原按钮已注释：<a-button class="mode-toggle-btn" @click="toggleMode">{{ isBigGis ? '表单模式' : '地图模式' }}</a-button> -->
+      <a-button v-if="!isIocEmbed" class="mode-toggle-btn" @click="toggleMode">
         {{ isBigGis ? '表单模式' : '地图模式' }}
       </a-button>
       <UserDropDown :theme="getHeaderTheme" />
@@ -86,6 +88,7 @@
   import Aide from "@/views/dashboard/ai/components/aide/index.vue"
 
   import { useRoute, useRouter } from 'vue-router';
+  import { IOC_EMBED_FLAG } from '/@/enums/cacheEnum';
 
   const { t } = useI18n();
 
@@ -126,6 +129,15 @@
   console.log("---------------vue-------")
   console.log(menuTitle.value)
   const isBigGis = computed(() => route.path.startsWith('/bigGis'));
+  // IOC 平台 iframe 嵌入场景（URL 携带 from=ioc 或本会话已标记）：隐藏地图/表单模式切换按钮
+  const isIocEmbed = computed(() => {
+    const fromParam = route.query?.from;
+    const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
+    return (
+      String(fromValue ?? '').replace(/['"]/g, '') === 'ioc' ||
+      sessionStorage.getItem(IOC_EMBED_FLAG) === '1'
+    );
+  });
   function toggleMode() {
     if (isBigGis.value) {
       router.push('/northAreaLightingSys/comprehensivePreview');
@@ -243,6 +255,7 @@
         t,
         menuTitle,
         isBigGis,
+        isIocEmbed,
         toggleMode
       };
     },
