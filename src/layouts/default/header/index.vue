@@ -88,7 +88,6 @@
   import Aide from "@/views/dashboard/ai/components/aide/index.vue"
 
   import { useRoute, useRouter } from 'vue-router';
-  import { IOC_EMBED_FLAG } from '/@/enums/cacheEnum';
 
   const { t } = useI18n();
 
@@ -129,14 +128,12 @@
   console.log("---------------vue-------")
   console.log(menuTitle.value)
   const isBigGis = computed(() => route.path.startsWith('/bigGis'));
-  // IOC 平台 iframe 嵌入场景（URL 携带 from=ioc 或本会话已标记）：隐藏地图/表单模式切换按钮
+  // IOC 平台 iframe 嵌入场景（URL 携带 from=ioc）：隐藏地图/表单模式切换按钮。
+  // 注：IOC 会话内所有页面跳转都会在 URL 上自动携带 from=ioc（见 permissionGuard），因此仅需读取 URL 参数即可
   const isIocEmbed = computed(() => {
     const fromParam = route.query?.from;
     const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
-    return (
-      String(fromValue ?? '').replace(/['"]/g, '') === 'ioc' ||
-      sessionStorage.getItem(IOC_EMBED_FLAG) === '1'
-    );
+    return String(fromValue ?? '').replace(/['"]/g, '').toLowerCase() === 'ioc';
   });
   function toggleMode() {
     if (isBigGis.value) {

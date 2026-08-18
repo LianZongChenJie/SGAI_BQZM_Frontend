@@ -38,7 +38,8 @@ export const JEECG_CHAT_UID = 'JEECG_CHAT_UID';
 // 免登录租户id，与系统分开，避免重复
 export const OAUTH2_THIRD_LOGIN_TENANT_ID = 'THIRD_LOGIN_TENANT_ID';
 
-// IOC 平台 iframe 嵌入标记（URL 携带 from=ioc 时写入 sessionStorage，保证嵌入会话内页面跳转/重定向后 401 处理等仍按嵌入场景生效）
+// IOC 嵌入标记已废弃：IOC 会话不再使用 sessionStorage 标记，改为所有页面跳转在 URL 上自动携带 from=ioc（见 permissionGuard），
+// 避免 sessionStorage 残留影响后续正常访问。以下定义保留仅为兼容历史代码。
 export const IOC_EMBED_FLAG = 'IOC__EMBED__FLAG';
 
 // ai助手标识（退出需要记录一下）

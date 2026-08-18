@@ -1,4 +1,4 @@
-import type { Router, RouteRecordRaw } from 'vue-router';
+import type { Router, RouteRecordRaw, LocationQuery } from 'vue-router';
 
 import { usePermissionStoreWithOut } from '/@/store/modules/permission';
 
@@ -10,7 +10,7 @@ import { PAGE_NOT_FOUND_ROUTE } from '/@/router/routes/basic';
 import { RootRoute } from '/@/router/routes';
 
 import { isOAuth2AppEnv, isOAuth2DingAppEnv } from '/@/views/sys/login/useLogin';
-import { OAUTH2_THIRD_LOGIN_TENANT_ID, IOC_EMBED_FLAG } from "/@/enums/cacheEnum";
+import { OAUTH2_THIRD_LOGIN_TENANT_ID } from "/@/enums/cacheEnum";
 import { setAuthCache } from "/@/utils/auth";
 import { PAGE_NOT_FOUND_NAME_404 } from '/@/router/constant';
 
@@ -53,28 +53,34 @@ export function createPermissionGuard(router: Router) {
       return;
     }
 
+    // 判断 query.from 是否为 ioc（兼容 from=ioc 与 from='ioc'，去掉引号后比较）
+    const isIocFrom = (query: LocationQuery | undefined): boolean => {
+      const fromVal = query?.from;
+      const v = Array.isArray(fromVal) ? fromVal[0] : fromVal;
+      return String(v ?? '').replace(/['"]/g, '').toLowerCase() === 'ioc';
+    };
+
     // IOC 平台 iframe 嵌入免登录：URL 携带 from=ioc 时，使用 .env 中 VITE_IOC_TOKEN 配置的 token 调用接口，
     // （当前阶段暂用柜员登录 token，后续可替换为平台专用 token；否则嵌入方无登录态，接口会报 token 失效）
     const iocToken = import.meta.env.VITE_IOC_TOKEN as string | undefined;
-    if (iocToken) {
-      const iocFromParam = to.query?.from;
-      const iocFromValue = Array.isArray(iocFromParam) ? iocFromParam[0] : iocFromParam;
-      // 兼容 from=ioc 与 from='ioc'（去掉引号后比较）
-      if (String(iocFromValue ?? '').replace(/['"]/g, '') === 'ioc') {
-        userStore.setToken(iocToken);
-        // 写入 sessionStorage 标记：嵌入会话内页面跳转/重定向后 URL 不再带 from，401 处理等仍按嵌入场景生效
-        sessionStorage.setItem(IOC_EMBED_FLAG, '1');
-      }
+    const toFromIoc = isIocFrom(to.query);
+    const fromFromIoc = isIocFrom(from.query);
+    if (iocToken && toFromIoc) {
+      userStore.setToken(iocToken);
+    }
+
+    // IOC 会话延续：来源路由带 from=ioc 而目标路由未带时，自动为目标路由补上 from='ioc'，
+    // 使 URL 始终携带 IOC 标记（不再依赖 sessionStorage，避免缓存残留影响后续正常访问）
+    if (fromFromIoc && !toFromIoc) {
+      next({ ...to, query: { ...to.query, from: "'ioc'" } });
+      return;
     }
 
     const token = userStore.getToken;
 
-    // IOC 平台 iframe 嵌入免登录：URL 携带 from=ioc（或本会话已标记）时直接放行（无登录态也不跳转登录页），
+    // IOC 平台 iframe 嵌入免登录：URL 携带 from=ioc 时直接放行（无登录态也不跳转登录页），
     // 接口请求使用浏览器已有的登录态 token（当前阶段暂用柜员登录 token，后续可替换为平台专用 token）
-    const fromParam = to.query?.from;
-    const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
-    const isIocEmbed =
-      String(fromValue ?? '').replace(/['"]/g, '') === 'ioc' || sessionStorage.getItem(IOC_EMBED_FLAG) === '1';
+    const isIocEmbed = toFromIoc || fromFromIoc;
     // IOC 场景（from=ioc）下：/bigGis 地图模式改为展示综合预览页面（/largeScreenDisplay），保留 query 参数（含 from）
     // 需在下方无 token 直接放行逻辑之前判断，否则无登录态时无法重定向
     if (isIocEmbed && to.path.startsWith('/bigGis')) {
