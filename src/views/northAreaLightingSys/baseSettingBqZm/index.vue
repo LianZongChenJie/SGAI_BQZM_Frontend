@@ -82,15 +82,15 @@
           @checkbox-change="onCheckboxChange"
           @checkbox-all="onCheckboxAll"
         >
-          <vxe-column type="checkbox" width="45" fixed="left"></vxe-column>
-          <vxe-column type="seq" title="序号" width="60" fixed="left"></vxe-column>
-          <vxe-column field="relName" title="类别" min-width="120"></vxe-column>
-          <vxe-column field="spaceName" title="区域" min-width="120"></vxe-column>
+          <vxe-column type="checkbox" width="40" fixed="left"></vxe-column>
+          <vxe-column type="seq" title="序号" width="50" fixed="left"></vxe-column>
+          <vxe-column field="relName" title="类别" min-width="100"></vxe-column>
+          <vxe-column field="spaceName" title="区域" min-width="110"></vxe-column>
           <!-- areaCode -->
           <vxe-column field="areaCode" title="区域编码" min-width="110"></vxe-column>
           <vxe-column field="areaName" title="名称" min-width="110"></vxe-column>
           <vxe-column field="pendingMsgCount" title="待下发消息数量" width="125" header-align="center" align="center"></vxe-column>
-          <vxe-column field="status" title="状态" width="130">
+          <vxe-column field="status" title="状态" width="100">
             <template #default="{ row }">
               <span
                 class="status-indicator"
@@ -115,6 +115,7 @@
               </span>
             </template>
           </vxe-column>
+          <vxe-column field="comstat" title="连接状态" min-width="80"></vxe-column>
           <vxe-column title="操作" width="360" fixed="right" header-align="left" align="left">
             <template #default="{ row }">
               <div class="actions">
