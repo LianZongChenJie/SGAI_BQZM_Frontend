@@ -958,6 +958,13 @@ async function fetchSpaceDataById(sid: number | string): Promise<any> {
           // 【临时验证】记录 spaceName，排查制氧区 spaceId=903 归属问题（验证完可删除）
           spaceName: res?.spaceName,
         }
+        // 合并 relType==='回路' 的场景详情暂存回路：遍历所有暂存 tagId，若该 space 属于此 tagId（tagId 包含多个 space），
+        // 把暂存回路与 getSceneSpaceApi 按 space 查回的 circuits 合并（重复回路由 mergeById 按 id 去重）
+        for (const [tagId, circuits] of tagCircuitMap) {
+          if (tagSpaceMap.get(tagId)?.has(Number(key))) {
+            data.circuits = mergeById(data.circuits, circuits)
+          }
+        }
         spaceDataById.value[key] = data
         return data
       }
@@ -1450,6 +1457,14 @@ async function fetchCircuitStats() {
 const allTagScenes = ref<any[]>([])
 const tagSceneListLoading = ref(false)
 
+// relType==='回路' 的场景详情暂存回路（键为场景 tagId，即地块 district id）：
+// scene/detail 对 relType==='回路' 的场景直接返回 circuitList（areaList 为 null，顶层 tagId 标识归属标签，circuits 项不带 tagId），
+// 这类回路 scene/space 接口可能不返回，暂存后按 tagId 归并到对应 space 查回的 circuits 中
+const tagCircuitMap = new Map<string, any[]>()
+// tagId → 包含的 spaceId 集合：由 relType==='区域' 场景详情的 areaList.space 汇总（现有逻辑，tagId 可能包含多个 space），
+// relType==='回路' 的暂存回路按此映射找到归属 space，与 getSceneSpaceApi 按 space 查回的 circuits 合并
+const tagSpaceMap = new Map<string, Set<number>>()
+
 // 查询所有场景并过滤出有 tagId 的场景（带加载中防重）
 async function fetchTagSceneList(): Promise<any[]> {
   if (tagSceneListLoading.value) return allTagScenes.value
@@ -1474,19 +1489,30 @@ async function fetchTagSceneList(): Promise<any[]> {
 // 标签下包含的地块 = 该 tagId 所有场景详情（/scene/detail）areaList.space 的并集，作为 /scene/space 请求来源
 async function fetchAllDistrictTags() {
   try {
+    // 每次重新抓取前清空暂存与归属映射，避免重复调用时数据重复累积
+    tagCircuitMap.clear()
+    tagSpaceMap.clear()
     // 1. 查询所有场景（scene/listPage），只保留有 tagId 的场景（无 tagId 的场景过滤掉）
     const tagScenes = await fetchTagSceneList()
 
     // 2. 并行查询所有场景详情（一次发起，便于核对调用个数），取 areaList 下的 space 字段：
     // 全局去重为最终 spaceId 数组；按引用它的场景 tagId 归属到对应标签（标签与地块的包含关系，不再看 area 自身字段）
     const spaceIdSet = new Set<number>()
-    const tagSpaceMap = new Map<string, Set<number>>()
     await Promise.all(
       tagScenes.map(async (scene: any) => {
         const sceneTagId = getSceneTagId(scene)
         if (sceneTagId == null) return
         try {
           const detail: any = await planDetailApiNew({ id: scene.id })
+          // relType==='回路'：areaList 一定为 null，detail 直接返回对应回路的 circuitList（顶层 tagId 标识归属标签）；
+          // 该 tagId 可能包含多个 space，先把回路列表按 tagId 暂存，后续与各 space 查回的 circuits 合并
+          if (detail?.relType === '回路' && Array.isArray(detail?.circuitList) && detail.circuitList.length) {
+            const detailTagId = getSceneTagId(detail) ?? getSceneTagId(scene)
+            if (detailTagId != null) {
+              if (!tagCircuitMap.has(String(detailTagId))) tagCircuitMap.set(String(detailTagId), [])
+              tagCircuitMap.get(String(detailTagId))!.push(...detail.circuitList)
+            }
+          }
           const areaList = Array.isArray(detail?.areaList) ? detail.areaList : []
           areaList.forEach((area: any) => {
             const sid = Number(area?.space)
