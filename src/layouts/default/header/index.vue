@@ -40,6 +40,10 @@
       <!-- <LockScreen v-if="getUseLockPage" /> -->
 
       <!-- <AppLocalePicker v-if="getShowLocalePicker" :reload="true" :showText="false" :class="`${prefixCls}-action__item`" /> -->
+      <!-- 全屏模式按钮：仅 bigGis 页面展示（位于模式切换按钮左侧），点击等效浏览器 F11（Fullscreen API），再次点击或按 Esc 退出 -->
+      <a-button v-if="isBigGis" class="fullscreen-toggle-btn" @click="toggleFullscreen">
+        {{ isFullscreen ? '退出全屏' : '全屏模式' }}
+      </a-button>
       <!-- 地图/表单模式切换按钮：IOC 嵌入场景（from=ioc）下隐藏 -->
       <!-- 原按钮已注释：<a-button class="mode-toggle-btn" @click="toggleMode">{{ isBigGis ? '表单模式' : '地图模式' }}</a-button> -->
       <a-button v-if="!isIocEmbed" class="mode-toggle-btn" @click="toggleMode">
@@ -56,7 +60,7 @@
   <LoginSelect ref="loginSelectRef" @success="loginSelectOk"></LoginSelect>
 </template>
 <script lang="ts">
-  import { defineComponent, unref, computed, ref, onMounted, toRaw } from 'vue';
+  import { defineComponent, unref, computed, ref, onMounted, onUnmounted, toRaw } from 'vue';
   import { useGlobSetting } from '/@/hooks/setting';
   import { propTypes } from '/@/utils/propTypes';
 
@@ -142,6 +146,27 @@
       router.push('/bigGis');
     }
   }
+  // 全屏模式：调用浏览器 Fullscreen API（等效 F11 键），Esc 或再次点击退出
+  const isFullscreen = ref(false);
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.();
+    }
+  }
+
+  // 同步全屏状态：Esc 键退出后按钮文字自动恢复为“全屏模式”
+  function onFullscreenChange() {
+    isFullscreen.value = !!document.fullscreenElement;
+  }
+  onMounted(() => {
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+  });
+  onUnmounted(() => {
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
+  });
       const {
         getHeaderTheme,
         getShowFullScreen,
@@ -253,7 +278,9 @@
         menuTitle,
         isBigGis,
         isIocEmbed,
-        toggleMode
+        toggleMode,
+        isFullscreen,
+        toggleFullscreen
       };
     },
   });
@@ -337,6 +364,22 @@
 
 /* 地图/表单模式切换按钮 */
 .mode-toggle-btn {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  border: 1px solid rgba(59, 130, 246, 0.5) !important;
+  color: #fff !important;
+  border-radius: 6px;
+  height: 32px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  &:hover {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    border-color: rgba(59, 130, 246, 0.8) !important;
+  }
+}
+
+/* 全屏模式按钮：与模式切换按钮同风格（仅 bigGis 页面展示） */
+.fullscreen-toggle-btn {
   background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
   border: 1px solid rgba(59, 130, 246, 0.5) !important;
   color: #fff !important;
