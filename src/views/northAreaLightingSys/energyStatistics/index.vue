@@ -37,22 +37,18 @@
 
     <!-- 汇总表 -->
     <div class="chart-card">
-      <div class="card-title">
-        <span class="title-bar"></span>
-        汇总表
-        <!-- 页签：汇总表 / 区间查询 -->
-        <div class="summary-tabs">
-          <button
-            class="summary-tab"
-            :class="{ active: summaryTab === 'tree' }"
-            @click="switchSummaryTab('tree')"
-          >汇总表</button>
-          <button
-            class="summary-tab"
-            :class="{ active: summaryTab === 'meter' }"
-            @click="switchSummaryTab('meter')"
-          >区间查询</button>
-        </div>
+      <!-- 页签切换：汇总表 / 区间查询 -->
+      <div class="summary-tabs">
+        <button
+          class="summary-tab"
+          :class="{ active: summaryTab === 'tree' }"
+          @click="switchSummaryTab('tree')"
+        >汇总表</button>
+        <button
+          class="summary-tab"
+          :class="{ active: summaryTab === 'meter' }"
+          @click="switchSummaryTab('meter')"
+        >区间查询</button>
       </div>
 
       <!-- 页签一：汇总表（地块 → 区域 → 箱子） -->
@@ -566,33 +562,41 @@ const summaryColumns = [
 /* ============================ 汇总表页签 + 区间查询 ============================ */
 /** 当前汇总表页签：tree=汇总表，meter=区间查询 */
 const summaryTab = ref<'tree' | 'meter'>('tree');
+/** 片区下拉是否已加载（避免重复请求） */
+let districtLoaded = false;
 
 /** 切换汇总表页签 */
 function switchSummaryTab(tab: 'tree' | 'meter') {
   summaryTab.value = tab;
-  if (tab === 'meter' && districtOptions.value.length === 0) {
+  if (tab === 'meter' && !districtLoaded) {
+    // 首次进入区间查询时加载片区下拉
     loadDistrictOptions();
   }
 }
 
-/** 区域（片区）下拉选项 */
-const districtOptions = ref<{ label: string; value: number }[]>([]);
+/** 区域（片区）下拉选项：value=0 表示"全部片区"，用于不传 districtId 查询全部 */
+const districtOptions = ref<{ label: string; value: number }[]>([
+  { label: '全部片区', value: 0 },
+]);
 async function loadDistrictOptions() {
   try {
     const res = await getAllDistrictTag('1');
     const list = Array.isArray(res) ? res : (res?.records || []);
-    districtOptions.value = list.map((it: any) => ({
+    const rest = list.map((it: any) => ({
       label: it.districtName,
       value: Number(it.id),
     }));
+    // 保留开头的"全部片区"选项，追加实际片区
+    districtOptions.value = [{ label: '全部片区', value: 0 }, ...rest];
+    districtLoaded = true;
   } catch (err) {
     console.error('加载区域下拉失败：', err);
   }
 }
 
-/** 区间查询条件 */
+/** 区间查询条件：districtId=0 表示全部片区（不传参） */
 const meterQuery = ref({
-  districtId: undefined as number | undefined,
+  districtId: 0 as number,
   gateway: '' as string,
   startTime: null as string | null,
   endTime: null as string | null,
@@ -622,7 +626,8 @@ function fmtNum(v: any): string {
 /** 查询：按区域/箱子/时间区间查表底与累计用电量 */
 async function handleMeterSearch() {
   const params: Record<string, any> = {};
-  if (meterQuery.value.districtId != null && meterQuery.value.districtId !== undefined) {
+  // districtId=0 表示全部片区，不传参（后端查全部）
+  if (meterQuery.value.districtId) {
     params.districtId = meterQuery.value.districtId;
   }
   if (meterQuery.value.gateway.trim()) {
@@ -662,7 +667,7 @@ async function handleMeterSearch() {
 /** 重置查询条件 */
 function handleMeterReset() {
   meterQuery.value = {
-    districtId: undefined,
+    districtId: 0,
     gateway: '',
     startTime: null,
     endTime: null,
@@ -994,34 +999,32 @@ onUnmounted(() => {
   height: 320px;
 }
 
-/* ---------- 汇总表页签 ---------- */
+/* ---------- 汇总表/区间查询 页签切换 ---------- */
 .summary-tabs {
   display: inline-flex;
-  gap: 0;
-  margin-left: auto;
-  background: rgba(0, 162, 232, 0.08);
-  border: 1px solid rgba(0, 162, 232, 0.25);
-  border-radius: 4px;
-  padding: 2px;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .summary-tab {
-  height: 28px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 3px;
+  height: 30px;
+  padding: 0 18px;
+  border: 1px solid rgba(0, 162, 232, 0.35);
+  border-radius: 4px;
   font-size: 13px;
   color: #8ba3c0;
-  background: transparent;
+  background: rgba(0, 162, 232, 0.08);
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
     color: #00a2e8;
+    border-color: rgba(0, 162, 232, 0.6);
   }
 
   &.active {
     color: #ffffff;
+    border-color: rgba(0, 162, 232, 0.9);
     background: rgba(0, 162, 232, 0.9);
   }
 }
