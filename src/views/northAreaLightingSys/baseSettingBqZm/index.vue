@@ -85,7 +85,7 @@
           <vxe-column type="checkbox" width="40" fixed="left"></vxe-column>
           <vxe-column type="seq" title="序号" width="50" fixed="left"></vxe-column>
           <vxe-column field="relName" title="类别" min-width="100"></vxe-column>
-          <vxe-column field="spaceName" title="区域" min-width="110"></vxe-column>
+          <vxe-column field="districtName" title="区域" min-width="110"></vxe-column>
           <!-- areaCode -->
           <vxe-column field="areaCode" title="区域编码" min-width="110"></vxe-column>
           <vxe-column field="areaName" title="名称" min-width="110"></vxe-column>
@@ -144,7 +144,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
-import { getRelName, getAllSpace, getAreaListPageApi, setAreaOpenApi, setAreaCloseApi, recallMqApi } from '@/api/baseSettingBqZm';   // ← replace with the real module
+import { getRelName, getAllDistrictTag, getAreaListPageApi, setAreaOpenApi, setAreaCloseApi, recallMqApi } from '@/api/baseSettingBqZm';   // ← replace with the real module
 import configOpenMessage from './compoments/configOpenMessage.vue';
 import configOpenMessageTwo from './compoments/configOpenMessageTwo.vue';
 import circuitListModal from './compoments/circuitListModal.vue';
@@ -188,18 +188,17 @@ async function fetchRelNameOptions() {
   }
 }
 
-/** 获取区域下拉选项 */
+/** 获取区域下拉选项（综合预览地块运行状态标签列表） */
 async function fetchPlaceOptions() {
   try {
-    const res = await getAllSpace();
+    const res = await getAllDistrictTag('1');
     console.log('区域选项：', res);
-    if (Array.isArray(res)) {
-      // 查询接口按 spaceName 过滤，下拉 value 直接用 spaceName（与设备监控页下拉取值一致）
-      placeOptions.value = res.map((item: { spaceId: string; spaceName: string }) => ({
-        label: item.spaceName,
-        value: item.spaceName,
-      }));
-    }
+    const list = Array.isArray(res) ? res : (res?.records || []);
+    // 查询接口按 districtId 过滤，下拉 value 用标签 id，label 用标签中文名（districtName）
+    placeOptions.value = list.map((item: { id: string; districtName: string }) => ({
+      label: item.districtName,
+      value: String(item.id),
+    }));
   } catch (err) {
     console.error('获取区域选项失败：', err);
   }
@@ -217,7 +216,7 @@ async function fetchList() {
       pageNo: 1,
       pageSize: 9999,
       relName: selectedRelName.value || undefined,
-      spaceName: selectedPlace.value || undefined,
+      districtId: selectedPlace.value || undefined,
       areaName: searchKeyword.value.trim() || undefined,
     };
     const data = await getAreaListPageApi(params);
