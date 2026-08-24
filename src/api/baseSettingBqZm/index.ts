@@ -4,7 +4,6 @@ enum Api {
   getAreaListPageApi = '/sgai-bqzm/bems/lighting/area/listPage1',
   relNameApi = '/sgai-bqzm/bems/lighting/area/getAllRelName',
   allSpaceApi = '/sgai-bqzm/bems/lighting/area/getAllSpace',
-  allDistrictTagApi = '/sgai-bqzm/bems/lighting/district/listPage',
   setAreaOpenApi = '/sgai-bqzm/bems/lighting/area/open',
   setAreaCloseApi = '/sgai-bqzm/bems/lighting/area/close',
   recallMqApi = '/sgai-bqzm/bems/lighting/area/recallMq',
@@ -26,12 +25,6 @@ export const getRelName = (params) => defHttp.get({ url: Api.relNameApi, params 
  * @param params
  */
 export const getAllSpace = () => defHttp.get({ url: Api.allSpaceApi });
-/**
- * 获取全部区域（地块运行状态标签列表）
- * @param type 传 "1" 只取地块（标签）数据
- */
-export const getAllDistrictTag = (type: string = '1') =>
-  defHttp.get({ url: Api.allDistrictTagApi, params: { type } });
 /**
  * 开启区域
  */
