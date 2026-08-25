@@ -34,7 +34,6 @@ enum Api {
   getEnergyProportionApi = '/sgai-bqzm/bems/lighting/energy/proportion',
   getEnergyHourlyTrendApi = '/sgai-bqzm/bems/lighting/energy/hourlyTrend',
   getEnergySummaryApi = '/sgai-bqzm/bems/lighting/energy/summary',
-  getEnergyMeterReadsApi = '/sgai-bqzm/bems/lighting/energy/meterReads',
 }
 
 /**
@@ -157,6 +156,3 @@ export const getEnergyHourlyTrend = (params) => defHttp.get({ url: Api.getEnergy
 
 // 能耗统计 - 能耗汇总表（GET）
 export const getEnergySummary = (params) => defHttp.get({ url: Api.getEnergySummaryApi, params }, { joinParamsToUrl: true });
-
-// 能耗统计 - 电表读数区间查询（汇总表页签：按片区/箱子/时间区间查表底与累计用电量，GET）
-export const getEnergyMeterReads = (params) => defHttp.get({ url: Api.getEnergyMeterReadsApi, params }, { joinParamsToUrl: true });
