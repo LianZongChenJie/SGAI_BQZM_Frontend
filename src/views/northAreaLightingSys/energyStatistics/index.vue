@@ -37,135 +37,49 @@
 
     <!-- 汇总表 -->
     <div class="chart-card">
-      <!-- 页签切换：汇总表 / 区间查询 -->
-      <div class="summary-tabs">
-        <button
-          class="summary-tab"
-          :class="{ active: summaryTab === 'tree' }"
-          @click="switchSummaryTab('tree')"
-        >汇总表</button>
-        <button
-          class="summary-tab"
-          :class="{ active: summaryTab === 'meter' }"
-          @click="switchSummaryTab('meter')"
-        >区间查询</button>
+      <div class="card-title">
+        <span class="title-bar"></span>
+        汇总表
+        <span class="title-tip">（点击地块行展开区域，再点击展开箱子）</span>
       </div>
-
-      <!-- 页签一：汇总表（地块 → 区域 → 箱子） -->
-      <template v-if="summaryTab === 'tree'">
-        <div class="title-tip" style="margin-bottom: 8px">（点击地块行展开区域，再点击展开箱子）</div>
-        <a-table
-          :columns="summaryColumns"
-          :data-source="summaryData"
-          row-key="key"
-          :pagination="false"
-          class="summary-table"
-        >
-          <template #expandIcon="{ expanded, record, onExpand }">
-            <template v-if="record.children && record.children.length > 0">
-              <caret-down-filled
-                v-if="expanded"
-                class="expand-arrow"
-                @click="(e) => onExpand(record, e)"
-              />
-              <caret-right-filled
-                v-else
-                class="expand-arrow"
-                @click="(e) => onExpand(record, e)"
-              />
-            </template>
+      <a-table
+        :columns="summaryColumns"
+        :data-source="summaryData"
+        row-key="key"
+        :pagination="false"
+        class="summary-table"
+      >
+        <template #expandIcon="{ expanded, record, onExpand }">
+          <template v-if="record.children && record.children.length > 0">
+            <caret-down-filled
+              v-if="expanded"
+              class="expand-arrow"
+              @click="(e) => onExpand(record, e)"
+            />
+            <caret-right-filled
+              v-else
+              class="expand-arrow"
+              @click="(e) => onExpand(record, e)"
+            />
           </template>
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'installed'">
-              {{ record.installed.toFixed(1) }}
-            </template>
-            <template v-else-if="column.key === 'today'">
-              {{ record.today.toFixed(1) }}
-            </template>
-            <template v-else-if="column.key === 'month'">
-              {{ record.month.toFixed(1) }}
-            </template>
-            <template v-else-if="column.key === 'ratio'">
-              <span :class="['ratio-text', record.ratio !== '0.0%' && record.children ? 'has-children' : '']">
-                {{ record.ratio }}
-              </span>
-            </template>
+        </template>
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'installed'">
+            {{ record.installed.toFixed(1) }}
           </template>
-        </a-table>
-      </template>
-
-      <!-- 页签二：区间查询（按片区/箱子/时间区间查表底与累计用电量） -->
-      <template v-else>
-        <div class="meter-query-bar">
-          <div class="query-field">
-            <label class="query-label">区域</label>
-            <a-select
-              v-model:value="meterQuery.districtId"
-              placeholder="请选择区域"
-              allowClear
-              :options="districtOptions"
-              style="width: 180px"
-            />
-          </div>
-          <div class="query-field">
-            <label class="query-label">箱子名称</label>
-            <a-input
-              v-model:value="meterQuery.gateway"
-              placeholder="请输入网关编号"
-              allowClear
-              style="width: 160px"
-              @pressEnter="handleMeterSearch"
-            />
-          </div>
-          <div class="query-field">
-            <label class="query-label">开始时间</label>
-            <a-date-picker
-              v-model:value="meterQuery.startTime"
-              show-time
-              format="YYYY-MM-DD HH:mm:ss"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              placeholder="开始时间"
-              style="width: 190px"
-            />
-          </div>
-          <div class="query-field">
-            <label class="query-label">结束时间</label>
-            <a-date-picker
-              v-model:value="meterQuery.endTime"
-              show-time
-              format="YYYY-MM-DD HH:mm:ss"
-              value-format="YYYY-MM-DD HH:mm:ss"
-              placeholder="结束时间"
-              style="width: 190px"
-            />
-          </div>
-          <div class="query-actions">
-            <button class="btn btn-primary" @click="handleMeterSearch">查询</button>
-            <button class="btn btn-outline" @click="handleMeterReset">重置</button>
-          </div>
-        </div>
-
-        <a-table
-          :columns="meterReadColumns"
-          :data-source="meterReadData"
-          row-key="boxName"
-          :pagination="false"
-          :loading="meterReadLoading"
-          class="summary-table meter-read-table"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'startValue'">
-              {{ fmtNum(record.startValue) }}
-            </template>
-            <template v-else-if="column.key === 'endValue'">
-              {{ fmtNum(record.endValue) }}
-            </template>
-            <template v-else-if="column.key === 'total'">
-              <span class="meter-total">{{ fmtNum(record.total) }}</span>
-            </template>
+          <template v-else-if="column.key === 'today'">
+            {{ record.today.toFixed(1) }}
           </template>
-        </a-table>
-      </template>
+          <template v-else-if="column.key === 'month'">
+            {{ record.month.toFixed(1) }}
+          </template>
+          <template v-else-if="column.key === 'ratio'">
+            <span :class="['ratio-text', record.ratio !== '0.0%' && record.children ? 'has-children' : '']">
+              {{ record.ratio }}
+            </span>
+          </template>
+        </template>
+      </a-table>
     </div>
   </div>
 </template>
@@ -175,8 +89,7 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import * as echarts from 'echarts';
 import { message } from 'ant-design-vue';
 import { UploadOutlined, CaretRightFilled, CaretDownFilled } from '@ant-design/icons-vue';
-import { getEnergyRanking, getEnergyProportion, getEnergyHourlyTrend, getEnergySummary, getEnergyMeterReads } from '@/api/equipmentMonitoring';
-import { getAllDistrictTag } from '@/api/baseSettingBqZm';
+import { getEnergyRanking, getEnergyProportion, getEnergyHourlyTrend, getEnergySummary } from '@/api/equipmentMonitoring';
 
 /* ============================ 顶部工具栏 ============================ */
 const statType = ref('area'); // area: 按区域 / box: 按箱子
@@ -559,122 +472,6 @@ const summaryColumns = [
   { title: '本月占比', key: 'ratio', dataIndex: 'ratio', align: 'center' as const },
 ];
 
-/* ============================ 汇总表页签 + 区间查询 ============================ */
-/** 当前汇总表页签：tree=汇总表，meter=区间查询 */
-const summaryTab = ref<'tree' | 'meter'>('tree');
-/** 片区下拉是否已加载（避免重复请求） */
-let districtLoaded = false;
-
-/** 切换汇总表页签 */
-function switchSummaryTab(tab: 'tree' | 'meter') {
-  summaryTab.value = tab;
-  if (tab === 'meter' && !districtLoaded) {
-    // 首次进入区间查询时加载片区下拉
-    loadDistrictOptions();
-  }
-}
-
-/** 区域（片区）下拉选项：value=0 表示"全部片区"，用于不传 districtId 查询全部 */
-const districtOptions = ref<{ label: string; value: number }[]>([
-  { label: '全部片区', value: 0 },
-]);
-async function loadDistrictOptions() {
-  try {
-    const res = await getAllDistrictTag('1');
-    const list = Array.isArray(res) ? res : (res?.records || []);
-    const rest = list.map((it: any) => ({
-      label: it.districtName,
-      value: Number(it.id),
-    }));
-    // 保留开头的"全部片区"选项，追加实际片区
-    districtOptions.value = [{ label: '全部片区', value: 0 }, ...rest];
-    districtLoaded = true;
-  } catch (err) {
-    console.error('加载区域下拉失败：', err);
-  }
-}
-
-/** 区间查询条件：districtId=0 表示全部片区（不传参） */
-const meterQuery = ref({
-  districtId: 0 as number,
-  gateway: '' as string,
-  startTime: null as string | null,
-  endTime: null as string | null,
-});
-
-/** 区间查询结果 */
-const meterReadData = ref<any[]>([]);
-const meterReadLoading = ref(false);
-
-/** 区间查询结果列 */
-const meterReadColumns = [
-  { title: '区域', key: 'districtName', dataIndex: 'districtName', align: 'center' as const },
-  { title: '箱子名称', key: 'boxName', dataIndex: 'boxName', align: 'center' as const },
-  { title: '开始时间', key: 'startTime', dataIndex: 'startTime', align: 'center' as const },
-  { title: '开始表底', key: 'startValue', dataIndex: 'startValue', align: 'center' as const },
-  { title: '结束时间', key: 'endTime', dataIndex: 'endTime', align: 'center' as const },
-  { title: '结束表底', key: 'endValue', dataIndex: 'endValue', align: 'center' as const },
-  { title: '累计用电量(kWh)', key: 'total', dataIndex: 'total', align: 'center' as const },
-];
-
-/** 数值格式化 */
-function fmtNum(v: any): string {
-  const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n.toFixed(1) : '0.0';
-}
-
-/** 查询：按区域/箱子/时间区间查表底与累计用电量 */
-async function handleMeterSearch() {
-  const params: Record<string, any> = {};
-  // districtId=0 表示全部片区，不传参（后端查全部）
-  if (meterQuery.value.districtId) {
-    params.districtId = meterQuery.value.districtId;
-  }
-  if (meterQuery.value.gateway.trim()) {
-    params.gateway = meterQuery.value.gateway.trim();
-  }
-  if (meterQuery.value.startTime) {
-    params.startTime = meterQuery.value.startTime;
-  }
-  if (meterQuery.value.endTime) {
-    params.endTime = meterQuery.value.endTime;
-  }
-
-  meterReadLoading.value = true;
-  try {
-    const res = await getEnergyMeterReads(params);
-    const list = Array.isArray(res) ? res : (res?.records || []);
-    meterReadData.value = list.map((it: any) => ({
-      districtName: it.districtName || '-',
-      boxName: it.boxName || `${it.gatewayCode || '-'}号网关`,
-      startTime: it.startTime || '-',
-      startValue: it.startValue,
-      endTime: it.endTime || '-',
-      endValue: it.endValue,
-      total: it.total,
-    }));
-    if (!list.length) {
-      message.info('未查询到符合条件的电表读数');
-    }
-  } catch (err) {
-    console.error('区间查询失败：', err);
-    meterReadData.value = [];
-  } finally {
-    meterReadLoading.value = false;
-  }
-}
-
-/** 重置查询条件 */
-function handleMeterReset() {
-  meterQuery.value = {
-    districtId: 0,
-    gateway: '',
-    startTime: null,
-    endTime: null,
-  };
-  meterReadData.value = [];
-}
-
 /* ============================ 接口数据加载 ============================ */
 /** 生成当天日期字符串，sep='-' → 2026-08-13；sep='' → 20260813 */
 function formatDate(sep: string): string {
@@ -997,101 +794,6 @@ onUnmounted(() => {
 
 .trend-chart {
   height: 320px;
-}
-
-/* ---------- 汇总表/区间查询 页签切换 ---------- */
-.summary-tabs {
-  display: inline-flex;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.summary-tab {
-  height: 30px;
-  padding: 0 18px;
-  border: 1px solid rgba(0, 162, 232, 0.35);
-  border-radius: 4px;
-  font-size: 13px;
-  color: #8ba3c0;
-  background: rgba(0, 162, 232, 0.08);
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &:hover {
-    color: #00a2e8;
-    border-color: rgba(0, 162, 232, 0.6);
-  }
-
-  &.active {
-    color: #ffffff;
-    border-color: rgba(0, 162, 232, 0.9);
-    background: rgba(0, 162, 232, 0.9);
-  }
-}
-
-/* ---------- 区间查询条件栏 ---------- */
-.meter-query-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(0, 162, 232, 0.15);
-  border-radius: 6px;
-}
-
-.query-field {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.query-label {
-  font-size: 13px;
-  color: #8ba3c0;
-  white-space: nowrap;
-}
-
-.query-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.btn {
-  height: 32px;
-  padding: 0 16px;
-  border-radius: 4px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  &.btn-primary {
-    background: #00a2e8;
-    color: #fff;
-    border: none;
-
-    &:hover {
-      background: #0090cf;
-    }
-  }
-
-  &.btn-outline {
-    background: transparent;
-    color: #fff;
-    border: 1px solid #334155;
-
-    &:hover {
-      border-color: #00a2e8;
-      color: #00a2e8;
-    }
-  }
-}
-
-.meter-read-table .meter-total {
-  color: #00d4ff;
-  font-weight: 600;
 }
 
 /* ---------- 汇总表 ---------- */
